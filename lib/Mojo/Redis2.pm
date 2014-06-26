@@ -214,6 +214,20 @@ sub url {
 
 =head1 METHODS
 
+=head2 new
+
+  $self = Mojo::Redis2->new(...);
+
+Object constructor. Makes sure L</url> is an object.
+
+=cut
+
+sub new {
+  my $self = shift->SUPER::new(@_);
+  $self->{url} = Mojo::URL->new($self->{url}) if $self->{url} and ref $self->{url} eq '';
+  $self;
+}
+
 =head2 blpop
 
   $res = $self->blpop(@keys);
