@@ -50,14 +50,9 @@ guard: The transaction will not be run if the guard goes out of scope.
   use Mojo::Redis2;
   my $redis = Mojo::Redis2->new;
 
-  # Will die() as soon as possible on error.
-  # On success: @res = ("OK", "42", "OK");
-  @res = $redis->set(foo => "42")->get("foo")->set(bar => 123)->execute;
-
-  # Might die() too late, because of pipelined() will cause data to be sent to
-  # the redis server without waiting for response.
-  # On success: @res = ("OK", "42", "OK");
-  @res = $redis->pipelined->set(foo => "42")->get("foo")->set(bar => 123)->execute;
+  # Will die() on error.
+  $res = $redis->set(foo => "42"); # $res = OK
+  $res = $redis->get("foo");       # $res = 42
 
 =head2 Non-blocking
 
@@ -67,13 +62,12 @@ guard: The transaction will not be run if the guard goes out of scope.
       # Will not run "GET foo" unless ping() was successful
       # Use pipelined() before ping() if you want all commands to run even
       # if one operation fail.
-      $redis->ping->get("foo")->execute($delay->begin);
+      $redis->ping($delay->begin)->get("foo", $delay->begin);
     },
     sub {
-      my ($delay, $err, $res) = @_;
-      # On error: $err is set to a string
-      # NOTE: $err might be set on partial success, when using pipelined()
-      # On success: $res = [ "PONG", "42" ];
+      my ($delay, $ping_err, $ping, $get_err, $get) = @_;
+      # On error: $ping_err and $get_err is set to a string
+      # On success: $ping = "PONG", $get = "42";
     },
   );
 
@@ -81,20 +75,17 @@ guard: The transaction will not be run if the guard goes out of scope.
 
 L<Mojo::Redis2> can L</subscribe> and re-use the same object to C<publish> or
 run other Redis commands, since it can keep track of multiple connections to
-the same Redis server.
-
-  my $id;
+the same Redis server. It will also re-use the same connection when you
+(p)subscribe multiple times.
 
   $self->on(message => sub {
     my ($self, $message, $channel) = @_;
-
-    $self->unsubscribe($id) if $message =~ /KEEP OUT/;
   });
 
-  $id = $self->subscribe("some:channel" => sub {
+  $self->subscribe("some:channel" => sub {
     my ($self, $err) = @_;
 
-    return $self->publish("myapp:errors" => $err)->execute if $err;
+    return $self->publish("myapp:errors" => $err) if $err;
     return $self->incr("subscribed:to:some:channel");
   });
 
@@ -214,123 +205,8 @@ sub url {
 
 =head1 METHODS
 
-=head2 new
-
-  $self = Mojo::Redis2->new(...);
-
-Object constructor. Makes sure L</url> is an object.
-
-=cut
-
-sub new {
-  my $self = shift->SUPER::new(@_);
-  $self->{url} = Mojo::URL->new($self->{url}) if $self->{url} and ref $self->{url} eq '';
-  $self;
-}
-
-=head2 blpop
-
-  $res = $self->blpop(@keys);
-  $self = $self->blpop(@keys => sub {
-            my ($self, $err, $res) = @_;
-          });
-
-The blocking version will hang until one of the keys has data.
-
-The non-blocking version will make a new connection to the Redis server
-which allow C<$self> to issue other commands.
-
-=head2 brpop
-
-  $res = $self->brpop(@keys);
-  $self = $self->brpop(@keys => sub {
-            my ($self, $err, $res) = @_;
-          });
-
-The blocking version will hang until one of the keys has data.
-
-The non-blocking version will make a new connection to the Redis server
-which allow C<$self> to issue other commands.
-
-=head2 brpoplpush
-
-  $res = $self->brpoplpush($source => $destination);
-  $self = $self->brpoplpush($source => $destination => sub {
-            my ($self, $err, $res) = @_;
-          });
-
-The blocking version will hang until one of the keys has data.
-
-The non-blocking version will make a new connection to the Redis server
-which allow C<$self> to issue other commands.
-
-=head2 execute
-
-  @res = $self->execute;
-  $self = $self->execute(sub {
-            my ($self, $err, $res) = @_;
-          });
-
-Will send the L<prepared|/prepare> commands to the Redis server.
-The callback will receive L<$err|/Error Handling> and C<$res>. C<$res>
-is an array-ref with one list-item per L<prepared|/prepare> redis command.
-
-C<$res> will be returned as a list when called in blocking context.
-
-=cut
-
-sub execute {
-  my ($self, $cb) = @_;
-  my ($err, $res);
-
-  $self->_cleanup unless ($self->{pid} //= $$) eq $$; # TODO: Fork safety
-  $self->_execute({
-    cb => $cb || sub { shift->_loop(0)->stop; ($err, $res) = @_; },
-    nb => $cb ? 1 : 0,
-    pipelined => delete $self->{pipelined} || 0,
-    queue => delete $self->{queue} || [],
-    type => 'basic',
-  });
-
-  return $self if $cb;
-  $self->_loop(0)->start;
-  die $err if $err;
-  return @$res;
-}
-
-=head2 pipelined
-
-  $self = $self->pipelined;
-
-Will mark L<prepared|/prepare> operations to be sent to the server
-as soon as possible.
-
-=cut
-
-sub pipelined {
-  $_[0]->{pipelined} = $_[1] // 1;
-  $_[0];
-}
-
-=head2 prepare
-
-  $self = $self->prepare($redis_method => @redis_args);
-  $self = $self->prepare($redis_method => @redis_args, sub { ... });
-
-Used to prepare commands for L</execute>. Example:
-
-  $self->prepare(GET => "foo");
-  $self->prepare(GET => "foo", sub { ... });
-
-Passing on a callback at the end will automatically call L</execute> with
-the given callback as argument.
-
-There are also shortcuts for most of the C<$redis_method>. Example:
-
-  $self->get("foo");
-  $self->get("foo", sub { ... });
-
-List of Redis methods available on C<$self>:
+In addition to the methods listed in this module, you can call these Redis
+methods on C<$self>:
 
 append, decr, decrby,
 del, exists, expire, expireat, get, getbit,
@@ -349,16 +225,18 @@ zcount, zincrby, zinterstore, zrange, zrangebyscore, zrank,
 zrem, zremrangebyrank, zremrangebyscore, zrevrange, zrevrangebyscore, zrevrank,
 zscore and zunionstore.
 
+=head2 new
+
+  $self = Mojo::Redis2->new(...);
+
+Object constructor. Makes sure L</url> is an object.
+
 =cut
 
-sub prepare {
-  my $cb = ref $_[-1] eq 'CODE' ? pop : undef;
-  my ($self, @op) = @_;
-
-  push @{ $self->{queue} }, [@op];
-
-  return $self->execute($cb) if $cb;
-  return $self;
+sub new {
+  my $self = shift->SUPER::new(@_);
+  $self->{url} = Mojo::URL->new($self->{url}) if $self->{url} and ref $self->{url} eq '';
+  $self;
 }
 
 =head2 psubscribe
@@ -387,17 +265,6 @@ C<$id> can be used to L</unsubscribe>.
 
 sub psubscribe { shift->_subscribe(PSUBSCRIBE => @_); }
 sub subscribe { shift->_subscribe(SUBSCRIBE => @_); }
-
-=head2 unsubscribe
-
-  $self->unsubscribe($id);
-  $self->unsubscribe($event_name);
-  $self->unsubscribe($event_name => $cb);
-
-Same as L<Mojo::EventEmitter/unsubscribe>, but can also stop a pub/sub
-subscription based on an C<$id>.
-
-=cut
 
 sub AUTOLOAD {
   my $self = shift;
