@@ -10,6 +10,4 @@ my @res;
 is $redis->url, $ENV{MOJO_REDIS_URL}, 'url() is set';
 isa_ok $redis->protocol, $ENV{MOJO_REDIS_PROTOCOL};
 
-is_deeply [$redis->execute], [], 'no commands to execute' or diag join '|', @res;
-
 done_testing;

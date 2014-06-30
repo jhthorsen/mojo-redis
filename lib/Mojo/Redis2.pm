@@ -59,9 +59,6 @@ guard: The transaction will not be run if the guard goes out of scope.
   Mojo::IOLoop->delay(
     sub {
       my ($delay) = @_;
-      # Will not run "GET foo" unless ping() was successful
-      # Use pipelined() before ping() if you want all commands to run even
-      # if one operation fail.
       $redis->ping($delay->begin)->get("foo", $delay->begin);
     },
     sub {
@@ -112,32 +109,25 @@ my $PROTOCOL_CLASS = do {
   $class;
 };
 
-my %REDIS_METHODS = map { ($_, 1) } (
-  'append',   'decr',            'decrby',
-  'del',      'exists',          'expire',           'expireat',    'get',              'getbit',
-  'getrange', 'getset',          'hdel',             'hexists',     'hget',             'hgetall',
-  'hincrby',  'hkeys',           'hlen',             'hmget',       'hmset',            'hset',
-  'hsetnx',   'hvals',           'incr',             'incrby',      'keys',             'lindex',
-  'linsert',  'llen',            'lpop',             'lpush',       'lpushx',           'lrange',
-  'lrem',     'lset',            'ltrim',            'mget',        'move',             'mset',
-  'msetnx',   'persist',         'ping',             'publish',     'randomkey',        'rename',
-  'renamenx', 'rpop',            'rpoplpush',        'rpush',       'rpushx',           'sadd',
-  'scard',    'sdiff',           'sdiffstore',       'set',         'setbit',           'setex',
-  'setnx',    'setrange',        'sinter',           'sinterstore', 'sismember',        'smembers',
-  'smove',    'sort',            'spop',             'srandmember', 'srem',             'strlen',
-  'sunion',   'sunionstore',     'ttl',              'type',        'zadd',             'zcard',
-  'zcount',   'zincrby',         'zinterstore',      'zrange',      'zrangebyscore',    'zrank',
-  'zrem',     'zremrangebyrank', 'zremrangebyscore', 'zrevrange',   'zrevrangebyscore', 'zrevrank',
-  'zscore',   'zunionstore',
+my %REDIS_METHODS = map { ( $_, 1 ) } (
+  'append',      'decr',             'decrby',   'del',      'exists',          'expire',
+  'expireat',    'get',              'getbit',   'getrange', 'getset',          'hdel',
+  'hexists',     'hget',             'hgetall',  'hincrby',  'hkeys',           'hlen',
+  'hmget',       'hmset',            'hset',     'hsetnx',   'hvals',           'incr',
+  'incrby',      'keys',             'lindex',   'linsert',  'llen',            'lpop',
+  'lpush',       'lpushx',           'lrange',   'lrem',     'lset',            'ltrim',
+  'mget',        'move',             'mset',     'msetnx',   'persist',         'ping',
+  'publish',     'randomkey',        'rename',   'renamenx', 'rpop',            'rpoplpush',
+  'rpush',       'rpushx',           'sadd',     'scard',    'sdiff',           'sdiffstore',
+  'set',         'setbit',           'setex',    'setnx',    'setrange',        'sinter',
+  'sinterstore', 'sismember',        'smembers', 'smove',    'sort',            'spop',
+  'srandmember', 'srem',             'strlen',   'sunion',   'sunionstore',     'ttl',
+  'type',        'zadd',             'zcard',    'zcount',   'zincrby',         'zinterstore',
+  'zrange',      'zrangebyscore',    'zrank',    'zrem',     'zremrangebyrank', 'zremrangebyscore',
+  'zrevrange',   'zrevrangebyscore', 'zrevrank', 'zscore',   'zunionstore',
 );
 
 =head1 EVENTS
-
-=head2 connection
-
-  $self->on(connection => sub { my ($self, $id) = @_; });
-
-Emitted when a new connection has been established.
 
 =head2 error
 
@@ -263,8 +253,15 @@ C<$id> can be used to L</unsubscribe>.
 
 =cut
 
-sub psubscribe { shift->_subscribe(PSUBSCRIBE => @_); }
-sub subscribe { shift->_subscribe(SUBSCRIBE => @_); }
+sub psubscribe {
+  my $cb = ref $_[-1] eq 'CODE' ? pop : sub {};
+  shift->_execute(pubsub => PSUBSCRIBE => @_, $cb);
+}
+
+sub subscribe {
+  my $cb = ref $_[-1] eq 'CODE' ? pop : sub {};
+  shift->_execute(pubsub => SUBSCRIBE => @_, $cb);
+}
 
 sub AUTOLOAD {
   my $self = shift;
@@ -275,8 +272,8 @@ sub AUTOLOAD {
     Carp::croak(qq{Can't locate object method "$method" via package "$package"});
   }
 
-  eval "sub $method { shift->prepare($op => \@_); }; 1" or die $@;
-  $self->prepare($op => @_);
+  eval "sub $method { shift->_execute(basic => $op => \@_); }; 1" or die $@;
+  $self->_execute(basic => $op => @_);
 }
 
 sub DESTROY { shift->_cleanup; }
@@ -287,71 +284,58 @@ sub _cleanup {
 
   delete $self->{pid};
 
-  for my $id (keys %$connections) {
-    my $c = $connections->{$id};
-    my $cb = $c->{cb};
+  for my $c (values %$connections) {
     my $loop = $self->_loop($c->{nb}) or next;
-    $loop->remove($id);
-    $self->$cb('Premature connection close', []) if $cb and $c->{queue};
+    $loop->remove($c->{id}) if $c->{id};
+    $self->$_('Premature connection close', []) for grep map { $_->[0] } @{ $c->{queue} };
   }
 }
 
 sub _connect {
-  my ($self, $op) = @_;
+  my ($self, $c) = @_;
   my $url = $self->url;
-  my $id;
+  my $db = $url->path->[0];
+  my ($password) = reverse split /:/, +($url->userinfo // '');
 
   Scalar::Util::weaken($self);
-  $id = $self->_loop($op->{nb})->client(
+  $c->{id} = $self->_loop($c->{nb})->client(
     { address => $url->host, port => $url->port || DEFAULT_PORT },
     sub {
       my ($loop, $err, $stream) = @_;
 
       if ($err) {
-        delete $self->{connections}{$id};
-        return $self->_error($id, $err);
+        delete $c->{id};
+        return $self->_error($c, $err);
       }
 
-      # Connection established
-      $stream->timeout(0) unless $op->{type} eq 'basic';
-      $stream->on(close => sub { $self->_error($id) });
-      $stream->on(error => sub { $self and $self->_error($id, $_[1]) });
-      $stream->on(read => sub { $self->_read($id, $_[1]) });
-      $self->_connected($id)->emit(connection => $id);
-    }
+      warn "[$self:connected] $url\n" if DEBUG == 2;
+
+      $stream->timeout(0);
+      $stream->on(close => sub { $self->_error($c) });
+      $stream->on(error => sub { $self and $self->_error($c, $_[1]) });
+      $stream->on(read => sub { $self->_read($c, $_[1]) });
+
+      # NOTE: unshift() will cause AUTH to be sent before SELECT
+      unshift @{ $c->{queue} }, [ undef, SELECT => $db ] if $db;
+      unshift @{ $c->{queue} }, [ undef, AUTH => $password ] if $password;
+
+      $self->_dequeue($c);
+    },
   );
 
-  $self->{connections}{$id} = $op;
   $self;
 }
 
-sub _connected {
-  my ($self, $id) = @_;
-  my ($password) = reverse split /:/, +($self->url->userinfo // '');
-  my $db = $self->url->path->[0];
-  my $c = $self->{connections}{$id};
-
-  warn "[redis:$id:connected] @{[$self->url]}\n" if DEBUG == 2;
-
-  # NOTE: unshift() will cause AUTH to be sent before SELECT
-  if (length $db) {
-    $c->{skip}++;
-    unshift @{ $c->{queue} }, [ SELECT => $db ];
-  }
-  if ($password) {
-    $c->{skip}++;
-    unshift @{ $c->{queue} }, [ AUTH => $password ];
-  }
-
-  $self->_dequeue($id);
-}
-
 sub _dequeue {
-  my ($self, $id) = @_;
-  my $c = $self->{connections}{$id};
+  my ($self, $c) = @_;
   my $loop = $self->_loop($c->{nb});
-  my $stream = $loop->stream($id) or return $self;
-  my $queue = $c->{queue} ||= [];
+  my $stream = $loop->stream($c->{id}) or return $self;
+  my $queue = $c->{queue};
+  my $buf;
+
+  if (!$queue->[0]) {
+    return $self;
+  }
 
   # Make sure connection has not been corrupted while event loop was stopped
   if (!$loop->is_running and $stream->is_readable) {
@@ -359,56 +343,45 @@ sub _dequeue {
     return $self;
   }
 
-  while (@$queue) {
-    my $buf = $self->_op_to_command(shift @$queue);
-    do { local $_ = $buf; s!\r\n!\\r\\n!g; warn "[redis:$id:write] ($_)\n" } if DEBUG;
-    $stream->write($buf);
-    last unless $c->{pipelined};
-  }
-
-  delete $c->{queue} unless @$queue;
-  return $self;
+  $buf = $self->_op_to_command($queue->[0]);
+  do { local $_ = $buf; s!\r\n!\\r\\n!g; warn "[$self:write] ($_)\n" } if DEBUG;
+  $stream->write($buf);
+  $self;
 }
 
 sub _error {
-  my ($self, $id, $err) = @_;
-  my $c = delete $self->{connections}{$id};
-  my $cb = $c->{cb};
+  my ($self, $c, $err) = @_;
+  my $queue = $c->{queue};
 
-  warn "[redis:$id:error] @{[$err // 'close']}\n" if DEBUG;
+  warn "[$self] @{[$err // 'close']}\n" if DEBUG;
 
-  return $self->_connect($c) if $c->{queue};
-  return $self unless defined $err;
-  return $self->$cb($err, []) if $cb;
-  return $self->emit_safe(error => $err);
+  return $self->_connect($c) unless defined $err;
+  return $self->emit_safe(error => $err) unless @$queue;
+  return $self->$_($err, []) for grep map { $_->[0] } @$queue;
 }
 
 sub _execute {
-  my ($self, $op) = @_;
-  my $connections = $self->{connections} || {};
-  my ($c, $id);
+  my $cb = ref $_[-1] eq 'CODE' ? pop : undef;
+  my ($self, $group, @cmd) = @_;
 
-  $op->{n} = @{ $op->{queue} || [] };
+  $self->_cleanup unless ($self->{pid} //= $$) eq $$; # TODO: Fork safety
 
-  unless ($op->{n}) {
-    Scalar::Util::weaken($self);
-    my $cb = $op->{cb};
-    $self->_loop($op->{nb})->timer(0 => sub { $self and $self->$cb('', []); });
-    return $self;
+  if ($cb) {
+    my $c = $self->{connections}{$group} ||= { nb => 1 };
+    push @{ $c->{queue} }, [$cb, @cmd];
+    return $self->_connect($c) unless $c->{id};
+    return $self->_dequeue($c);
   }
+  else {
+    my $c = $self->{connections}{blocking} ||= { nb => 0 };
+    my ($err, $res);
 
-  for (keys %$connections) {
-    $c = $connections->{$_};
-    next if $c->{nb} ne $op->{nb};
-    next if $c->{type} ne $op->{type};
-    next if $c->{queue};
-    $id = $_;
-    last;
+    push @{ $c->{queue} }, [sub { shift->_loop(0)->stop; ($err, $res) = @_; }, @cmd];
+    $c->{id} ? $self->_dequeue($c) : $self->_connect($c);
+    $self->_loop(0)->start;
+    die $err if $err;
+    return $res;
   }
-
-  return $self->_connect($op) unless $id;
-  $c->{$_} = $op->{$_} for keys %$op;
-  return $self->_dequeue($id);
 }
 
 sub _loop {
@@ -417,9 +390,10 @@ sub _loop {
 
 sub _op_to_command {
   my ($self, $op) = @_;
-  my @data;
+  my ($i, @data);
 
   for my $token (@$op) {
+    next unless $i++;
     $token = Mojo::Util::encode($self->encoding, $token) if $self->encoding;
     push @data, {type => '$', data => $token};
   }
@@ -428,48 +402,31 @@ sub _op_to_command {
 }
 
 sub _read {
-  my ($self, $id, $buf) = @_;
+  my ($self, $c, $buf) = @_;
   my $protocol = $self->protocol;
-  my $c = $self->{connections}{$id};
   my $event;
 
-  do { local $_ = $buf; s!\r\n!\\r\\n!g; warn "[redis:$id:read] ($_)\n" } if DEBUG;
+  do { local $_ = $buf; s!\r\n!\\r\\n!g; warn "[$self:read] ($_)\n" } if DEBUG;
   $protocol->parse($buf);
 
   MESSAGE:
   while (my $message = $protocol->get_message) {
     my $data = $self->_reencode_message($message);
+    my $op = shift @{ $c->{queue} };
+    my $cb = $op->[0];
 
     if (ref $data eq 'SCALAR') {
-      $c->{err} ||= $$data;
-      if ($c->{pipelined}) {
-        push @{ $c->{res} }, undef;
-      }
-      else {
-        push @{ $c->{res} }, undef for 1..$c->{n};
-        delete $c->{$_} for qw( skip queue );
-        next MESSAGE;
-      }
+      $self->$cb($$data, []) if $cb;
     }
     elsif (ref $data eq 'ARRAY' and $data->[0] =~ /^(p?message)$/i) {
       $event = shift @$data;
       $self->emit($event => reverse @$data);
     }
-    elsif (--$c->{skip} >= 0) {
-      next MESSAGE;
-    }
     else {
-      push @{ $c->{res} }, $data;
+      $self->$cb('', $data) if $cb;
     }
 
-    --$c->{n};
-  }
-
-  if ($c->{n} and $c->{queue}) {
-    $self->_dequeue($id);
-  }
-  elsif (!$event and my $cb = delete $c->{cb}) {
-    $self->$cb($c->{err} // '', delete $c->{res});
+    $self->_dequeue($c);
   }
 }
 
@@ -490,19 +447,6 @@ sub _reencode_message {
   else {
     return [ map { $self->_reencode_message($_); } @$data ];
   }
-}
-
-sub _subscribe {
-  my $cb = ref $_[-1] eq 'CODE' ? pop : undef;
-  my ($self, @op) = @_;
-
-  $self->_execute({
-    cb => $cb,
-    nb => 1,
-    pipelined => 0,
-    queue => [[@op]],
-    type => 'pubsub',
-  });
 }
 
 =head1 COPYRIGHT AND LICENSE

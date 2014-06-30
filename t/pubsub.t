@@ -12,16 +12,16 @@ my ($err, $res, $n, $tid, @messages);
     diag "subscribe mojo:redis:test";
     (my $redis, $err, $res) = @_;
     $n++;
-    $redis->publish("mojo:redis:test" => "message $n")->execute;
+    $redis->publish("mojo:redis:test" => "message $n");
   });
   $redis->on(message => sub {
     shift;
     push @messages, [message => @_];
     $redis->psubscribe("mojo:redis:ch*", sub {
       $n++;
-      $redis->publish("mojo:redis:test" => "message $n")->execute;
+      $redis->publish("mojo:redis:test" => "message $n");
       $n++;
-      $redis->publish("mojo:redis:channel2" => "message $n")->execute;
+      $redis->publish("mojo:redis:channel2" => "message $n");
     });
     Mojo::IOLoop->stop if @messages == 3;
   });
@@ -39,7 +39,7 @@ my ($err, $res, $n, $tid, @messages);
   Mojo::IOLoop->start;
 
   is $err, '', 'no subscribe error';
-  is_deeply $res, [ [qw( subscribe mojo:redis:test 1 )] ], 'subscribed to one channel';
+  is_deeply $res, [qw( subscribe mojo:redis:test 1 )], 'subscribed to one channel';
 
   is_deeply(
     \@messages,
