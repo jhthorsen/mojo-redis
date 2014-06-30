@@ -2,7 +2,7 @@ use Mojo::Base -base;
 use Mojo::Redis2;
 use Test::More;
 
-plan skip_all => 'Missing MOJO_REDIS_URL=redis://localhost/14' unless $ENV{MOJO_REDIS_URL};
+plan skip_all => $@ unless eval { Mojo::Redis2->start_server };
 
 my $redis = Mojo::Redis2->new;
 my ($ping_err, $ping, $get_err, $get);

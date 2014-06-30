@@ -2,12 +2,20 @@ use Mojo::Base -base;
 use Mojo::Redis2;
 use Test::More;
 
-plan skip_all => 'Missing MOJO_REDIS_URL=redis://localhost/14' unless $ENV{MOJO_REDIS_URL};
+{
+  my $redis = Mojo::Redis2->new;
+  is $redis->url, 'redis://localhost:6379', 'url() is set';
+  isa_ok $redis->protocol, $ENV{MOJO_REDIS_PROTOCOL};
+}
 
-my $redis = Mojo::Redis2->new;
-my @res;
+{
+  local $ENV{MOJO_REDIS_URL} = 'redis://x:z@localhost:42/3';
+  my $redis = Mojo::Redis2->new;
+  is $redis->url->host, 'localhost', 'url() host';
+  is $redis->url->path->[0], '3', 'url() path';
+  is $redis->url->port, '42', 'url() port';
+  is $redis->url->userinfo, 'x:z', 'url() userinfo';
+}
 
-is $redis->url, $ENV{MOJO_REDIS_URL}, 'url() is set';
-isa_ok $redis->protocol, $ENV{MOJO_REDIS_PROTOCOL};
 
 done_testing;

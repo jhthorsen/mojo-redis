@@ -2,7 +2,7 @@ use Mojo::Base -base;
 use Mojo::Redis2;
 use Test::More;
 
-plan skip_all => 'Missing MOJO_REDIS_URL=redis://localhost/14' unless $ENV{MOJO_REDIS_URL};
+plan skip_all => $@ unless eval { Mojo::Redis2->start_server };
 
 my $redis = Mojo::Redis2->new;
 my ($err, $res, $n, $tid, @messages);
@@ -14,6 +14,7 @@ my ($err, $res, $n, $tid, @messages);
     $n++;
     $redis->publish("mojo:redis:test" => "message $n");
   });
+
   $redis->on(message => sub {
     shift;
     push @messages, [message => @_];
@@ -25,15 +26,11 @@ my ($err, $res, $n, $tid, @messages);
     });
     Mojo::IOLoop->stop if @messages == 3;
   });
+
   $redis->on(pmessage => sub {
     shift;
     push @messages, [pmessage => @_];
     Mojo::IOLoop->stop if @messages == 3;
-  });
-
-
-  $tid = Mojo::IOLoop->recurring(0.02 => sub {
-    Mojo::IOLoop->remove($tid) if ++$n == 2;
   });
 
   Mojo::IOLoop->start;
