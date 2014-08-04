@@ -36,11 +36,6 @@ blocking operation on the server side at the time (such as BLPOP,
 SUBSCRIBE, ...). This object creates new connections pr. blocking operation
 which makes it easier to avoid "blocking" bugs.
 
-=item * Transaction support
-
-Transactions will done in a new L<Mojo::Redis2> object that also act as a
-guard: The transaction will not be run if the guard goes out of scope.
-
 =back
 
 =head1 SYNOPSIS
@@ -282,8 +277,6 @@ in the input C<%config>.
 =item * bind: "localhost"
 
 =item * port: A randomly picked port
-
-=item *
 
 =back
 
