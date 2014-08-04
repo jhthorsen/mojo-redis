@@ -394,6 +394,7 @@ sub _connect {
   my @userinfo = split /:/, +($url->userinfo // '');
 
   Scalar::Util::weaken($self);
+  $c->{name} = $url->clone->userinfo('')->query(g => $c->{group})->to_string if DEBUG;
   $c->{id} = $self->_loop($c->{nb})->client(
     { address => $url->host, port => $url->port || DEFAULT_PORT },
     sub {
@@ -404,7 +405,7 @@ sub _connect {
         return $self->_error($c, $err);
       }
 
-      warn "[$self:connected] $url\n" if DEBUG == 2;
+      warn "[$c->{name}] connected\n" if DEBUG;
 
       $stream->timeout(0);
       $stream->on(close => sub { $self->_error($c) });
@@ -440,7 +441,7 @@ sub _dequeue {
   }
 
   $buf = $self->_op_to_command($queue->[0]);
-  do { local $_ = $buf; s!\r\n!\\r\\n!g; warn "[$self] <<< ($_)\n" } if DEBUG;
+  do { local $_ = $buf; s!\r\n!\\r\\n!g; warn "[$c->{name}] <<< ($_)\n" } if DEBUG;
   $stream->write($buf);
   $self;
 }
@@ -449,7 +450,7 @@ sub _error {
   my ($self, $c, $err) = @_;
   my $queue = $c->{queue};
 
-  warn "[$self] @{[$err // 'close']}\n" if DEBUG;
+  warn "[$c->{name}] !!! @{[$err // 'close']}\n" if DEBUG;
 
   return $self->_connect($c) unless defined $err;
   return $self->emit_safe(error => $err) unless @$queue;
@@ -463,13 +464,13 @@ sub _execute {
   $self->_cleanup unless ($self->{pid} //= $$) eq $$; # TODO: Fork safety
 
   if ($cb) {
-    my $c = $self->{connections}{$group} ||= { nb => 1 };
+    my $c = $self->{connections}{$group} ||= { nb => 1, group => $group };
     push @{ $c->{queue} }, [$cb, @cmd];
     return $self->_connect($c) unless $c->{id};
     return $self->_dequeue($c);
   }
   else {
-    my $c = $self->{connections}{blocking} ||= { nb => 0 };
+    my $c = $self->{connections}{blocking} ||= { nb => 0, group => 'blocking' };
     my ($err, $res);
 
     push @{ $c->{queue} }, [sub { shift->_loop(0)->stop; ($err, $res) = @_; }, @cmd];
@@ -502,7 +503,7 @@ sub _read {
   my $protocol = $self->protocol;
   my $event;
 
-  do { local $_ = $buf; s!\r\n!\\r\\n!g; warn "[$self] >>> ($_)\n" } if DEBUG;
+  do { local $_ = $buf; s!\r\n!\\r\\n!g; warn "[$c->{name}] >>> ($_)\n" } if DEBUG;
   $protocol->parse($buf);
 
   MESSAGE:
