@@ -106,7 +106,7 @@ my $PROTOCOL_CLASS = do {
 };
 
 my %REDIS_METHODS = map { ( $_, 1 ) } (
-  'append',      'decr',             'decrby',   'del',      'exists',          'expire',
+  'append',      'echo',             'decr',     'decrby',   'del',             'exists',          'expire',
   'expireat',    'get',              'getbit',   'getrange', 'getset',          'hdel',
   'hexists',     'hget',             'hgetall',  'hincrby',  'hkeys',           'hlen',
   'hmget',       'hmset',            'hset',     'hsetnx',   'hvals',           'incr',
@@ -196,7 +196,7 @@ sub url {
 In addition to the methods listed in this module, you can call these Redis
 methods on C<$self>:
 
-append, decr, decrby,
+append, echo, decr, decrby,
 del, exists, expire, expireat, get, getbit,
 getrange, getset, hdel, hexists, hget, hgetall,
 hincrby, hkeys, hlen, hmget, hmset, hset,

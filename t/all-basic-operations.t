@@ -23,6 +23,7 @@ done_testing;
 
 sub Connection {
   is $redis->ping, 'PONG', 'ping';
+  is $redis->echo('yikes'), 'yikes', 'echo';
 }
 
 sub Hashes {
