@@ -440,7 +440,7 @@ sub _dequeue {
   }
 
   $buf = $self->_op_to_command($queue->[0]);
-  do { local $_ = $buf; s!\r\n!\\r\\n!g; warn "[$self:write] ($_)\n" } if DEBUG;
+  do { local $_ = $buf; s!\r\n!\\r\\n!g; warn "[$self] <<< ($_)\n" } if DEBUG;
   $stream->write($buf);
   $self;
 }
@@ -502,7 +502,7 @@ sub _read {
   my $protocol = $self->protocol;
   my $event;
 
-  do { local $_ = $buf; s!\r\n!\\r\\n!g; warn "[$self:read] ($_)\n" } if DEBUG;
+  do { local $_ = $buf; s!\r\n!\\r\\n!g; warn "[$self] >>> ($_)\n" } if DEBUG;
   $protocol->parse($buf);
 
   MESSAGE:
