@@ -319,13 +319,18 @@ sub start_server {
     $cfg->add_chunk("$key $value\n") if length $value;
   }
 
-  $cfg->move_to($cfg->path .'.conf');
+  $config->{config_file} = $cfg->path .'-redis.conf';
+  $cfg->move_to($config->{config_file});
 
   if ($config->{pid} = fork) { # parent
     close $WRITE;
-    my $err = readline $READ || $class->_server_status($config);
-    warn "[Redis::Server] failed: $err\n" if SERVER_DEBUG and $err;
-    die $err if $err;
+
+    if (my $err = readline $READ || $class->_server_status($config)) {
+      warn "[Redis::Server] failed: $err\n" if SERVER_DEBUG;
+      waitpid $config->{pid}, 0; # wait for hanging child process
+      die $err;
+    }
+
     %SERVER = %$config;
     $ENV{MOJO_REDIS_URL} //= sprintf 'redis://x:%s@%s:%s/', map { $_ // '' } @$config{qw( requirepass bind port )};
     warn "[Redis::Server] MOJO_REDIS_URL=$ENV{MOJO_REDIS_URL}\n" if SERVER_DEBUG;
@@ -541,6 +546,18 @@ sub _server_status {
   return 'Redis server has unknown status';
 }
 
+sub _stop_server {
+  my $class = shift;
+  my $config = shift || \%SERVER;
+
+  if ($config->{config_file} and -r $config->{config_file}) {
+    kill 15, $config->{pid} if $config->{pid};
+    unlink $config->{config_file};
+  }
+
+  return $class;
+}
+
 =head1 COPYRIGHT AND LICENSE
 
 Copyright (C) 2014, Jan Henning Thorsen
@@ -554,8 +571,6 @@ Jan Henning Thorsen - C<jhthorsen@cpan.org>
 
 =cut
 
-END {
-  $SERVER{pid} and kill 15, $SERVER{pid};
-}
+END { __PACKAGE__->_stop_server; }
 
 1;
