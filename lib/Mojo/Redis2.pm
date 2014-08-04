@@ -246,25 +246,21 @@ sub can {
 
 =head2 psubscribe
 
-  $id = $self->psubscribe(@patterns, sub { my ($self, $err) = @_; ... });
+  $self = $self->psubscribe(@patterns, sub { my ($self, $err, $res) = @_; ... });
 
 Used to subscribe to specified channels that match C<@patterns>. See
 L<http://redis.io/topics/pubsub> for details.
 
 This event will cause L</pmessage> events to be emitted, unless C<$err> is set.
 
-C<$id> can be used to L</unsubscribe>.
-
 =head2 subscribe
 
-  $id = $self->subscribe(@channels, sub { my ($self, $err = @_; ... });
+  $self = $self->subscribe(@channels, sub { my ($self, $err, $res) = @_; ... });
 
 Used to subscribe to specified C<@channels>. See L<http://redis.io/topics/pubsub>
 for details.
 
 This event will cause L</message> events to be emitted, unless C<$err> is set.
-
-C<$id> can be used to L</unsubscribe>.
 
 =cut
 
@@ -383,7 +379,7 @@ sub _cleanup {
   for my $c (values %$connections) {
     my $loop = $self->_loop($c->{nb}) or next;
     $loop->remove($c->{id}) if $c->{id};
-    $self->$_('Premature connection close', []) for grep map { $_->[0] } @{ $c->{queue} };
+    $self->$_('Premature connection close', []) for grep map { $_->[0] } @{ $c->{waiting} };
   }
 }
 
@@ -440,7 +436,8 @@ sub _dequeue {
     return $self;
   }
 
-  $buf = $self->_op_to_command($queue->[0]);
+  push @{ $c->{waiting} }, pop @$queue;
+  $buf = $self->_op_to_command($c->{waiting}[-1]);
   do { local $_ = $buf; s!\r\n!\\r\\n!g; warn "[$c->{name}] <<< ($_)\n" } if DEBUG;
   $stream->write($buf);
   $self;
@@ -448,13 +445,13 @@ sub _dequeue {
 
 sub _error {
   my ($self, $c, $err) = @_;
-  my $queue = $c->{queue};
+  my $waiting = $c->{waiting} || [];
 
   warn "[$c->{name}] !!! @{[$err // 'close']}\n" if DEBUG;
 
   return $self->_connect($c) unless defined $err;
-  return $self->emit_safe(error => $err) unless @$queue;
-  return $self->$_($err, []) for grep map { $_->[0] } @$queue;
+  return $self->emit_safe(error => $err) unless @$waiting;
+  return $self->$_($err, []) for grep map { $_->[0] } @$waiting;
 }
 
 sub _execute {
@@ -509,7 +506,7 @@ sub _read {
   MESSAGE:
   while (my $message = $protocol->get_message) {
     my $data = $self->_reencode_message($message);
-    my $op = shift @{ $c->{queue} };
+    my $op = shift @{ $c->{waiting} || [] };
     my $cb = $op->[0];
 
     if (ref $data eq 'SCALAR') {
