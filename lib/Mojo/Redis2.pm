@@ -391,7 +391,7 @@ sub _connect {
   my ($self, $c) = @_;
   my $url = $self->url;
   my $db = $url->path->[0];
-  my ($password) = reverse split /:/, +($url->userinfo // '');
+  my @userinfo = split /:/, +($url->userinfo // '');
 
   Scalar::Util::weaken($self);
   $c->{id} = $self->_loop($c->{nb})->client(
@@ -413,7 +413,7 @@ sub _connect {
 
       # NOTE: unshift() will cause AUTH to be sent before SELECT
       unshift @{ $c->{queue} }, [ undef, SELECT => $db ] if $db;
-      unshift @{ $c->{queue} }, [ undef, AUTH => $password ] if $password;
+      unshift @{ $c->{queue} }, [ undef, AUTH => $userinfo[1] ] if length $userinfo[1];
 
       $self->_dequeue($c);
     },
