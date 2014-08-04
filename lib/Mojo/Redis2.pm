@@ -475,7 +475,7 @@ sub _execute {
     push @{ $c->{queue} }, [sub { shift->_loop(0)->stop; ($err, $res) = @_; }, @cmd];
     $c->{id} ? $self->_dequeue($c) : $self->_connect($c);
     $self->_loop(0)->start;
-    die $err if $err;
+    die "[@cmd] $err" if $err;
     return $res;
   }
 }
@@ -514,7 +514,7 @@ sub _read {
     if (ref $data eq 'SCALAR') {
       $self->$cb($$data, []) if $cb;
     }
-    elsif (ref $data eq 'ARRAY' and $data->[0] =~ /^(p?message)$/i) {
+    elsif (ref $data eq 'ARRAY' and @$data and $data->[0] =~ /^(p?message)$/i) {
       $event = shift @$data;
       $self->emit($event => reverse @$data);
     }
