@@ -15,7 +15,8 @@ use Test::More;
   is $redis->url->path->[0], '3', 'url() path';
   is $redis->url->port, '42', 'url() port';
   is $redis->url->userinfo, 'x:z', 'url() userinfo';
+  is ref($redis->can('new')), 'CODE', 'new() is already there';
+  is ref($redis->can('hgetall')), 'CODE', 'hgetall() added';
 }
-
 
 done_testing;

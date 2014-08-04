@@ -227,6 +227,23 @@ sub new {
   $self;
 }
 
+=head2 can
+
+  $code = $class->can($method_name);
+  $code = $self->can($method_name);
+
+This is the same as L<UNIVERSAL/can>, but also returns a coderef to Redis
+L<methods|/METHODS> dynamically added.
+
+=cut
+
+sub can {
+  my ($class, $method) = @_;
+  my $sub = $class->SUPER::can($method);
+  $sub ||= $class->_add_method($method, uc $method) if $REDIS_METHODS{$method};
+  $sub;
+}
+
 =head2 psubscribe
 
   $id = $self->psubscribe(@patterns, sub { my ($self, $err) = @_; ... });
@@ -345,11 +362,17 @@ sub AUTOLOAD {
     Carp::croak(qq{Can't locate object method "$method" via package "$package"});
   }
 
-  eval "sub $method { shift->_execute(basic => $op => \@_); }; 1" or die $@;
+  $self->_add_method($method => $op);
   $self->_execute(basic => $op => @_);
 }
 
 sub DESTROY { shift->_cleanup; }
+
+sub _add_method {
+  my ($self, $method, $op) = @_;
+  eval "sub $method { shift->_execute(basic => $op => \@_); }; 1" or die $@;
+  $self->can($method);
+}
 
 sub _cleanup {
   my $self = shift;
