@@ -2,4 +2,8 @@ Revision history for Mojo-Redis2
 
 0.01
        * Started project
-       * Add cool feature
+       * Add blocking support
+       * Add message/pmessage events for pub/sub
+       * Add support for basic Redis operations
+       * Add error handling
+       * Can start Redis server

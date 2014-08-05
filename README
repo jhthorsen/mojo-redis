@@ -29,12 +29,6 @@ DESCRIPTION
         SUBSCRIBE, ...). This object creates new connections pr. blocking
         operation which makes it easier to avoid "blocking" bugs.
 
-    *   Transaction support
-
-        Transactions will done in a new Mojo::Redis2 object that also act as
-        a guard: The transaction will not be run if the guard goes out of
-        scope.
-
 SYNOPSIS
   Blocking
       use Mojo::Redis2;
@@ -121,13 +115,13 @@ ATTRIBUTES
       $url = $self->url;
 
     Holds a Mojo::URL object with the location to the Redis server. Default
-    is "redis://localhost:6379".
+    is "MOJO_REDIS_URL" or "redis://localhost:6379".
 
 METHODS
     In addition to the methods listed in this module, you can call these
     Redis methods on $self:
 
-    append, decr, decrby, del, exists, expire, expireat, get, getbit,
+    append, echo, decr, decrby, del, exists, expire, expireat, get, getbit,
     getrange, getset, hdel, hexists, hget, hgetall, hincrby, hkeys, hlen,
     hmget, hmset, hset, hsetnx, hvals, incr, incrby, keys, lindex, linsert,
     llen, lpop, lpush, lpushx, lrange, lrem, lset, ltrim, mget, move, mset,
@@ -144,8 +138,15 @@ METHODS
 
     Object constructor. Makes sure "url" is an object.
 
+  can
+      $code = $class->can($method_name);
+      $code = $self->can($method_name);
+
+    This is the same as "can" in UNIVERSAL, but also returns a coderef to
+    Redis methods dynamically added.
+
   psubscribe
-      $id = $self->psubscribe(@patterns, sub { my ($self, $err) = @_; ... });
+      $self = $self->psubscribe(@patterns, sub { my ($self, $err, $res) = @_; ... });
 
     Used to subscribe to specified channels that match @patterns. See
     <http://redis.io/topics/pubsub> for details.
@@ -153,10 +154,8 @@ METHODS
     This event will cause "pmessage" events to be emitted, unless $err is
     set.
 
-    $id can be used to "unsubscribe".
-
   subscribe
-      $id = $self->subscribe(@channels, sub { my ($self, $err = @_; ... });
+      $self = $self->subscribe(@channels, sub { my ($self, $err, $res) = @_; ... });
 
     Used to subscribe to specified @channels. See
     <http://redis.io/topics/pubsub> for details.
@@ -164,7 +163,22 @@ METHODS
     This event will cause "message" events to be emitted, unless $err is
     set.
 
-    $id can be used to "unsubscribe".
+  start_server
+      $config = $class->start_server(\%config);
+
+    This method will try to start an instance of the Redis server or "die()"
+    trying. "start_server" is a hack meant to be used in unit tests. (Any
+    improvements are welcome)
+
+    The returned $config is a hash-ref with these values, unless specified
+    in the input %config.
+
+    *   bind: "localhost"
+
+    *   port: A randomly picked port
+
+    The "url" in MOJO_REDIS_URL environment variable is also set unless
+    defined up front.
 
 COPYRIGHT AND LICENSE
     Copyright (C) 2014, Jan Henning Thorsen
