@@ -321,7 +321,7 @@ in the input C<%config>.
 
 =back
 
-The L<MOJO_REDIS_URL/url> environment variable is also set unless defined
+The L<MOJO_REDIS_URL|/url> environment variable is also set unless defined
 up front.
 
 =cut
