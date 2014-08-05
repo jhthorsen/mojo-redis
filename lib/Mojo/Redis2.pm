@@ -90,6 +90,29 @@ the same Redis server. It will also re-use the same connection when you
     return $self->incr("subscribed:to:some:channel");
   });
 
+=head2 Mojolicious app
+
+  use Mojolicious::Lite;
+
+  helper redis => sub { shift->stash->{redis} ||= Mojo::Redis2->new; };
+
+  get '/' => sub {
+    my $c = shift;
+
+    $c->delay(
+      sub {
+        my ($delay) = @_;
+        $c->redis->get('some:message', $delay->begin);
+      },
+      sub {
+        my ($delay, $err, $message) = @_;
+        $c->render(json => { error => $err, message => $message });
+      },
+    );
+  };
+
+  app->start;
+
 =head2 Error handling
 
 C<$err> in this document is a string containing an error message or
@@ -352,7 +375,7 @@ sub start_server {
   exit;
 }
 
-sub DESTROY { shift->_cleanup; }
+sub DESTROY { $_[0]->{destroy} = 1; $_[0]->_cleanup; }
 
 sub _cleanup {
   my $self = shift;
@@ -433,6 +456,7 @@ sub _error {
 
   warn "[$c->{name}] !!! @{[$err // 'close']}\n" if DEBUG;
 
+  return if $self->{destroy};
   return $self->_connect($c) unless defined $err;
   return $self->emit_safe(error => $err) unless @$waiting;
   return $self->$_($err, []) for grep map { $_->[0] } @$waiting;

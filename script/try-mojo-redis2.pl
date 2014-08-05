@@ -3,9 +3,10 @@ use Mojolicious::Lite;
 use Mojo::Redis2;
 use Mojo::JSON 'j';
 
+helper redis => sub { shift->stash->{redis} ||= Mojo::Redis2->new; };
+
 get '/' => sub {
   my $c = shift;
-  my $redis = Mojo::Redis2->new;
 
   if (my $method = $c->param('method')) {
     my $args = $c->param('args') // '';
@@ -14,7 +15,7 @@ get '/' => sub {
     eval {
       die 'Invalid arguments' unless ref $args;
       die 'Invalid method' unless $method =~ /^\w+$/;
-      $c->render('test', output => $redis->$method(@$args));
+      $c->render('test', output => $c->redis->$method(@$args));
     } or do {
       $@ =~ s!\sat\s\S+.*!.!s;
       $c->render('test', error => $@);
