@@ -1,6 +1,6 @@
 Revision history for Mojo-Redis2
 
-0.01
+0.01     Tue Aug  5 13:32:27 2014
        * Started project
        * Add blocking support
        * Add message/pmessage events for pub/sub
