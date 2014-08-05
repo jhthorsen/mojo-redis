@@ -19,4 +19,25 @@ use Test::More;
   is ref($redis->can('hgetall')), 'CODE', 'hgetall() added';
 }
 
+{
+  my @args;
+  no warnings 'redefine';
+  local *Mojo::IOLoop::client = sub { @args = ($_[1]); $_[2]->($_[0], '', Mojo::IOLoop::Stream->new) };
+  local *Mojo::Redis2::_dequeue = sub { push @args, $_[1]; };
+
+  Mojo::Redis2->new(url => "10.0.0.42")->_connect({});
+  is_deeply $args[0], { address => '10.0.0.42', port => 6379 }, 'host';
+
+  Mojo::Redis2->new(url => "redis://10.0.0.42:6380")->_connect({});
+  is_deeply $args[0], { address => '10.0.0.42', port => 6380 }, 'protocol, host, port';
+
+  Mojo::Redis2->new(url => "10.0.0.42:6380/2")->_connect({});
+  is_deeply $args[0], { address => '10.0.0.42', port => 6380 }, 'host, port, db';
+  is_deeply $args[1]{queue}, [[undef, qw(SELECT 2)]], 'select';
+
+  Mojo::Redis2->new(url => "redis://x:s3cret\@10.0.0.42:6379/3")->_connect({});
+  is_deeply $args[0], { address => '10.0.0.42', port => 6379 }, 'protocol, auth, host, port, db';
+  is_deeply $args[1]{queue}, [[undef, qw(AUTH s3cret)], [undef, qw(SELECT 3)]], 'auth+select';
+}
+
 done_testing;

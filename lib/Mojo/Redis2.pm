@@ -177,19 +177,20 @@ has protocol => sub { $PROTOCOL_CLASS->new(api => 1); };
 
 =head2 url
 
-  $self = $self->url("redis://x:$auth_key\@$server:$port/$database_index");
   $url = $self->url;
 
 Holds a L<Mojo::URL> object with the location to the Redis server. Default
-is C<MOJO_REDIS_URL> or "redis://localhost:6379".
+is C<MOJO_REDIS_URL> or "redis://localhost:6379". The L</url> need to be set
+in constructor. Examples:
+
+  Mojo::Redis2->new(url => "redis://x:$auth_key\@$server:$port/$database_index");
+  Mojo::Redis2->new(url => "redis://10.0.0.42:6379");
+  Mojo::Redis2->new(url => "redis://10.0.0.42:6379/1");
+  Mojo::Redis2->new(url => "redis://x:s3cret\@10.0.0.42:6379/1");
 
 =cut
 
-sub url {
-  return $_[0]->{url} ||= Mojo::URL->new($ENV{MOJO_REDIS_URL} || 'redis://localhost:6379') if @_ == 1;
-  $_[0]->{url} = Mojo::URL->new($_[1]);
-  $_[0];
-}
+sub url { $_[0]->{url} ||= Mojo::URL->new($ENV{MOJO_REDIS_URL} || 'redis://localhost:6379'); }
 
 =head1 METHODS
 
@@ -223,7 +224,12 @@ Object constructor. Makes sure L</url> is an object.
 
 sub new {
   my $self = shift->SUPER::new(@_);
-  $self->{url} = Mojo::URL->new($self->{url}) if $self->{url} and ref $self->{url} eq '';
+
+  if ($self->{url} and ref $self->{url} eq '') {
+    $self->{url} = "redis://$self->{url}" unless $self->{url} =~ /^redis:/;
+    $self->{url} = Mojo::URL->new($self->{url});
+  }
+
   $self;
 }
 
@@ -390,7 +396,7 @@ sub _connect {
   my @userinfo = split /:/, +($url->userinfo // '');
 
   Scalar::Util::weaken($self);
-  $c->{name} = $url->clone->userinfo('')->query(g => $c->{group})->to_string if DEBUG;
+  $c->{name} = $url->clone->userinfo('')->query({ g => $c->{group} })->to_string if DEBUG;
   $c->{id} = $self->_loop($c->{nb})->client(
     { address => $url->host, port => $url->port || DEFAULT_PORT },
     sub {
