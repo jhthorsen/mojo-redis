@@ -2,8 +2,9 @@ use Mojo::Base -base;
 use Mojo::Redis2;
 use Test::More;
 use List::Util 'shuffle';
+use t::Util;
 
-my %ops = get_documented_redis_methods();
+my %ops = t::Util->get_documented_redis_methods;
 my @categories = $ENV{TEST_CATEGORY} || qw( Hashes Keys Lists PubSub Sets SortedSets Strings Connection );
 my $redis = Mojo::Redis2::RECORDER->new;
 my $key;
@@ -187,23 +188,6 @@ sub Strings {
   is $redis->setnx("$key:x", 42), 1, 'setnx';
   is $redis->setex("$key:x", 10, 42), 'OK', 'setex';
   is $redis->setnx("$key:x", 42), 0, 'setnx';
-}
-
-sub get_documented_redis_methods {
-  warn $INC{'Mojo/Redis2.pm'};
-  open my $POD, '<', $INC{'Mojo/Redis2.pm'} or die "Could not read Mojo/Redis2.pm: $@";
-  my ($capture, %ops);
-  my $re = qr{\W*(\w+)(?:\,|\.|\sand)};
-
-  while (<$POD>) {
-    last if $capture and /^=\w+/;
-    $capture = 1 if /^=head1 METHODS/;
-    next unless $capture;
-    next unless /^$re/;
-    $ops{$1}++ while /$re/g;
-  }
-
-  return %ops;
 }
 
 sub add_recorder {

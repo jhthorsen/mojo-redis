@@ -114,23 +114,26 @@ my $PROTOCOL_CLASS = do {
   $class;
 };
 
-my %REDIS_METHODS = map { ( $_, 1 ) } (
-  'append',      'echo',             'decr',     'decrby',   'del',             'exists',          'expire',
-  'expireat',    'get',              'getbit',   'getrange', 'getset',          'hdel',
-  'hexists',     'hget',             'hgetall',  'hincrby',  'hkeys',           'hlen',
-  'hmget',       'hmset',            'hset',     'hsetnx',   'hvals',           'incr',
-  'incrby',      'keys',             'lindex',   'linsert',  'llen',            'lpop',
-  'lpush',       'lpushx',           'lrange',   'lrem',     'lset',            'ltrim',
-  'mget',        'move',             'mset',     'msetnx',   'persist',         'ping',
-  'publish',     'randomkey',        'rename',   'renamenx', 'rpop',            'rpoplpush',
-  'rpush',       'rpushx',           'sadd',     'scard',    'sdiff',           'sdiffstore',
-  'set',         'setbit',           'setex',    'setnx',    'setrange',        'sinter',
-  'sinterstore', 'sismember',        'smembers', 'smove',    'sort',            'spop',
-  'srandmember', 'srem',             'strlen',   'sunion',   'sunionstore',     'ttl',
-  'type',        'zadd',             'zcard',    'zcount',   'zincrby',         'zinterstore',
-  'zrange',      'zrangebyscore',    'zrank',    'zrem',     'zremrangebyrank', 'zremrangebyscore',
-  'zrevrange',   'zrevrangebyscore', 'zrevrank', 'zscore',   'zunionstore',
-);
+for my $method (
+  'append',           'echo',        'decr',             'decrby',   'del',      'exists',
+  'expire',           'expireat',    'get',              'getbit',   'getrange', 'getset',
+  'hdel',             'hexists',     'hget',             'hgetall',  'hincrby',  'hkeys',
+  'hlen',             'hmget',       'hmset',            'hset',     'hsetnx',   'hvals',
+  'incr',             'incrby',      'keys',             'lindex',   'linsert',  'llen',
+  'lpop',             'lpush',       'lpushx',           'lrange',   'lrem',     'lset',
+  'ltrim',            'mget',        'move',             'mset',     'msetnx',   'persist',
+  'ping',             'publish',     'randomkey',        'rename',   'renamenx', 'rpop',
+  'rpoplpush',        'rpush',       'rpushx',           'sadd',     'scard',    'sdiff',
+  'sdiffstore',       'set',         'setbit',           'setex',    'setnx',    'setrange',
+  'sinter',           'sinterstore', 'sismember',        'smembers', 'smove',    'sort',
+  'spop',             'srandmember', 'srem',             'strlen',   'sunion',   'sunionstore',
+  'ttl',              'type',        'zadd',             'zcard',    'zcount',   'zincrby',
+  'zinterstore',      'zrange',      'zrangebyscore',    'zrank',    'zrem',     'zremrangebyrank',
+  'zremrangebyscore', 'zrevrange',   'zrevrangebyscore', 'zrevrank', 'zscore',   'zunionstore',
+) {
+  my $op = uc $method;
+  eval "sub $method { shift->_execute(basic => $op => \@_); }; 1" or die $@;
+}
 
 my %SERVER;
 
@@ -244,23 +247,6 @@ sub new {
   $self;
 }
 
-=head2 can
-
-  $code = $class->can($method_name);
-  $code = $self->can($method_name);
-
-This is the same as L<UNIVERSAL/can>, but also returns a coderef to
-dynamically added Redis L<methods|/METHODS>.
-
-=cut
-
-sub can {
-  my ($class, $method) = @_;
-  my $sub = $class->SUPER::can($method);
-  $sub ||= $class->_add_method($method, uc $method) if $REDIS_METHODS{$method};
-  $sub;
-}
-
 =head2 psubscribe
 
   $self = $self->psubscribe(@patterns, sub { my ($self, $err, $res) = @_; ... });
@@ -366,26 +352,7 @@ sub start_server {
   exit;
 }
 
-sub AUTOLOAD {
-  my $self = shift;
-  my ($package, $method) = split /::(\w+)$/, our $AUTOLOAD;
-  my $op = uc $method;
-
-  unless ($REDIS_METHODS{$method}) {
-    Carp::croak(qq{Can't locate object method "$method" via package "$package"});
-  }
-
-  $self->_add_method($method => $op);
-  $self->_execute(basic => $op => @_);
-}
-
 sub DESTROY { shift->_cleanup; }
-
-sub _add_method {
-  my ($self, $method, $op) = @_;
-  eval "sub $method { shift->_execute(basic => $op => \@_); }; 1" or die $@;
-  $self->can($method);
-}
 
 sub _cleanup {
   my $self = shift;
