@@ -10,6 +10,8 @@ Mojo::Redis2 - Pure-Perl non-blocking I/O Redis driver
 
 =head1 DESCRIPTION
 
+THIS MODULE IS UNDER DEVELOPMENT! FEEDBACK WANTED!
+
 L<Mojo::Redis2> is a pure-Perl non-blocking I/O L<Redis|http://redis.io>
 driver for the L<Mojolicious> real-time framework.
 

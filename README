@@ -5,8 +5,15 @@ VERSION
     0.01
 
 DESCRIPTION
+    THIS MODULE IS UNDER DEVELOPMENT! FEEDBACK WANTED!
+
     Mojo::Redis2 is a pure-Perl non-blocking I/O Redis <http://redis.io>
     driver for the Mojolicious real-time framework.
+
+        Redis is an open source, BSD licensed, advanced key-value cache and
+        store. It is often referred to as a data structure server since keys
+        can contain strings, hashes, lists, sets, sorted sets, bitmaps and
+        hyperloglogs. - <http://redis.io>.
 
     Features:
 
@@ -68,6 +75,28 @@ SYNOPSIS
         return $self->incr("subscribed:to:some:channel");
       });
 
+  Mojolicious app
+      use Mojolicious::Lite;
+
+      helper redis => sub { shift->stash->{redis} ||= Mojo::Redis2->new; };
+
+      get '/' => sub {
+        my $c = shift;
+
+        $c->delay(
+          sub {
+            my ($delay) = @_;
+            $c->redis->get('some:message', $delay->begin);
+          },
+          sub {
+            my ($delay, $err, $message) = @_;
+            $c->render(json => { error => $err, message => $message });
+          },
+        );
+      };
+
+      app->start;
+
   Error handling
     $err in this document is a string containing an error message or empty
     string on success.
@@ -111,11 +140,16 @@ ATTRIBUTES
     Protocol::Redis::XS need to be installed manually.
 
   url
-      $self = $self->url("redis://x:$auth_key\@$server:$port/$database_index");
       $url = $self->url;
 
     Holds a Mojo::URL object with the location to the Redis server. Default
-    is "MOJO_REDIS_URL" or "redis://localhost:6379".
+    is "MOJO_REDIS_URL" or "redis://localhost:6379". The "url" need to be
+    set in constructor. Examples:
+
+      Mojo::Redis2->new(url => "redis://x:$auth_key\@$server:$port/$database_index");
+      Mojo::Redis2->new(url => "redis://10.0.0.42:6379");
+      Mojo::Redis2->new(url => "redis://10.0.0.42:6379/1");
+      Mojo::Redis2->new(url => "redis://x:s3cret\@10.0.0.42:6379/1");
 
 METHODS
     In addition to the methods listed in this module, you can call these
@@ -133,35 +167,28 @@ METHODS
     zrem, zremrangebyrank, zremrangebyscore, zrevrange, zrevrangebyscore,
     zrevrank, zscore and zunionstore.
 
+    See <http://redis.io/commands> for details.
+
   new
       $self = Mojo::Redis2->new(...);
 
     Object constructor. Makes sure "url" is an object.
 
-  can
-      $code = $class->can($method_name);
-      $code = $self->can($method_name);
-
-    This is the same as "can" in UNIVERSAL, but also returns a coderef to
-    Redis methods dynamically added.
-
   psubscribe
       $self = $self->psubscribe(@patterns, sub { my ($self, $err, $res) = @_; ... });
 
-    Used to subscribe to specified channels that match @patterns. See
-    <http://redis.io/topics/pubsub> for details.
+    Used to subscribe to channels that match @patterns. Messages arriving
+    over a matching channel name will result in "pmessage" events.
 
-    This event will cause "pmessage" events to be emitted, unless $err is
-    set.
+    See <http://redis.io/topics/pubsub> for details.
 
   subscribe
       $self = $self->subscribe(@channels, sub { my ($self, $err, $res) = @_; ... });
 
-    Used to subscribe to specified @channels. See
-    <http://redis.io/topics/pubsub> for details.
+    Used to subscribe to @channels. Messages arriving over a channel will
+    result in "message" events.
 
-    This event will cause "message" events to be emitted, unless $err is
-    set.
+    See <http://redis.io/topics/pubsub> for details.
 
   start_server
       $config = $class->start_server(\%config);
