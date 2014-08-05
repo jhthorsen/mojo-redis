@@ -13,6 +13,15 @@ Mojo::Redis2 - Pure-Perl non-blocking I/O Redis driver
 L<Mojo::Redis2> is a pure-Perl non-blocking I/O L<Redis|http://redis.io>
 driver for the L<Mojolicious> real-time framework.
 
+=over
+
+Redis is an open source, BSD licensed, advanced key-value cache and store.
+It is often referred to as a data structure server since keys can contain
+strings, hashes, lists, sets, sorted sets, bitmaps and hyperloglogs.
+- L<http://redis.io>.
+
+=back
+
 Features:
 
 =over 4
@@ -214,6 +223,8 @@ zcount, zincrby, zinterstore, zrange, zrangebyscore, zrank,
 zrem, zremrangebyrank, zremrangebyscore, zrevrange, zrevrangebyscore, zrevrank,
 zscore and zunionstore.
 
+See L<http://redis.io/commands> for details.
+
 =head2 new
 
   $self = Mojo::Redis2->new(...);
@@ -238,8 +249,8 @@ sub new {
   $code = $class->can($method_name);
   $code = $self->can($method_name);
 
-This is the same as L<UNIVERSAL/can>, but also returns a coderef to Redis
-L<methods|/METHODS> dynamically added.
+This is the same as L<UNIVERSAL/can>, but also returns a coderef to
+dynamically added Redis L<methods|/METHODS>.
 
 =cut
 
@@ -254,19 +265,19 @@ sub can {
 
   $self = $self->psubscribe(@patterns, sub { my ($self, $err, $res) = @_; ... });
 
-Used to subscribe to specified channels that match C<@patterns>. See
-L<http://redis.io/topics/pubsub> for details.
+Used to subscribe to channels that match C<@patterns>. Messages arriving over a
+matching channel name will result in L</pmessage> events.
 
-This event will cause L</pmessage> events to be emitted, unless C<$err> is set.
+See L<http://redis.io/topics/pubsub> for details.
 
 =head2 subscribe
 
   $self = $self->subscribe(@channels, sub { my ($self, $err, $res) = @_; ... });
 
-Used to subscribe to specified C<@channels>. See L<http://redis.io/topics/pubsub>
-for details.
+Used to subscribe to C<@channels>. Messages arriving over a channel will
+result in L</message> events.
 
-This event will cause L</message> events to be emitted, unless C<$err> is set.
+See L<http://redis.io/topics/pubsub> for details.
 
 =cut
 
