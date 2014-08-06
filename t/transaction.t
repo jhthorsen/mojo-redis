@@ -121,4 +121,12 @@ is_deeply(
   'the same txn object can be re-used',
 ) or diag dumper \@commands;
 
+{
+  my $txn = $redis->multi;
+  is $txn->watch('foo'), 'OK', 'watch()';
+  is $txn->incr('foo'), 'QUEUED', 'incr()';
+  is $redis->set('foo', -100), 'OK', 'set()';
+  is_deeply $txn->exec, [], 'exec() after watch()';
+}
+
 done_testing;

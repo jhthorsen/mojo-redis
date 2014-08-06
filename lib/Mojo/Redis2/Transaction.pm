@@ -17,6 +17,8 @@ result in sending the "MULTI" command to the Redis server again.
 L</discard> is automatically called when an instance of
 L<Mojo::Redis2::Transaction> goes out of scope.
 
+See also L<http://redis.io/topics/transactions>.
+
 =head1 SYNOPSIS
 
   use Mojo::Redis2;
@@ -74,6 +76,17 @@ sub exec {
   $self->_execute_if_instructions(EXEC => @_);
 }
 
+=head2 watch
+
+  $self = $self->watch($key, $cb);
+  $res = $self->watch($key);
+
+Marks the given keys to be watched for conditional execution of a transaction.
+
+=cut
+
+sub watch { shift->_execute(txn => WATCH => @_); }
+
 sub DESTROY {
   my $self = shift;
   $self->discard if $self->{instructions} and !$self->{exec};
@@ -84,7 +97,7 @@ sub _blocking_group { 'txn' }
 sub _execute {
   my ($self, $group, $op) = (shift, shift, shift);
 
-  if (!grep { $op eq $_ } qw( EXEC DISCARD ) and !$self->{instructions}++) {
+  if (!grep { $op eq $_ } qw( DISCARD EXEC WATCH ) and !$self->{instructions}++) {
     $self->{exec} = 0;
     $self->{connections}{txn} ||= { group => 'txn', nb => ref $_[-1] eq 'CODE' ? 1 : 0 };
     push @{ $self->{connections}{txn}{queue} }, [ undef, 'MULTI' ];

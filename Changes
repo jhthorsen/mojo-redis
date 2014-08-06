@@ -1,5 +1,8 @@
 Revision history for Mojo-Redis2
 
+0.03
+       * Add watch() to Mojo::Redis2::Transaction
+
 0.02     Wed Aug  6 10:20:32 2014
        * Fix the order commands are sent
        * Fix missing dependency: Protocol::Redis
