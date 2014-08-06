@@ -124,6 +124,7 @@ empty string on success.
 
 use Mojo::Base 'Mojo::EventEmitter';
 use Mojo::IOLoop;
+use Mojo::Redis2::Transaction;
 use Mojo::URL;
 use Mojo::Util;
 use Carp ();
@@ -272,6 +273,24 @@ sub new {
   $self;
 }
 
+=head2 multi
+
+  $txn = $self->multi;
+
+This method does not perform the "MULTI" Redis command, but returns a
+L<Mojo::Redis2::Transaction> object instead.
+
+The L<Mojo::Redis2::Transaction> object is a subclass of L<Mojo::Redis2>,
+which will run all the Redis commands inside a transaction.
+
+=cut
+
+sub multi {
+  my $self = shift;
+  my @attributes = qw( encoding protocol url );
+  Mojo::Redis2::Transaction->new(map { $_ => $self->$_ } @attributes);
+}
+
 =head2 psubscribe
 
   $self = $self->psubscribe(@patterns, sub { my ($self, $err, $res) = @_; ... });
@@ -379,6 +398,8 @@ sub start_server {
 
 sub DESTROY { $_[0]->{destroy} = 1; $_[0]->_cleanup; }
 
+sub _blocking_group { 'blocking' }
+
 sub _cleanup {
   my $self = shift;
   my $connections = delete $self->{connections};
@@ -477,7 +498,7 @@ sub _execute {
     return $self->_dequeue($c);
   }
   else {
-    my $c = $self->{connections}{blocking} ||= { nb => 0, group => 'blocking' };
+    my $c = $self->{connections}{$self->_blocking_group} ||= { nb => 0, group => $self->_blocking_group };
     my ($err, $res);
 
     push @{ $c->{queue} }, [sub { shift->_loop(0)->stop; ($err, $res) = @_; }, @cmd];
