@@ -1,5 +1,9 @@
 Revision history for Mojo-Redis2
 
+0.04
+       * Add blpop(), brpop() and brpoplpush() as invalid methods on
+         Mojo::Redis2::Transaction
+
 0.03     Wed Aug  6 11:35:43 2014
        * Add watch() to Mojo::Redis2::Transaction
        * Add blpop(), brpop() and brpoplpush() to Mojo::Redis2

@@ -131,6 +131,12 @@ L<Mojo::Redis2::Transaction>.
 
 =over 4
 
+=item * blpop
+
+=item * brpop
+
+=item * brpoplpush
+
 =item * multi
 
 =item * psubscribe
@@ -143,7 +149,7 @@ L<Mojo::Redis2::Transaction>.
 
 =cut
 
-for my $illegal (qw( multi psubscribe publish subscribe )) {
+for my $illegal (qw( blpop brpop brpoplpush multi psubscribe publish subscribe )) {
   no strict 'refs';
   *$illegal = sub { die "Cannot call $illegal() on $_[0]"; };
 }

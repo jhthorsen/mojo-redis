@@ -20,7 +20,7 @@ my (@res, @commands);
 {
   my $txn = $redis->multi;
 
-  for my $illegal (qw( multi psubscribe publish subscribe )) {
+  for my $illegal (qw( blpop brpop brpoplpush multi psubscribe publish subscribe )) {
     eval { $txn->$illegal; };
     like $@, qr{Cannot call $illegal}, "Cannot call $illegal()";
   }
