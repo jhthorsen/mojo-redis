@@ -2,7 +2,7 @@ NAME
     Mojo::Redis2 - Pure-Perl non-blocking I/O Redis driver
 
 VERSION
-    0.02
+    0.03
 
 DESCRIPTION
     THIS MODULE IS UNDER DEVELOPMENT! FEEDBACK WANTED!
@@ -173,6 +173,29 @@ METHODS
       $self = Mojo::Redis2->new(...);
 
     Object constructor. Makes sure "url" is an object.
+
+  blpop
+      $self = $self->blpop(@keys, $timeout, sub { my ($self, $res) = @_; });
+
+    This method will issue the BLPOP command on the Redis server, but in its
+    own connection. This means that $self can still be used to run other
+    commands instead of being blocking.
+
+    Note: This method will only work in a non-blocking environment.
+
+    See also <http://redis.io/commands/blpop>.
+
+  brpoplpush
+      $self = $self->brpoplpush($from => $to, $timeout, sub { my ($self, $res) = @_; });
+
+    Follows the same API as "blpop". See also
+    <http://redis.io/commands/brpoplpush>.
+
+  brpop
+      $self = $self->brpop(@keys, $timeout, sub { my ($self, $res) = @_; });
+
+    Follows the same API as "blpop". See also
+    <http://redis.io/commands/brpop>.
 
   multi
       $txn = $self->multi;
