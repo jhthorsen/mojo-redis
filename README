@@ -2,7 +2,7 @@ NAME
     Mojo::Redis2 - Pure-Perl non-blocking I/O Redis driver
 
 VERSION
-    0.01
+    0.02
 
 DESCRIPTION
     THIS MODULE IS UNDER DEVELOPMENT! FEEDBACK WANTED!
@@ -174,6 +174,15 @@ METHODS
 
     Object constructor. Makes sure "url" is an object.
 
+  multi
+      $txn = $self->multi;
+
+    This method does not perform the "MULTI" Redis command, but returns a
+    Mojo::Redis2::Transaction object instead.
+
+    The Mojo::Redis2::Transaction object is a subclass of Mojo::Redis2,
+    which will run all the Redis commands inside a transaction.
+
   psubscribe
       $self = $self->psubscribe(@patterns, sub { my ($self, $err, $res) = @_; ... });
 
@@ -204,8 +213,8 @@ METHODS
 
     *   port: A randomly picked port
 
-    The "url" in MOJO_REDIS_URL environment variable is also set unless
-    defined up front.
+    The MOJO_REDIS_URL environment variable is also set unless defined up
+    front.
 
 COPYRIGHT AND LICENSE
     Copyright (C) 2014, Jan Henning Thorsen

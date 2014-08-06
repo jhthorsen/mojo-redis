@@ -19,7 +19,8 @@ WriteMakefile(
 }
 ,
   PREREQ_PM => {
-  'Mojolicious' => '5.0'
+  'Mojolicious' => '5.0',
+  'Protocol::Redis' => '1.0'
 }
 ,
   test => { TESTS => 't/*.t' },
