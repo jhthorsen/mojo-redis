@@ -131,6 +131,7 @@ use Carp ();
 use constant DEBUG => $ENV{MOJO_REDIS_DEBUG} || 0;
 use constant SERVER_DEBUG => $ENV{MOJO_REDIS_SERVER_DEBUG} || 0;
 use constant DEFAULT_PORT => 6379;
+use constant DEFAULT_SENTINEL_PORT => 26379;
 
 our $VERSION = '0.03';
 
@@ -213,13 +214,34 @@ L<Protocol::Redis::XS> need to be installed manually.
 has encoding => 'UTF-8';
 has protocol => sub { $PROTOCOL_CLASS->new(api => 1); };
 
+=head2 sentinels
+
+  $sentinels = $self->sentinels;
+
+This attribute will enable L<Mojo::Redis2> to act as a Redis Sentinel client.
+
+The L</sentinels> need to be given to the constructor:
+
+  Mojo::Redis2->new(
+    sentinels => [ "$ip:$port", "$hostname:$port", ... ],
+    url => "redis://x:$auth_key\@dummy/$database_index",
+  );
+
+Default C<$port> is 26379 instead of 6379.
+
+The L</url> is used to figure out C<$auth_key> and C<$database_index>.
+
+=cut
+
+sub sentinels { $_[0]->{sentinels} }
+
 =head2 url
 
   $url = $self->url;
 
 Holds a L<Mojo::URL> object with the location to the Redis server. Default
-is C<MOJO_REDIS_URL> or "redis://localhost:6379". The L</url> need to be set
-in constructor. Examples:
+is C<MOJO_REDIS_URL> or "redis://localhost:6379". The L</url> need to be
+given to the constructor. Examples:
 
   Mojo::Redis2->new(url => "redis://x:$auth_key\@$server:$port/$database_index");
   Mojo::Redis2->new(url => "redis://10.0.0.42:6379");
@@ -447,6 +469,12 @@ sub _cleanup {
 
 sub _connect {
   my ($self, $c) = @_;
+
+  if (my $sentinels = $self->{sentinels}) {
+    return $self if $c->{sentinel};
+    return $self->_sentinel_find_master($c, $sentinels);
+  }
+
   my $url = $self->url;
   my $db = $url->path->[0];
   my @userinfo = split /:/, +($url->userinfo // '');
@@ -463,7 +491,7 @@ sub _connect {
         return $self->_error($c, $err);
       }
 
-      warn "[$c->{name}] connected\n" if DEBUG;
+      warn "[$c->{name}] Connected\n" if DEBUG;
 
       $stream->timeout(0);
       $stream->on(close => sub { $self->_error($c) });
@@ -604,6 +632,51 @@ sub _reencode_message {
   else {
     return [ map { $self->_reencode_message($_); } @$data ];
   }
+}
+
+sub _sentinel_find_master {
+  my ($self, $c, $sentinels) = @_;
+  my %ids;
+
+  # TODO:
+  # Need to go to next sentinel on _close, not loop through them all at once
+
+  $c->{sentinel} = 1;
+
+  for my $sentinel (@$sentinels) {
+    my ($host, $port) = split /:/, $sentinel;
+    $ids{$sentinel} = $self->_loop($c->{nb})->client(
+      { address => $host, port => $port || DEFAULT_SENTINEL_PORT },
+      sub {
+        my ($loop, $err, $stream) = @_;
+
+        if ($err) {
+          return $self->_sentinel_close($c, $sentinel);
+        }
+
+        warn "[$host] Sentinel lookup\n" if DEBUG;
+
+        $stream->timeout(0.5);
+        $stream->on(close => sub { $self->_sentinel_close($c, $sentinel); });
+        $stream->on(error => sub { $self->_sentinel_close($c, $sentinel); });
+        $stream->on(read => sub { $self->_read($c, $_[1]) });
+
+        unshift @{ $c->{queue} }, [ undef, qw( SENTINEL get-master-addr-by-name master-name ) ];
+
+        $self->_dequeue($c);
+      },
+    );
+  }
+
+  $self->{sentinels_ids} = \%ids;
+  $self;
+}
+
+sub _sentinel_close {
+  my ($self, $c, $sentinel) = @_;
+
+  delete $self->{sentinels_ids}{$sentinel};
+  delete $c->{sentinel} unless keys %{ $self->{sentinels_ids} };
 }
 
 sub _server_status {

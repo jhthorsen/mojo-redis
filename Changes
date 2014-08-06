@@ -1,5 +1,9 @@
 Revision history for Mojo-Redis2
 
+0.05
+       * Add EXPERIMENTAL sentinel support (odc)
+         http://redis.io/topics/sentinel-clients
+
 0.04
        * Add blpop(), brpop() and brpoplpush() as invalid methods on
          Mojo::Redis2::Transaction
