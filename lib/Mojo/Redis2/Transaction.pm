@@ -45,6 +45,20 @@ L<Mojo::Redis2::Transaction> inherits all attributes from L<Mojo::Redis2>.
 L<Mojo::Redis2::Transaction> inherits all methods from L<Mojo::Redis2> and
 implements the following new ones.
 
+=head2 discard
+
+  $self->discard;
+  $self->discard(sub { my ($self, $err, $res) = @_; });
+
+Discard all commands issued. This method is called automatically on DESTROY,
+unless L</exec> was called first.
+
+=cut
+
+sub discard {
+  shift->_execute_if_instructions(DISCARD => @_);
+}
+
 =head2 exec
 
   $self->exec;
@@ -58,20 +72,6 @@ sub exec {
   my $self = shift;
   $self->{exec} = 1;
   $self->_execute_if_instructions(EXEC => @_);
-}
-
-=head2 discard
-
-  $self->discard;
-  $self->discard(sub { my ($self, $err, $res) = @_; });
-
-Discard all commands issued. This method is called automatically on DESTROY,
-unless L</exec> was called first.
-
-=cut
-
-sub discard {
-  shift->_execute_if_instructions(DISCARD => @_);
 }
 
 sub DESTROY {
