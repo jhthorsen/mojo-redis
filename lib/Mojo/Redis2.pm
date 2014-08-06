@@ -445,7 +445,7 @@ sub _dequeue {
     return $self;
   }
 
-  push @{ $c->{waiting} }, pop @$queue;
+  push @{ $c->{waiting} }, shift @$queue;
   $buf = $self->_op_to_command($c->{waiting}[-1]);
   do { local $_ = $buf; s!\r\n!\\r\\n!g; warn "[$c->{name}] <<< ($_)\n" } if DEBUG;
   $stream->write($buf);
