@@ -124,7 +124,6 @@ empty string on success.
 
 use Mojo::Base 'Mojo::EventEmitter';
 use Mojo::IOLoop;
-use Mojo::Redis2::Transaction;
 use Mojo::URL;
 use Mojo::Util;
 use Carp ();
@@ -134,34 +133,12 @@ use constant DEFAULT_PORT => 6379;
 
 our $VERSION = '0.03';
 
+my %SERVER;
 my $PROTOCOL_CLASS = do {
   my $class = $ENV{MOJO_REDIS_PROTOCOL} ||= eval "require Protocol::Redis::XS; 'Protocol::Redis::XS'" || 'Protocol::Redis';
   eval "require $class; 1" or die $@;
   $class;
 };
-
-for my $method (
-  'append',           'echo',        'decr',             'decrby',   'del',      'exists',
-  'expire',           'expireat',    'get',              'getbit',   'getrange', 'getset',
-  'hdel',             'hexists',     'hget',             'hgetall',  'hincrby',  'hkeys',
-  'hlen',             'hmget',       'hmset',            'hset',     'hsetnx',   'hvals',
-  'incr',             'incrby',      'keys',             'lindex',   'linsert',  'llen',
-  'lpop',             'lpush',       'lpushx',           'lrange',   'lrem',     'lset',
-  'ltrim',            'mget',        'move',             'mset',     'msetnx',   'persist',
-  'ping',             'publish',     'randomkey',        'rename',   'renamenx', 'rpop',
-  'rpoplpush',        'rpush',       'rpushx',           'sadd',     'scard',    'sdiff',
-  'sdiffstore',       'set',         'setbit',           'setex',    'setnx',    'setrange',
-  'sinter',           'sinterstore', 'sismember',        'smembers', 'smove',    'sort',
-  'spop',             'srandmember', 'srem',             'strlen',   'sunion',   'sunionstore',
-  'ttl',              'type',        'zadd',             'zcard',    'zcount',   'zincrby',
-  'zinterstore',      'zrange',      'zrangebyscore',    'zrank',    'zrem',     'zremrangebyrank',
-  'zremrangebyscore', 'zrevrange',   'zrevrangebyscore', 'zrevrank', 'zscore',   'zunionstore',
-) {
-  my $op = uc $method;
-  eval "sub $method { shift->_execute(basic => $op => \@_); }; 1" or die $@;
-}
-
-my %SERVER;
 
 =head1 EVENTS
 
@@ -305,6 +282,21 @@ sub blpop { shift->_execute(blpop => BLPOP => @_); }
 sub brpop { shift->_execute(brpop => BRPOP => @_); }
 sub brpoplpush { shift->_execute(brpoplpush => BRPOPLPUSH => @_); }
 
+=head2 bulk
+
+  $obj = $self->bulk;
+
+Returns a L<Mojo::Redis2::Bulk> object which can be used to group Redis
+operations.
+
+=cut
+
+sub bulk {
+  my $self = shift;
+  require Mojo::Redis2::Bulk;
+  Mojo::Redis2::Bulk->new(_redis => $self);
+}
+
 =head2 multi
 
   $txn = $self->multi;
@@ -320,6 +312,7 @@ which will run all the Redis commands inside a transaction.
 sub multi {
   my $self = shift;
   my @attributes = qw( encoding protocol url );
+  require Mojo::Redis2::Transaction;
   Mojo::Redis2::Transaction->new(map { $_ => $self->$_ } @attributes);
 }
 
@@ -429,6 +422,24 @@ sub start_server {
 }
 
 sub DESTROY { $_[0]->{destroy} = 1; $_[0]->_cleanup; }
+
+sub _basic_operations {
+  'append',           'echo',        'decr',             'decrby',   'del',      'exists',
+  'expire',           'expireat',    'get',              'getbit',   'getrange', 'getset',
+  'hdel',             'hexists',     'hget',             'hgetall',  'hincrby',  'hkeys',
+  'hlen',             'hmget',       'hmset',            'hset',     'hsetnx',   'hvals',
+  'incr',             'incrby',      'keys',             'lindex',   'linsert',  'llen',
+  'lpop',             'lpush',       'lpushx',           'lrange',   'lrem',     'lset',
+  'ltrim',            'mget',        'move',             'mset',     'msetnx',   'persist',
+  'ping',             'publish',     'randomkey',        'rename',   'renamenx', 'rpop',
+  'rpoplpush',        'rpush',       'rpushx',           'sadd',     'scard',    'sdiff',
+  'sdiffstore',       'set',         'setbit',           'setex',    'setnx',    'setrange',
+  'sinter',           'sinterstore', 'sismember',        'smembers', 'smove',    'sort',
+  'spop',             'srandmember', 'srem',             'strlen',   'sunion',   'sunionstore',
+  'ttl',              'type',        'zadd',             'zcard',    'zcount',   'zincrby',
+  'zinterstore',      'zrange',      'zrangebyscore',    'zrank',    'zrem',     'zremrangebyrank',
+  'zremrangebyscore', 'zrevrange',   'zrevrangebyscore', 'zrevrank', 'zscore',   'zunionstore',
+}
 
 sub _blocking_group { 'blocking' }
 
@@ -633,6 +644,11 @@ sub _stop_server {
   }
 
   return $class;
+}
+
+for my $method (__PACKAGE__->_basic_operations) {
+  my $op = uc $method;
+  eval "sub $method { shift->_execute(basic => $op => \@_); }; 1" or die $@;
 }
 
 =head1 COPYRIGHT AND LICENSE

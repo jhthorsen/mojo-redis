@@ -1,6 +1,7 @@
 Revision history for Mojo-Redis2
 
 0.04
+       * Add Mojo::Redis2::Bulk
        * Add blpop(), brpop() and brpoplpush() as invalid methods on
          Mojo::Redis2::Transaction
 
