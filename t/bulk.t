@@ -23,7 +23,7 @@ Mojo::IOLoop->delay(
 );
 Mojo::IOLoop->start;
 
-is $err->join(''), '', 'no errors';
+is $err->compact->join('. '), '', 'no errors';
 is_deeply $res, [ 'PONG', 'OK', '123', ], 'got async res';
 
 done_testing;

@@ -25,8 +25,10 @@ arguments.
     },
     sub {
       my ($delay, $err, $res) = @_;
-      die $err->join('. ') if $err->compact;
-      $self->render(json => $res);
+      $self->render(json => {
+        err => $err->compact->join('. '),
+        res => $res,
+      });
     },
   );
 
