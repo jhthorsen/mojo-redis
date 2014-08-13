@@ -7,12 +7,12 @@ my $config;
 {
   local $ENV{REDIS_SERVER_BIN} = './does-not-exist-nope-for-sure-i-hope-not';
   $config = eval { Mojo::Redis2->start_server };
-  like $@, qr{No such file}, 'No such file';
+  like $@, qr{Could not start Redis}, 'No such file';
 }
 
 {
   $config = eval { Mojo::Redis2->start_server({ port => 123 }) };
-  like $@, qr{Redis server failed to start}, 'Redis server failed to start';
+  like $@, qr{Redis server failed to start|Could not start Redis}, 'Redis server failed to start';
 }
 
 SKIP: {
