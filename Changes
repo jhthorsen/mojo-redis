@@ -1,6 +1,7 @@
 Revision history for Mojo-Redis2
 
-0.04
+0.04     Wed Aug 13 16:39:28 2014
+       * Fix Not enough arguments for grep at Mojo/Redis2.pm line 444, near "};"
        * Add blpop(), brpop() and brpoplpush() as invalid methods on
          Mojo::Redis2::Transaction
 

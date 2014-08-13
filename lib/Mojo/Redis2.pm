@@ -6,7 +6,7 @@ Mojo::Redis2 - Pure-Perl non-blocking I/O Redis driver
 
 =head1 VERSION
 
-0.03
+0.04
 
 =head1 DESCRIPTION
 
@@ -132,7 +132,7 @@ use constant DEBUG => $ENV{MOJO_REDIS_DEBUG} || 0;
 use constant SERVER_DEBUG => $ENV{MOJO_REDIS_SERVER_DEBUG} || 0;
 use constant DEFAULT_PORT => 6379;
 
-our $VERSION = '0.03';
+our $VERSION = '0.04';
 
 my $PROTOCOL_CLASS = do {
   my $class = $ENV{MOJO_REDIS_PROTOCOL} ||= eval "require Protocol::Redis::XS; 'Protocol::Redis::XS'" || 'Protocol::Redis';
@@ -441,7 +441,7 @@ sub _cleanup {
   for my $c (values %$connections) {
     my $loop = $self->_loop($c->{nb}) or next;
     $loop->remove($c->{id}) if $c->{id};
-    $self->$_('Premature connection close', []) for grep map { $_->[0] } @{ $c->{waiting} };
+    $self->$_('Premature connection close', []) for grep { $_ } map { $_->[0] } @{ $c->{waiting} };
   }
 }
 
@@ -514,7 +514,7 @@ sub _error {
   return if $self->{destroy};
   return $self->_connect($c) unless defined $err;
   return $self->emit_safe(error => $err) unless @$waiting;
-  return $self->$_($err, []) for grep map { $_->[0] } @$waiting;
+  return $self->$_($err, []) for grep { $_ } map { $_->[0] } @$waiting;
 }
 
 sub _execute {
