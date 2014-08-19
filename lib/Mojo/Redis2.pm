@@ -165,6 +165,21 @@ my %SERVER;
 
 =head1 EVENTS
 
+=head2 connection
+
+  $self->on(error => sub { my ($self, $info) = @_; ... });
+
+Emitted when a new connection has been established. C<$info> is a hash ref
+with:
+
+  {
+    group => $str, # basic, blpop, brpop, brpoplpush, publish, ...
+    id => $connection_id,
+    nb => $bool, # blocking/non-blocking
+  }
+
+Note: The structure of C<$info> is EXPERIMENTAL.
+
 =head2 error
 
   $self->on(error => sub { my ($self, $err) = @_; ... });
@@ -474,6 +489,7 @@ sub _connect {
       unshift @{ $c->{queue} }, [ undef, SELECT => $db ] if $db;
       unshift @{ $c->{queue} }, [ undef, AUTH => $userinfo[1] ] if length $userinfo[1];
 
+      $self->emit_safe(connection => { map { $_ => $c->{$_} } qw( group id nb ) });
       $self->_dequeue($c);
     },
   );

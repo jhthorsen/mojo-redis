@@ -5,10 +5,16 @@ use Test::More;
 plan skip_all => $@ unless eval { Mojo::Redis2->start_server };
 
 my $redis = Mojo::Redis2->new;
-my ($ping_err, $ping, $get_err, $get);
+my ($ping_err, $c, $ping, $get_err, $get);
+
+$redis->on(connection => sub { (my $redis, $c) = @_; });
 
 is $redis->set('mojo:redis2:test_scalar' => 42), 'OK', 'SET mojo:redis2:test_scalar 42';
 is $redis->get('mojo:redis2:test_scalar'), 42, 'GET mojo:redis2:test_scalar';
+
+ok $c->{id}, 'connection id';
+is $c->{nb}, 0, 'connection blocking';
+is $c->{group}, 'blocking', 'connection blocking';
 
 Mojo::IOLoop->delay(
   sub {

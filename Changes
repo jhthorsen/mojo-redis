@@ -1,5 +1,8 @@
 Revision history for Mojo-Redis2
 
+0.05
+       * Add connection event
+
 0.0401   Wed Aug 13 16:41:39 2014
        * Fix "Could not start Redis" test
 
