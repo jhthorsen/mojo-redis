@@ -2,7 +2,7 @@ NAME
     Mojo::Redis2 - Pure-Perl non-blocking I/O Redis driver
 
 VERSION
-    0.0401
+    0.05
 
 DESCRIPTION
     THIS MODULE IS UNDER DEVELOPMENT! FEEDBACK WANTED!
@@ -102,6 +102,20 @@ SYNOPSIS
     string on success.
 
 EVENTS
+  connection
+      $self->on(error => sub { my ($self, $info) = @_; ... });
+
+    Emitted when a new connection has been established. $info is a hash ref
+    with:
+
+      {
+        group => $str, # basic, blpop, brpop, brpoplpush, publish, ...
+        id => $connection_id,
+        nb => $bool, # blocking/non-blocking
+      }
+
+    Note: The structure of $info is EXPERIMENTAL.
+
   error
       $self->on(error => sub { my ($self, $err) = @_; ... });
 
