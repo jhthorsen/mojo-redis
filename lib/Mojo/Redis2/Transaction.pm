@@ -36,6 +36,9 @@ See also L<http://redis.io/topics/transactions>.
 
 use Mojo::Base 'Mojo::Redis2';
 
+# CPAN failed to index the module, because "Decreasing version number"
+our $VERSION = $Mojo::Redis2::VERSION;
+
 =head1 ATTRIBUTES
 
 L<Mojo::Redis2::Transaction> inherits all attributes from L<Mojo::Redis2>.
