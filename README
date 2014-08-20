@@ -2,7 +2,7 @@ NAME
     Mojo::Redis2 - Pure-Perl non-blocking I/O Redis driver
 
 VERSION
-    0.05
+    0.06
 
 DESCRIPTION
     THIS MODULE IS UNDER DEVELOPMENT! FEEDBACK WANTED!
@@ -210,6 +210,17 @@ METHODS
 
     Follows the same API as "blpop". See also
     <http://redis.io/commands/brpop>.
+
+  bulk
+      $obj = $self->bulk;
+
+    Returns a Mojo::Redis2::Bulk object which can be used to group Redis
+    operations.
+
+  client
+      $self->client->$method(@args);
+
+    Run "CLIENT" commands using Mojo::Redis2::Client.
 
   multi
       $txn = $self->multi;
