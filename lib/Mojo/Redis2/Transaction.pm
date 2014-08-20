@@ -36,8 +36,6 @@ See also L<http://redis.io/topics/transactions>.
 
 use Mojo::Base 'Mojo::Redis2';
 
-our $VERSION = '0.01';
-
 =head1 ATTRIBUTES
 
 L<Mojo::Redis2::Transaction> inherits all attributes from L<Mojo::Redis2>.
