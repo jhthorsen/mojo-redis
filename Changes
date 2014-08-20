@@ -1,5 +1,9 @@
 Revision history for Mojo-Redis2
 
+0.0602   Wed Aug 20 12:06:20 2014
+       * Fix failed CPAN index, by adding $VERSION to
+         Mojo::Redis2::Transaction
+
 0.0601   Wed Aug 20 11:59:46 2014
        * Fix failed CPAN index, by adding $VERSION to
          Mojo::Redis2::Transaction

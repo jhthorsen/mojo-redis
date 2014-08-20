@@ -37,7 +37,8 @@ See also L<http://redis.io/topics/transactions>.
 use Mojo::Base 'Mojo::Redis2';
 
 # CPAN failed to index the module, because "Decreasing version number"
-our $VERSION = $Mojo::Redis2::VERSION;
+our $VERSION = '0.01';
+$VERSION = $Mojo::Redis2::VERSION;
 
 =head1 ATTRIBUTES
 
