@@ -1,7 +1,8 @@
 Revision history for Mojo-Redis2
 
 0.06
-       * Add Mojo::Redis2::Bulk
+       * Add Mojo::Redis2::Bulk for grouped commands
+       * Add Mojo::Redis2::Client for CLIENT commands
 
 0.05     Tue Aug 19 14:29:23 2014
        * Add connection event

@@ -1,4 +1,4 @@
-use Mojo::Base -base;
+use Mojo::Base -strict;
 use Mojo::Redis2;
 use Test::More;
 use Mojo::Util 'dumper';

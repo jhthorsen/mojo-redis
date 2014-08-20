@@ -1,4 +1,4 @@
-use Mojo::Base -base;
+use Mojo::Base -strict;
 use Test::More;
 use Mojo::Redis2;
 

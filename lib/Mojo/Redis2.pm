@@ -312,6 +312,20 @@ sub bulk {
   Mojo::Redis2::Bulk->new(_redis => $self);
 }
 
+=head2 client
+
+  $self->client->$method(@args);
+
+Run "CLIENT" commands using L<Mojo::Redis2::Client>.
+
+=cut
+
+sub client {
+  my $self = shift;
+  require Mojo::Redis2::Client;
+  Mojo::Redis2::Client->new(_redis => $self);
+}
+
 =head2 multi
 
   $txn = $self->multi;
