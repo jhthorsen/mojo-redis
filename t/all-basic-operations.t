@@ -9,7 +9,7 @@ my @categories = $ENV{TEST_CATEGORY} || qw( Hashes Keys Lists PubSub Sets Sorted
 my $redis = Mojo::Redis2::RECORDER->new;
 my $key;
 
-plan skip_all => $@ unless eval { Mojo::Redis2->start_server };
+plan skip_all => $@ unless eval { Mojo::Redis2::Server->start };
 add_recorder();
 
 for my $category (shuffle @categories) {

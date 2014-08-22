@@ -2,7 +2,7 @@ use Mojo::Base -strict;
 use Mojo::Redis2;
 use Test::More;
 
-plan skip_all => $@ unless eval { Mojo::Redis2->start_server };
+plan skip_all => $@ unless eval { Mojo::Redis2::Server->start };
 
 my $redis = Mojo::Redis2->new;
 my $p = 1;

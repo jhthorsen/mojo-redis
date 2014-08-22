@@ -1,36 +1,33 @@
 use Mojo::Base -strict;
 use Test::More;
-use Mojo::Redis2;
-
-my $config;
+use Mojo::Redis2::Server;
+my $pid;
 
 {
+  my $server = Mojo::Redis2::Server->new;
   local $ENV{REDIS_SERVER_BIN} = './does-not-exist-nope-for-sure-i-hope-not';
-  $config = eval { Mojo::Redis2->start_server };
-  like $@, qr{Could not start Redis}, 'No such file';
-}
-
-{
-  $config = eval { Mojo::Redis2->start_server({ port => 123 }) };
-  like $@, qr{Redis server failed to start|Could not start Redis}, 'Redis server failed to start';
+  eval { $server->start };
+  like $@, qr{Failed to start}, 'No such file';
 }
 
 SKIP: {
-  $config = eval { Mojo::Redis2->start_server };
-  skip 'redis-server is not installed', 2 if $@;
-  like $config->{port}, qr{\d+}, 'port was generated';
-  is $ENV{MOJO_REDIS_URL}, "redis://x:\@$config->{bind}:$config->{port}/", 'MOJO_REDIS_URL was generated';
-  ok -r $config->{config_file}, 'config file exists';
-  ok kill(0, $config->{pid}), 'server is running';
+  my $server = eval { Mojo::Redis2::Server->start };
+  skip "redis-server is not installed: $@", 1 if $@;
+  like $server->config->{port}, qr{\d+}, 'port was generated';
+  is $ENV{MOJO_REDIS_URL}, "redis://x:\@$server->{config}{bind}:$server->{config}{port}/", 'MOJO_REDIS_URL was generated';
+  ok kill(0, $server->pid), 'server is running';
 
-  {
-    local $TODO = 'Should this be a public method?';
-    is(Mojo::Redis2->_stop_server, 'Mojo::Redis2', '_stop_server() returns classname');
-  }
-
-  is waitpid($config->{pid}, 0), $config->{pid}, 'wait()ed for server to stop';
-  ok !kill(0, $config->{pid}), 'server was stopped';
-  ok !-r $config->{config_file}, 'config file was cleaned up';
+  is(Mojo::Redis2::Server->stop, Mojo::Redis2::Server->singleton, 'stop');
+  ok !kill(0, $server->pid), 'server was stopped';
 }
+
+SKIP: {
+  my $server = Mojo::Redis2::Server->new;
+  eval { $server->start };
+  skip "redis-server is not installed: $@", 1 if $@;
+  $pid = $server->pid;
+}
+
+ok !kill(0, $pid), 'server was stopped on DESTROY';
 
 done_testing;

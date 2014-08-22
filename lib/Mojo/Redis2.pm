@@ -124,16 +124,15 @@ empty string on success.
 
 use Mojo::Base 'Mojo::EventEmitter';
 use Mojo::IOLoop;
+use Mojo::Redis2::Server;
 use Mojo::URL;
 use Mojo::Util;
 use Carp ();
 use constant DEBUG => $ENV{MOJO_REDIS_DEBUG} || 0;
-use constant SERVER_DEBUG => $ENV{MOJO_REDIS_SERVER_DEBUG} || 0;
 use constant DEFAULT_PORT => 6379;
 
 our $VERSION = '0.0602';
 
-my %SERVER;
 my $PROTOCOL_CLASS = do {
   my $class = $ENV{MOJO_REDIS_PROTOCOL} ||= eval "require Protocol::Redis::XS; 'Protocol::Redis::XS'" || 'Protocol::Redis';
   eval "require $class; 1" or die $@;
@@ -375,81 +374,6 @@ sub subscribe {
   shift->_execute(pubsub => SUBSCRIBE => @_, $cb);
 }
 
-=head2 start_server
-
-  $config = $class->start_server(\%config);
-
-This method will try to start an instance of the Redis server or C<die()>
-trying. L</start_server> is a hack meant to be used in unit tests. (Any
-improvements are welcome)
-
-The returned C<$config> is a hash-ref with these values, unless specified
-in the input C<%config>.
-
-=over 4
-
-=item * bind: "localhost"
-
-=item * port: A randomly picked port
-
-=back
-
-The L<MOJO_REDIS_URL|/url> environment variable is also set unless defined
-up front.
-
-=cut
-
-sub start_server {
-  my $class = shift;
-  my $config = shift || {};
-
-  return \%SERVER if $SERVER{pid} and kill 0, $SERVER{pid};
-
-  $config->{bind} ||= 'localhost';
-  $config->{daemonize} ||= 'no';
-  $config->{databases} ||= 16;
-  $config->{loglevel} ||= SERVER_DEBUG ? 'verbose' : 'warning';
-  $config->{port} ||= Mojo::IOLoop::Server->generate_port;
-  $config->{rdbchecksum} ||= 'no';
-  $config->{requirepass} ||= '';
-  $config->{stop_writes_on_bgsave_error} ||= 'no';
-  $config->{syslog_enabled} ||= 'no';
-  $config->{tcp_keepalive} ||= 0;
-
-  pipe my $READ, my $WRITE or die $!;
-  require Mojo::Asset::File;
-  my $cfg = Mojo::Asset::File->new;
-
-  while (my($key, $value) = each %$config) {
-    $key =~ s!_!-!g;
-    warn "[Redis::Server] config $key $value\n" if SERVER_DEBUG;
-    $cfg->add_chunk("$key $value\n") if length $value;
-  }
-
-  $config->{config_file} = $cfg->path .'-redis.conf';
-  $cfg->move_to($config->{config_file});
-
-  if ($config->{pid} = fork) { # parent
-    close $WRITE;
-
-    if (my $err = readline $READ || $class->_server_status($config)) {
-      warn "[Redis::Server] failed: $err\n" if SERVER_DEBUG;
-      waitpid $config->{pid}, 0; # wait for hanging child process
-      die $err;
-    }
-
-    %SERVER = %$config;
-    $ENV{MOJO_REDIS_URL} //= sprintf 'redis://x:%s@%s:%s/', map { $_ // '' } @$config{qw( requirepass bind port )};
-    warn "[Redis::Server] MOJO_REDIS_URL=$ENV{MOJO_REDIS_URL}\n" if SERVER_DEBUG;
-    return \%SERVER;
-  }
-
-  no warnings;
-  exec +($ENV{REDIS_SERVER_BIN} || 'redis-server'), $cfg->path;
-  print $WRITE "Could not start Redis server: $!\n";
-  exit;
-}
-
 sub DESTROY { $_[0]->{destroy} = 1; $_[0]->_cleanup; }
 
 sub _basic_operations {
@@ -647,35 +571,6 @@ sub _reencode_message {
   }
 }
 
-sub _server_status {
-  my ($class, $config) = @_;
-  my $guard = 100;
-  my $err;
-
-  require IO::Socket::INET;
-  require Time::HiRes;
-
-  while($guard--) {
-    Time::HiRes::usleep(10e3);
-    return '' if IO::Socket::INET->new(PeerAddr => $config->{bind}, PeerPort => $config->{port}, Proto => 'tcp', Timeout => 10);
-    return 'Redis server failed to start' if waitpid $config->{pid}, 0;
-  }
-
-  return 'Redis server has unknown status';
-}
-
-sub _stop_server {
-  my $class = shift;
-  my $config = shift || \%SERVER;
-
-  if ($config->{config_file} and -r $config->{config_file}) {
-    kill 15, $config->{pid} if $config->{pid};
-    unlink $config->{config_file};
-  }
-
-  return $class;
-}
-
 for my $method (__PACKAGE__->_basic_operations) {
   my $op = uc $method;
   eval "sub $method { shift->_execute(basic => $op => \@_); }; 1" or die $@;
@@ -693,7 +588,5 @@ the terms of the Artistic License version 2.0.
 Jan Henning Thorsen - C<jhthorsen@cpan.org>
 
 =cut
-
-END { __PACKAGE__->_stop_server; }
 
 1;

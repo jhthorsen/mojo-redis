@@ -1,5 +1,8 @@
 Revision history for Mojo-Redis2
 
+0.07
+       * Replace start_server() with Mojo::Redis2::Server
+
 0.0602   Wed Aug 20 12:06:20 2014
        * Fix failed CPAN index, by adding $VERSION to
          Mojo::Redis2::Transaction

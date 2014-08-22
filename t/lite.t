@@ -4,7 +4,7 @@ use Test::Mojo;
 use Test::More;
 use t::Util;
 
-plan skip_all => $@ unless eval { Mojo::Redis2->start_server };
+plan skip_all => $@ unless eval { Mojo::Redis2::Server->start };
 
 t::Util->compile_lite_app;
 my $t = Test::Mojo->new;
