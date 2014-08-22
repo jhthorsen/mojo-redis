@@ -2,7 +2,7 @@ NAME
     Mojo::Redis2 - Pure-Perl non-blocking I/O Redis driver
 
 VERSION
-    0.0602
+    0.07
 
 DESCRIPTION
     THIS MODULE IS UNDER DEVELOPMENT! FEEDBACK WANTED!
@@ -246,23 +246,6 @@ METHODS
     result in "message" events.
 
     See <http://redis.io/topics/pubsub> for details.
-
-  start_server
-      $config = $class->start_server(\%config);
-
-    This method will try to start an instance of the Redis server or "die()"
-    trying. "start_server" is a hack meant to be used in unit tests. (Any
-    improvements are welcome)
-
-    The returned $config is a hash-ref with these values, unless specified
-    in the input %config.
-
-    *   bind: "localhost"
-
-    *   port: A randomly picked port
-
-    The MOJO_REDIS_URL environment variable is also set unless defined up
-    front.
 
 COPYRIGHT AND LICENSE
     Copyright (C) 2014, Jan Henning Thorsen
