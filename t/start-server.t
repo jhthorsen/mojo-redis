@@ -28,6 +28,8 @@ SKIP: {
   $pid = $server->pid;
 }
 
-ok !kill(0, $pid), 'server was stopped on DESTROY';
+if ($pid) {
+  ok !kill(0, $pid), 'server was stopped on DESTROY';
+}
 
 done_testing;
