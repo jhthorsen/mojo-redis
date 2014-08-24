@@ -1,5 +1,8 @@
 Revision history for Mojo-Redis2
 
+0.09     Sun Aug 24 12:00:43 2014
+       * Improved detection of running server
+
 0.08     Sat Aug 23 18:24:11 2014
        * Fix t/start-server.t test for DESTROY()-ed server
 

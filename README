@@ -2,7 +2,7 @@ NAME
     Mojo::Redis2 - Pure-Perl non-blocking I/O Redis driver
 
 VERSION
-    0.08
+    0.09
 
 DESCRIPTION
     THIS MODULE IS UNDER DEVELOPMENT! FEEDBACK WANTED!
@@ -254,5 +254,7 @@ COPYRIGHT AND LICENSE
     under the terms of the Artistic License version 2.0.
 
 AUTHOR
+    Ben Tyler - "benjamin.tyler@gmail.com"
+
     Jan Henning Thorsen - "jhthorsen@cpan.org"
 
