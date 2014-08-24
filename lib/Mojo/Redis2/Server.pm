@@ -165,10 +165,10 @@ sub _wait_for_server_to_start {
 
   while (--$guard) {
     Time::HiRes::usleep(10e3);
-    return if IO::Socket::INET->new(PeerAddr => $self->config->{bind}, PeerPort => $self->config->{port}, Proto => 'tcp', Timeout => 10);
-    die "Failed to start $self->{bin}. ($?)" if $self->pid and waitpid $self->pid, 0;
+    return if IO::Socket::INET->new(PeerAddr => $self->config->{bind}, PeerPort => $self->config->{port}, Proto => 'tcp', Timeout => 1);
   }
 
+  die "Failed to start $self->{bin}. ($?)" if $self->pid and waitpid $self->pid, 0;
   die 'Redis server has unknown status';
 }
 
