@@ -10,7 +10,7 @@ my ($err, @res);
 
 {
   is $backend->config(dbfilename => 'foo.rdb'), 'OK', 'CONFIG SET dbfilename';
-  is_deeply $backend->config('dbfilenam*'), { dbfilename => 'foo.rdb' }, 'CONFIG GET dbfilename';
+  is_deeply $backend->config('dbfilenam*'), { dbfilename => 'foo.rdb' }, 'CONFIG GET dbfilenam*';
 
   @res = ();
   Mojo::IOLoop->delay(
@@ -27,7 +27,8 @@ my ($err, @res);
   );
   Mojo::IOLoop->start;
 
-  is_deeply \@res, [ '', 'OK', '', { dbfilename => 'bar.rdb' } ], 'async';
+  is_deeply \@res, [ '', 'OK', '', 'bar.rdb' ], 'async';
+  is $backend->config('dbfilename'), 'bar.rdb', 'CONFIG GET dbfilename';
 }
 
 done_testing;

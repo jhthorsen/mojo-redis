@@ -25,8 +25,8 @@ change in the future)
       $redis->backend->config(dbfilename => $delay->begin);
     },
     sub {
-      my ($delay, $err, $data) = @_;
-      $self->render(text => $err || $data->{dbfilename});
+      my ($delay, $err, $dbfilename) = @_;
+      $self->render(text => $err || $dbfilename);
     },
   );
 
@@ -62,12 +62,12 @@ See L<http://redis.io/commands/bgsave> for details.
   $self = $self->config($key => $value => sub { my ($redis, $err, $res) = @_; });
   $res = $self->config($key => $value);
 
-Used to retrieve or set config parameters. Use C<$key = ("*")> to retrieve all
-config params. Example C<$res> with C<$key> set to "dbfilename":
+Used to retrieve or set config parameters. C<$res> will differ dependent on
+input:
 
-  {
-    dbfilename => "dump.rdb",
-  }
+  | $self->config(dbfilename => "foo.rdb") | $res = "OK"                 |
+  | $self->config("dbfilename")            | "foo.rdb"                   |
+  | $self->config("dbfile*")               | { dbfilename => "foo.rdb" } |
 
 =cut
 
@@ -82,13 +82,15 @@ sub config {
   }
   elsif (my $cb = $cb[0]) {
     $self->_redis->_execute(basic => CONFIG => GET => $key => sub {
-      $_[0]->$cb($_[1], { @{ $_[2] || [] } })
+      my ($redis, $err, $params) = @_;
+      $params //= [];
+      $_[0]->$cb($err, $key =~ /\*/ ? { @$params } : $params->[1]);
     });
     return $self;
   }
   else {
     my $params = $self->_redis->_execute(basic => CONFIG => GET => $key);
-    return { @$params };
+    return $key =~ /\*/ ? { @$params } : $params->[1];
   }
 }
 

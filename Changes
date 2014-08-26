@@ -1,5 +1,8 @@
 Revision history for Mojo-Redis2
 
+0.11
+       * Add simpler "CONFIG GET key" result
+
 0.10     Tue Aug 26 14:07:30 2014
        * Add Mojo::Redis2::Backend for server commands
 
