@@ -1,6 +1,6 @@
 Revision history for Mojo-Redis2
 
-0.11
+0.11     Tue Aug 26 15:05:16 2014
        * Add simpler "CONFIG GET key" result
 
 0.10     Tue Aug 26 14:07:30 2014
