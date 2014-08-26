@@ -8,6 +8,7 @@ my $pid;
   local $ENV{REDIS_SERVER_BIN} = './does-not-exist-nope-for-sure-i-hope-not';
   eval { $server->start };
   like $@, qr{Failed to start}, 'No such file';
+  is $server->url, '', 'url is not set';
 }
 
 SKIP: {
@@ -19,6 +20,7 @@ SKIP: {
 
   is(Mojo::Redis2::Server->stop, Mojo::Redis2::Server->singleton, 'stop');
   ok !kill(0, $server->pid), 'server was stopped';
+  like $server->url, qr{redis://x:\@[\w\.:]+/?$}, 'url is set';
 }
 
 SKIP: {

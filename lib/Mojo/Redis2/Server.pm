@@ -122,8 +122,8 @@ sub start {
 
   if ($self->{pid} = fork) { # parent
     $self->{config} = \%config;
-    $self->{url} = sprintf 'redis://x:%s@%s:%s/', map { $_ // '' } @config{qw( requirepass bind port )};
     $self->_wait_for_server_to_start;
+    $self->{url} = sprintf 'redis://x:%s@%s:%s/', map { $_ // '' } @config{qw( requirepass bind port )};
     $ENV{MOJO_REDIS_URL} //= $self->{url} if $self->configure_environment;
     return $self;
   }
