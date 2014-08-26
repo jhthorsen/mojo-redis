@@ -1,5 +1,8 @@
 Revision history for Mojo-Redis2
 
+0.10
+       * Add Mojo::Redis2::Backend for server commands
+
 0.09     Sun Aug 24 12:00:43 2014
        * Improved detection of running server
 

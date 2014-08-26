@@ -33,7 +33,6 @@ change in the future)
 =cut
 
 use Mojo::Base -base;
-use Mojo::Collection;
 
 has _redis => undef;
 

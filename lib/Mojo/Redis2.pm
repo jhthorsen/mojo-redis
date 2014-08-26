@@ -325,6 +325,20 @@ sub client {
   Mojo::Redis2::Client->new(_redis => $self);
 }
 
+=head2 backend
+
+  $self->backend->$method(@args);
+
+Run server commands (CONFIG, INFO, SAVE, ...) using L<Mojo::Redis2::Backend>.
+
+=cut
+
+sub backend {
+  my $self = shift;
+  require Mojo::Redis2::Backend;
+  Mojo::Redis2::Backend->new(_redis => $self);
+}
+
 =head2 multi
 
   $txn = $self->multi;
