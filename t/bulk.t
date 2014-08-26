@@ -26,4 +26,14 @@ Mojo::IOLoop->start;
 is $err->compact->join('. '), '', 'no errors';
 is_deeply $res, [ 'PONG', 'OK', '123', ], 'got async res';
 
+{
+  # mostly just for code coverage
+  for my $method ($redis->_basic_operations) {
+    $bulk->$method;
+  }
+
+  eval { $bulk->execute };
+  like $@, qr{wrong number of arguments}, 'wrong number of arguments';
+}
+
 done_testing;
