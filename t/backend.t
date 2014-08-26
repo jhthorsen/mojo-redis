@@ -43,11 +43,6 @@ SKIP: {
   is $res[0], 'OK', 'rewrite';
 }
 
-SKIP: {
-  skip 'ROLE is not available', 1 unless eval { @res = $backend->role; };
-  is $res[0], 'OK', 'role';
-}
-
 for my $method (qw( flushall flushdb resetstat save )) {
   @res = $backend->$method;
   is $res[0], 'OK', $method;

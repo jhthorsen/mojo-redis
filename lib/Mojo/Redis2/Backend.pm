@@ -154,13 +154,6 @@ sub info {
 
 See L<http://redis.io/commands/lastsave> for details.
 
-=head2 role
-
-  $res = $self->role;
-  $self = $self->role(sub { my ($redis, $err, $res) = @_; });
-
-See L<http://redis.io/commands/role> for details.
-
 =head2 resetstat
 
   $res = $self->resetstat;
@@ -199,7 +192,7 @@ for my $method (qw( resetstat rewrite )) {
   eval "sub $method { my \$self = shift; my \$r = \$self->_redis->_execute(basic => CONFIG => $op => \@_); return \@_ ? \$self : \$r }; 1" or die $@;
 }
 
-for my $method (qw( bgrewriteaof bgsave dbsize flushall flushdb lastsave role save time )) {
+for my $method (qw( bgrewriteaof bgsave dbsize flushall flushdb lastsave save time )) {
   my $op = uc $method;
   eval "sub $method { my \$self = shift; my \$r = \$self->_redis->_execute(basic => $op => \@_); return \@_ ? \$self : \$r }; 1" or die $@;
 }
