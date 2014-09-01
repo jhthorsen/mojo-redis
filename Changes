@@ -1,5 +1,8 @@
 Revision history for Mojo-Redis2
 
+0.12
+       * Fix response list in POD for blpop, brpop and brpoplpush.
+
 0.11     Tue Aug 26 15:05:16 2014
        * Add simpler "CONFIG GET key" result
 

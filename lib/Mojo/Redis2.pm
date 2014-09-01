@@ -266,7 +266,7 @@ sub new {
 
 =head2 blpop
 
-  $self = $self->blpop(@keys, $timeout, sub { my ($self, $res) = @_; });
+  $self = $self->blpop(@keys, $timeout, sub { my ($self, $err, $res) = @_; });
 
 This method will issue the BLPOP command on the Redis server, but in its
 own connection. This means that C<$self> can still be used to run other
@@ -276,19 +276,19 @@ Note: This method will only work in a non-blocking environment.
 
 See also L<http://redis.io/commands/blpop>.
 
-=head2 brpoplpush
-
-  $self = $self->brpoplpush($from => $to, $timeout, sub { my ($self, $res) = @_; });
-
-Follows the same API as L</blpop>.
-See also L<http://redis.io/commands/brpoplpush>.
-
 =head2 brpop
 
-  $self = $self->brpop(@keys, $timeout, sub { my ($self, $res) = @_; });
+  $self = $self->brpop(@keys, $timeout, sub { my ($self, $err, $res) = @_; });
 
 Follows the same API as L</blpop>.
 See also L<http://redis.io/commands/brpop>.
+
+=head2 brpoplpush
+
+  $self = $self->brpoplpush($from => $to, $timeout, sub { my ($self, $err, $res) = @_; });
+
+Follows the same API as L</blpop>.
+See also L<http://redis.io/commands/brpoplpush>.
 
 =cut
 
