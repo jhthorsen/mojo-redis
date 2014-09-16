@@ -1,6 +1,6 @@
 Revision history for Mojo-Redis2
 
-0.12
+0.12     Tue Sep 16 21:13:54 2014
        * Fix response list in POD for blpop, brpop and brpoplpush.
        * emit_safe() is deprecated in Mojolicious
 
