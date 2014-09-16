@@ -444,7 +444,7 @@ sub _connect {
       warn "[$c->{name}] connected\n" if DEBUG;
 
       $stream->timeout(0);
-      $stream->on(close => sub { $self->_error($c) });
+      $stream->on(close => sub { $self and $self->_error($c) });
       $stream->on(error => sub { $self and $self->_error($c, $_[1]) });
       $stream->on(read => sub { $self->_read($c, $_[1]) });
 
@@ -452,7 +452,7 @@ sub _connect {
       unshift @{ $c->{queue} }, [ undef, SELECT => $db ] if $db;
       unshift @{ $c->{queue} }, [ undef, AUTH => $userinfo[1] ] if length $userinfo[1];
 
-      $self->emit_safe(connection => { map { $_ => $c->{$_} } qw( group id nb ) });
+      $self->emit(connection => { map { $_ => $c->{$_} } qw( group id nb ) });
       $self->_dequeue($c);
     },
   );
@@ -492,7 +492,7 @@ sub _error {
 
   return if $self->{destroy};
   return $self->_connect($c) unless defined $err;
-  return $self->emit_safe(error => $err) unless @$waiting;
+  return $self->emit(error => $err) unless @$waiting;
   return $self->$_($err, []) for grep { $_ } map { $_->[0] } @$waiting;
 }
 
