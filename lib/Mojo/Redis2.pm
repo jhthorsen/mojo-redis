@@ -486,7 +486,7 @@ sub _dequeue {
 
 sub _error {
   my ($self, $c, $err) = @_;
-  my $waiting = $c->{waiting} || [];
+  my $waiting = $c->{waiting} || $c->{queue};
 
   warn "[$c->{name}] !!! @{[$err // 'close']}\n" if DEBUG;
 
