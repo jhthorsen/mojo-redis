@@ -101,7 +101,7 @@ sub execute {
   return $self if $cb;
   $cb = sub { $redis->_loop(1)->stop };
   $redis->_loop(1)->start;
-  die $err->join('. ') if $err->compact;
+  die $err->join('. ') if $err->compact->size > 0;
   return $res;
 }
 
