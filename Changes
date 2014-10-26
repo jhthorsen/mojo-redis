@@ -1,5 +1,9 @@
 Revision history for Mojo-Redis2
 
+0.14     Sun Oct 26 09:32:58 2014
+       * Fix empty collection evaluation
+         Contributor: Jan Tore Morken
+
 0.13     Wed Oct 22 20:53:41 2014
        * Fix "Connection refused" now makes blocking requests die with
          correct error message.
