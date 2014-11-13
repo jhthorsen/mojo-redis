@@ -1,6 +1,6 @@
 Revision history for Mojo-Redis2
 
-0.15
+0.15     Thu Nov 13 17:50:21 2014
        * Skip tests on Win32
 
 0.14     Sun Oct 26 09:32:58 2014
