@@ -3,6 +3,8 @@ use Test::More;
 use Mojo::Redis2::Server;
 my $pid;
 
+plan skip_all => 'Cannot test on Win32' if $^O =~ /win/i;
+
 {
   my $server = Mojo::Redis2::Server->new;
   local $ENV{REDIS_SERVER_BIN} = './does-not-exist-nope-for-sure-i-hope-not';

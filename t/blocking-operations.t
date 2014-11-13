@@ -3,6 +3,7 @@ use Mojo::Redis2;
 use Mojo::Util 'dumper';
 use Test::More;
 
+plan skip_all => 'Cannot test on Win32' if $^O =~ /win/i;
 plan skip_all => $@ unless eval { Mojo::Redis2::Server->start };
 
 my $redis = Mojo::Redis2->new;

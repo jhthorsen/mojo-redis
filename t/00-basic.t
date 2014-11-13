@@ -2,6 +2,8 @@ use Test::More;
 use File::Find;
 use t::Util;
 
+plan skip_all => 'Cannot test on Win32' if $^O =~ /win/i;
+
 if(($ENV{HARNESS_PERL_SWITCHES} || '') =~ /Devel::Cover/) {
   plan skip_all => 'HARNESS_PERL_SWITCHES =~ /Devel::Cover/';
 }

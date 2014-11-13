@@ -1,5 +1,8 @@
 Revision history for Mojo-Redis2
 
+0.15
+       * Skip tests on Win32
+
 0.14     Sun Oct 26 09:32:58 2014
        * Fix empty collection evaluation
          Contributor: Jan Tore Morken

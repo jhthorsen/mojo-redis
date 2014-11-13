@@ -4,6 +4,8 @@ use Test::More;
 use List::Util 'shuffle';
 use t::Util;
 
+plan skip_all => 'Cannot test on Win32' if $^O =~ /win/i;
+
 my %ops = t::Util->get_documented_redis_methods;
 my @categories = $ENV{TEST_CATEGORY} || qw( Hashes Keys Lists PubSub Sets SortedSets Strings Connection );
 my $redis = Mojo::Redis2::RECORDER->new;
