@@ -360,32 +360,49 @@ sub multi {
 
 =head2 psubscribe
 
-  $self = $self->psubscribe(@patterns, sub { my ($self, $err, $res) = @_; ... });
+  $self = $self->psubscribe(\@patterns, sub { my ($self, $err, $res) = @_; ... });
 
 Used to subscribe to channels that match C<@patterns>. Messages arriving over a
 matching channel name will result in L</pmessage> events.
 
 See L<http://redis.io/topics/pubsub> for details.
 
+=head2 punsubscribe
+
+  $self = $self->punsubscribe(\@patterns, sub { my ($self, $err, $res) = @_; ... });
+
+The reverse of L</psubscribe>.
+See L<http://redis.io/topics/pubsub> for details.
+
 =head2 subscribe
 
-  $self = $self->subscribe(@channels, sub { my ($self, $err, $res) = @_; ... });
+  $self = $self->subscribe(\@channels, sub { my ($self, $err, $res) = @_; ... });
 
 Used to subscribe to C<@channels>. Messages arriving over a channel will
 result in L</message> events.
 
 See L<http://redis.io/topics/pubsub> for details.
 
+=head2 unsubscribe
+
+  $self = $self->unsubscribe(\@channels, sub { my ($self, $err, $res) = @_; ... });
+  $self = $self->unsubscribe($event);
+  $self = $self->unsubscribe($event, $cb);
+
+The reverse of L</subscribe>. It will also call L<Mojo::EventEmitter/unsubscribe>
+unless the first argument is an array-ref of C<@channels>.
+
+See L<http://redis.io/topics/pubsub> for details.
+
 =cut
 
-sub psubscribe {
-  my $cb = ref $_[-1] eq 'CODE' ? pop : sub {};
-  shift->_execute(pubsub => PSUBSCRIBE => @_, $cb);
-}
-
-sub subscribe {
-  my $cb = ref $_[-1] eq 'CODE' ? pop : sub {};
-  shift->_execute(pubsub => SUBSCRIBE => @_, $cb);
+sub psubscribe { shift->_pubsub(PSUBSCRIBE => @_); }
+sub punsubscribe { shift->_pubsub(PUNSUBSCRIBE => @_); }
+sub subscribe { shift->_pubsub(SUBSCRIBE => @_); }
+sub unsubscribe {
+  my $self = shift;
+  return $self->_pubsub(UNSUBSCRIBE => @_) if ref $_[0] eq 'ARRAY';
+  return $self->SUPER::unsubscribe(@_);
 }
 
 sub DESTROY { $_[0]->{destroy} = 1; $_[0]->_cleanup; }
@@ -535,6 +552,20 @@ sub _op_to_command {
   }
 
   $self->protocol->encode({type => '*', data => \@data});
+}
+
+sub _pubsub {
+  my $cb = ref $_[-1] eq 'CODE' ? pop : sub {};
+  my ($self, $op) = (shift, shift);
+  my $channels = ref $_[0] eq 'ARRAY' ? shift : [];
+
+  unless (@$channels) {
+    my $method = lc $op;
+    $channels = [@_];
+    Mojo::Util::deprecated("$method(\@list, ...) is DEPRECATED: Requires an array-ref as first argument.");
+  }
+
+  $self->_execute(pubsub => $op => @$channels, $cb);
 }
 
 sub _read {
