@@ -1,6 +1,6 @@
 Revision history for Mojo-Redis2
 
-0.16
+0.16     Fri Jan  2 13:47:53 2015
        * Change psubscribe() and subscribe() require an array-ref of channel names
        * Add punsubscribe()
        * Add unsubscribe()

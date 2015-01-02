@@ -2,7 +2,7 @@ NAME
     Mojo::Redis2 - Pure-Perl non-blocking I/O Redis driver
 
 VERSION
-    0.15
+    0.16
 
 DESCRIPTION
     THIS MODULE IS UNDER DEVELOPMENT! FEEDBACK WANTED!
@@ -238,18 +238,35 @@ METHODS
     which will run all the Redis commands inside a transaction.
 
   psubscribe
-      $self = $self->psubscribe(@patterns, sub { my ($self, $err, $res) = @_; ... });
+      $self = $self->psubscribe(\@patterns, sub { my ($self, $err, $res) = @_; ... });
 
     Used to subscribe to channels that match @patterns. Messages arriving
     over a matching channel name will result in "pmessage" events.
 
     See <http://redis.io/topics/pubsub> for details.
 
+  punsubscribe
+      $self = $self->punsubscribe(\@patterns, sub { my ($self, $err, $res) = @_; ... });
+
+    The reverse of "psubscribe". See <http://redis.io/topics/pubsub> for
+    details.
+
   subscribe
-      $self = $self->subscribe(@channels, sub { my ($self, $err, $res) = @_; ... });
+      $self = $self->subscribe(\@channels, sub { my ($self, $err, $res) = @_; ... });
 
     Used to subscribe to @channels. Messages arriving over a channel will
     result in "message" events.
+
+    See <http://redis.io/topics/pubsub> for details.
+
+  unsubscribe
+      $self = $self->unsubscribe(\@channels, sub { my ($self, $err, $res) = @_; ... });
+      $self = $self->unsubscribe($event);
+      $self = $self->unsubscribe($event, $cb);
+
+    The reverse of "subscribe". It will also call "unsubscribe" in
+    Mojo::EventEmitter unless the first argument is an array-ref of
+    @channels.
 
     See <http://redis.io/topics/pubsub> for details.
 
