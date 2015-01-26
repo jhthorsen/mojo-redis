@@ -85,15 +85,15 @@ Will execute all the queued Redis operations.
 sub execute {
   my ($self, $cb) = @_;
   my $redis = $self->_redis;
-  my @ops = @{ delete $self->{queue} || [] };
-  my $err = Mojo::Collection->new;
-  my $res = [];
+  my @ops   = @{delete $self->{queue} || []};
+  my $err   = Mojo::Collection->new;
+  my $res   = [];
   my (@err, @res);
 
   my $collector = sub {
     push @$err, $_[1];
     push @$res, $_[2];
-    $self->$cb($err, $res) if @ops == @$res; # done
+    $self->$cb($err, $res) if @ops == @$res;    # done
   };
 
   $redis->_execute(@$_, $collector) for @ops;

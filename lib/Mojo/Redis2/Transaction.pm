@@ -94,15 +94,15 @@ sub DESTROY {
   $self->discard if $self->{instructions} and !$self->{exec};
 }
 
-sub _blocking_group { 'txn' }
+sub _blocking_group {'txn'}
 
 sub _execute {
   my ($self, $group, $op) = (shift, shift, shift);
 
   if (!grep { $op eq $_ } qw( DISCARD EXEC WATCH ) and !$self->{instructions}++) {
     $self->{exec} = 0;
-    $self->{connections}{txn} ||= { group => 'txn', nb => ref $_[-1] eq 'CODE' ? 1 : 0 };
-    push @{ $self->{connections}{txn}{queue} }, [ undef, 'MULTI' ];
+    $self->{connections}{txn} ||= {group => 'txn', nb => ref $_[-1] eq 'CODE' ? 1 : 0};
+    push @{$self->{connections}{txn}{queue}}, [undef, 'MULTI'];
   }
 
   $self->SUPER::_execute(txn => $op, @_);

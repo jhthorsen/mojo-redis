@@ -65,7 +65,7 @@ Contains a value suitable for L<Mojo::Redis2/url>.
 
 =cut
 
-sub config { \%{ shift->{config} || {} }; }
+sub config { \%{shift->{config} || {}}; }
 has configure_environment => 1;
 sub pid { shift->{pid} || 0; }
 sub url { shift->{url} || ''; }
@@ -94,33 +94,33 @@ file settings.
 =cut
 
 sub start {
-  my $self = _instance(shift);
+  my $self   = _instance(shift);
   my %config = @_;
   my $cfg;
 
   return $self if $self->pid and kill 0, $self->pid;
 
-  $config{bind} ||= 'localhost';
-  $config{daemonize} ||= 'no';
-  $config{databases} ||= 16;
-  $config{loglevel} ||= SERVER_DEBUG ? 'verbose' : 'warning';
-  $config{port} ||= Mojo::IOLoop::Server->generate_port;
-  $config{rdbchecksum} ||= 'no';
-  $config{requirepass} ||= '';
+  $config{bind}                        ||= 'localhost';
+  $config{daemonize}                   ||= 'no';
+  $config{databases}                   ||= 16;
+  $config{loglevel}                    ||= SERVER_DEBUG ? 'verbose' : 'warning';
+  $config{port}                        ||= Mojo::IOLoop::Server->generate_port;
+  $config{rdbchecksum}                 ||= 'no';
+  $config{requirepass}                 ||= '';
   $config{stop_writes_on_bgsave_error} ||= 'no';
-  $config{syslog_enabled} ||= 'no';
-  $config{tcp_keepalive} ||= 0;
+  $config{syslog_enabled}              ||= 'no';
+  $config{tcp_keepalive}               ||= 0;
 
   $cfg = Mojo::Asset::File->new;
   $self->{bin} = $ENV{REDIS_SERVER_BIN} || 'redis-server';
 
-  while (my($key, $value) = each %config) {
+  while (my ($key, $value) = each %config) {
     $key =~ s!_!-!g;
     warn "[Redis::Server] config $key $value\n" if SERVER_DEBUG;
     $cfg->add_chunk("$key $value\n") if length $value;
   }
 
-  if ($self->{pid} = fork) { # parent
+  if ($self->{pid} = fork) {    # parent
     $self->{config} = \%config;
     $self->_wait_for_server_to_start;
     $self->{url} = sprintf 'redis://x:%s@%s:%s/', map { $_ // '' } @config{qw( requirepass bind port )};
@@ -143,9 +143,9 @@ Will stop a running Redis server or die trying.
 =cut
 
 sub stop {
-  my $self = _instance(shift);
+  my $self  = _instance(shift);
   my $guard = 10;
-  my $pid = $self->pid or return $self;
+  my $pid   = $self->pid or return $self;
 
   while (--$guard > 0) {
     kill 15, $pid or last;
@@ -160,12 +160,18 @@ sub stop {
 sub _instance { ref $_[0] ? $_[0] : $_[0]->singleton; }
 
 sub _wait_for_server_to_start {
-  my $self = shift;
+  my $self  = shift;
   my $guard = 100;
 
   while (--$guard) {
     Time::HiRes::usleep(10e3);
-    return if IO::Socket::INET->new(PeerAddr => $self->config->{bind}, PeerPort => $self->config->{port}, Proto => 'tcp', Timeout => 1);
+    return
+      if IO::Socket::INET->new(
+      PeerAddr => $self->config->{bind},
+      PeerPort => $self->config->{port},
+      Proto    => 'tcp',
+      Timeout  => 1
+      );
   }
 
   die "Failed to start $self->{bin}. ($?)" if $self->pid and waitpid $self->pid, 0;

@@ -89,11 +89,14 @@ sub list {
 
   # non-blocking
   if ($cb) {
-    return $self->_execute(qw( basic CLIENT LIST ), sub {
-      my ($redis, $err, $res) = @_;
-      return $redis->$cb($err, {}) if $err;
-      return $redis->$cb('', _parse_list($redis, $res));
-    });
+    return $self->_execute(
+      qw( basic CLIENT LIST ),
+      sub {
+        my ($redis, $err, $res) = @_;
+        return $redis->$cb($err, {}) if $err;
+        return $redis->$cb('', _parse_list($redis, $res));
+      }
+    );
   }
 
   # blocking

@@ -134,7 +134,8 @@ use constant DEFAULT_PORT => 6379;
 our $VERSION = '0.16';
 
 my $PROTOCOL_CLASS = do {
-  my $class = $ENV{MOJO_REDIS_PROTOCOL} ||= eval "require Protocol::Redis::XS; 'Protocol::Redis::XS'" || 'Protocol::Redis';
+  my $class = $ENV{MOJO_REDIS_PROTOCOL}
+    ||= eval "require Protocol::Redis::XS; 'Protocol::Redis::XS'" || 'Protocol::Redis';
   eval "require $class; 1" or die $@;
   $class;
 };
@@ -292,8 +293,8 @@ See also L<http://redis.io/commands/brpoplpush>.
 
 =cut
 
-sub blpop { shift->_execute(blpop => BLPOP => @_); }
-sub brpop { shift->_execute(brpop => BRPOP => @_); }
+sub blpop      { shift->_execute(blpop      => BLPOP      => @_); }
+sub brpop      { shift->_execute(brpop      => BRPOP      => @_); }
 sub brpoplpush { shift->_execute(brpoplpush => BRPOPLPUSH => @_); }
 
 =head2 bulk
@@ -352,7 +353,7 @@ which will run all the Redis commands inside a transaction.
 =cut
 
 sub multi {
-  my $self = shift;
+  my $self       = shift;
   my @attributes = qw( encoding protocol url );
   require Mojo::Redis2::Transaction;
   Mojo::Redis2::Transaction->new(map { $_ => $self->$_ } @attributes);
@@ -396,9 +397,10 @@ See L<http://redis.io/topics/pubsub> for details.
 
 =cut
 
-sub psubscribe { shift->_pubsub(PSUBSCRIBE => @_); }
+sub psubscribe   { shift->_pubsub(PSUBSCRIBE   => @_); }
 sub punsubscribe { shift->_pubsub(PUNSUBSCRIBE => @_); }
-sub subscribe { shift->_pubsub(SUBSCRIBE => @_); }
+sub subscribe    { shift->_pubsub(SUBSCRIBE    => @_); }
+
 sub unsubscribe {
   my $self = shift;
   return $self->_pubsub(UNSUBSCRIBE => @_) if ref $_[0] eq 'ARRAY';
@@ -408,27 +410,21 @@ sub unsubscribe {
 sub DESTROY { $_[0]->{destroy} = 1; $_[0]->_cleanup; }
 
 sub _basic_operations {
-  'append',           'echo',        'decr',             'decrby',   'del',      'exists',
-  'expire',           'expireat',    'get',              'getbit',   'getrange', 'getset',
-  'hdel',             'hexists',     'hget',             'hgetall',  'hincrby',  'hkeys',
-  'hlen',             'hmget',       'hmset',            'hset',     'hsetnx',   'hvals',
-  'incr',             'incrby',      'keys',             'lindex',   'linsert',  'llen',
-  'lpop',             'lpush',       'lpushx',           'lrange',   'lrem',     'lset',
-  'ltrim',            'mget',        'move',             'mset',     'msetnx',   'persist',
-  'ping',             'publish',     'randomkey',        'rename',   'renamenx', 'rpop',
-  'rpoplpush',        'rpush',       'rpushx',           'sadd',     'scard',    'sdiff',
-  'sdiffstore',       'set',         'setbit',           'setex',    'setnx',    'setrange',
-  'sinter',           'sinterstore', 'sismember',        'smembers', 'smove',    'sort',
-  'spop',             'srandmember', 'srem',             'strlen',   'sunion',   'sunionstore',
-  'ttl',              'type',        'zadd',             'zcard',    'zcount',   'zincrby',
-  'zinterstore',      'zrange',      'zrangebyscore',    'zrank',    'zrem',     'zremrangebyrank',
-  'zremrangebyscore', 'zrevrange',   'zrevrangebyscore', 'zrevrank', 'zscore',   'zunionstore',
+  'append', 'echo', 'decr', 'decrby', 'del', 'exists', 'expire', 'expireat', 'get', 'getbit', 'getrange', 'getset',
+    'hdel', 'hexists', 'hget', 'hgetall', 'hincrby', 'hkeys', 'hlen', 'hmget', 'hmset',  'hset',   'hsetnx', 'hvals',
+    'incr', 'incrby',  'keys', 'lindex',  'linsert', 'llen',  'lpop', 'lpush', 'lpushx', 'lrange', 'lrem',   'lset',
+    'ltrim', 'mget', 'move', 'mset', 'msetnx', 'persist', 'ping', 'publish', 'randomkey', 'rename', 'renamenx', 'rpop',
+    'rpoplpush', 'rpush', 'rpushx', 'sadd', 'scard', 'sdiff', 'sdiffstore', 'set', 'setbit', 'setex', 'setnx',
+    'setrange', 'sinter', 'sinterstore', 'sismember', 'smembers', 'smove', 'sort', 'spop', 'srandmember', 'srem',
+    'strlen', 'sunion', 'sunionstore', 'ttl', 'type', 'zadd', 'zcard', 'zcount', 'zincrby', 'zinterstore', 'zrange',
+    'zrangebyscore', 'zrank', 'zrem', 'zremrangebyrank', 'zremrangebyscore', 'zrevrange', 'zrevrangebyscore',
+    'zrevrank', 'zscore', 'zunionstore',;
 }
 
-sub _blocking_group { 'blocking' }
+sub _blocking_group {'blocking'}
 
 sub _cleanup {
-  my $self = shift;
+  my $self        = shift;
   my $connections = delete $self->{connections};
 
   delete $self->{pid};
@@ -436,20 +432,20 @@ sub _cleanup {
   for my $c (values %$connections) {
     my $loop = $self->_loop($c->{nb}) or next;
     $loop->remove($c->{id}) if $c->{id};
-    $self->$_('Premature connection close', []) for grep { $_ } map { $_->[0] } @{ $c->{waiting} };
+    $self->$_('Premature connection close', []) for grep {$_} map { $_->[0] } @{$c->{waiting}};
   }
 }
 
 sub _connect {
   my ($self, $c) = @_;
-  my $url = $self->url;
-  my $db = $url->path->[0];
+  my $url      = $self->url;
+  my $db       = $url->path->[0];
   my @userinfo = split /:/, +($url->userinfo // '');
 
   Scalar::Util::weaken($self);
-  $c->{name} = $url->clone->userinfo('')->query({ g => $c->{group} })->to_string if DEBUG;
+  $c->{name} = $url->clone->userinfo('')->query({g => $c->{group}})->to_string if DEBUG;
   $c->{id} = $self->_loop($c->{nb})->client(
-    { address => $url->host, port => $url->port || DEFAULT_PORT },
+    {address => $url->host, port => $url->port || DEFAULT_PORT},
     sub {
       my ($loop, $err, $stream) = @_;
 
@@ -466,10 +462,10 @@ sub _connect {
       $stream->on(read => sub { $self->_read($c, $_[1]) });
 
       # NOTE: unshift() will cause AUTH to be sent before SELECT
-      unshift @{ $c->{queue} }, [ undef, SELECT => $db ] if $db;
-      unshift @{ $c->{queue} }, [ undef, AUTH => $userinfo[1] ] if length $userinfo[1];
+      unshift @{$c->{queue}}, [undef, SELECT => $db]          if $db;
+      unshift @{$c->{queue}}, [undef, AUTH   => $userinfo[1]] if length $userinfo[1];
 
-      $self->emit(connection => { map { $_ => $c->{$_} } qw( group id nb ) });
+      $self->emit(connection => {map { $_ => $c->{$_} } qw( group id nb )});
       $self->_dequeue($c);
     },
   );
@@ -479,9 +475,9 @@ sub _connect {
 
 sub _dequeue {
   my ($self, $c) = @_;
-  my $loop = $self->_loop($c->{nb});
+  my $loop   = $self->_loop($c->{nb});
   my $stream = $loop->stream($c->{id}) or return $self;
-  my $queue = $c->{queue};
+  my $queue  = $c->{queue};
   my $buf;
 
   if (!$queue->[0]) {
@@ -494,7 +490,7 @@ sub _dequeue {
     return $self;
   }
 
-  push @{ $c->{waiting} }, shift @$queue;
+  push @{$c->{waiting}}, shift @$queue;
   $buf = $self->_op_to_command($c->{waiting}[-1]);
   do { local $_ = $buf; s!\r\n!\\r\\n!g; warn "[$c->{name}] <<< ($_)\n" } if DEBUG;
   $stream->write($buf);
@@ -510,26 +506,26 @@ sub _error {
   return if $self->{destroy};
   return $self->_connect($c) unless defined $err;
   return $self->emit(error => $err) unless @$waiting;
-  return $self->$_($err, []) for grep { $_ } map { $_->[0] } @$waiting;
+  return $self->$_($err, []) for grep {$_} map { $_->[0] } @$waiting;
 }
 
 sub _execute {
   my $cb = ref $_[-1] eq 'CODE' ? pop : undef;
   my ($self, $group, @cmd) = @_;
 
-  $self->_cleanup unless ($self->{pid} //= $$) eq $$; # TODO: Fork safety
+  $self->_cleanup unless ($self->{pid} //= $$) eq $$;    # TODO: Fork safety
 
   if ($cb) {
-    my $c = $self->{connections}{$group} ||= { nb => 1, group => $group };
-    push @{ $c->{queue} }, [$cb, @cmd];
+    my $c = $self->{connections}{$group} ||= {nb => 1, group => $group};
+    push @{$c->{queue}}, [$cb, @cmd];
     return $self->_connect($c) unless $c->{id};
     return $self->_dequeue($c);
   }
   else {
-    my $c = $self->{connections}{$self->_blocking_group} ||= { nb => 0, group => $self->_blocking_group };
+    my $c = $self->{connections}{$self->_blocking_group} ||= {nb => 0, group => $self->_blocking_group};
     my ($err, $res);
 
-    push @{ $c->{queue} }, [sub { shift->_loop(0)->stop; ($err, $res) = @_; }, @cmd];
+    push @{$c->{queue}}, [sub { shift->_loop(0)->stop; ($err, $res) = @_; }, @cmd];
     $c->{id} ? $self->_dequeue($c) : $self->_connect($c);
     $self->_loop(0)->start;
     die "[@cmd] $err" if $err;
@@ -555,7 +551,7 @@ sub _op_to_command {
 }
 
 sub _pubsub {
-  my $cb = ref $_[-1] eq 'CODE' ? pop : sub {};
+  my $cb = ref $_[-1] eq 'CODE' ? pop : sub { };
   my ($self, $op) = (shift, shift);
   my $channels = ref $_[0] eq 'ARRAY' ? shift : [];
 
@@ -576,11 +572,11 @@ sub _read {
   do { local $_ = $buf; s!\r\n!\\r\\n!g; warn "[$c->{name}] >>> ($_)\n" } if DEBUG;
   $protocol->parse($buf);
 
-  MESSAGE:
+MESSAGE:
   while (my $message = $protocol->get_message) {
     my $data = $self->_reencode_message($message);
-    my $op = shift @{ $c->{waiting} || [] };
-    my $cb = $op->[0];
+    my $op   = shift @{$c->{waiting} || []};
+    my $cb   = $op->[0];
 
     if (ref $data eq 'SCALAR') {
       $self->$cb($$data, []) if $cb;
@@ -599,20 +595,20 @@ sub _read {
 
 sub _reencode_message {
   my ($self, $message) = @_;
-  my ($type, $data) = @{$message}{qw( type data )};
+  my ($type, $data)    = @{$message}{qw( type data )};
 
   if ($type ne '*' and $self->encoding and $data) {
     $data = Encode::decode($self->encoding, $data);
   }
 
   if ($type eq '-') {
-    return \ $data;
+    return \$data;
   }
   elsif ($type ne '*') {
     return $data;
   }
   else {
-    return [ map { $self->_reencode_message($_); } @$data ];
+    return [map { $self->_reencode_message($_); } @$data];
   }
 }
 
