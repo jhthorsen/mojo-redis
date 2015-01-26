@@ -518,7 +518,7 @@ sub _error {
   warn "[$self->{name}] !!! @{[$err // 'close']}\n" if DEBUG;
 
   return if $self->{destroy};
-  return $self->_connect($c) unless defined $err;
+  return $self->_requeue($c)->_connect($c) unless defined $err;
   return $self->emit(error => $err) unless @$waiting;
   return $self->$_($err, []) for grep {$_} map { $_->[0] } @$waiting;
 }
@@ -624,6 +624,13 @@ sub _reencode_message {
   else {
     return [map { $self->_reencode_message($_); } @$data];
   }
+}
+
+sub _requeue {
+  my ($self, $c) = @_;
+
+  unshift @{$c->{queue}}, grep { $_->[0] } @{delete $c->{waiting} || []};
+  return $self;
 }
 
 for my $method (__PACKAGE__->_basic_operations) {
