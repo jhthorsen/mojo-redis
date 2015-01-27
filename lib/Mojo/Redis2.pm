@@ -490,7 +490,7 @@ sub _debug_url {
 sub _dequeue {
   my ($self, $c) = @_;
   my $loop   = $self->_loop($c->{nb});
-  my $stream = $loop->stream($c->{id}) or return $self;
+  my $stream = $loop->stream($c->{id}) or return $self;    # stream is not yet connected
   my $queue  = $c->{queue};
   my $buf;
 
@@ -520,7 +520,7 @@ sub _error {
   return if $self->{destroy};
   return $self->_requeue($c)->_connect($c) unless defined $err;
   return $self->emit(error => $err) unless @$waiting;
-  return $self->$_($err, []) for grep {$_} map { $_->[0] } @$waiting;
+  return $self->$_($err, undef) for grep {$_} map { $_->[0] } @$waiting;
 }
 
 sub _execute {
