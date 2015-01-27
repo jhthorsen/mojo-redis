@@ -150,7 +150,7 @@ Emitted when a new connection has been established. C<$info> is a hash ref
 with:
 
   {
-    group => $str, # basic, blpop, brpop, brpoplpush, publish, ...
+    group => $str, # basic, blocking, blpop, brpop, brpoplpush, publish, ...
     id => $connection_id,
     nb => $bool, # blocking/non-blocking
   }
@@ -192,18 +192,29 @@ Holds the encoding using for data from/to Redis. Default is UTF-8.
 
 =head2 protocol
 
-  $obj = $self->protocol;
-  $self = $self->protocol($obj);
+DEPRECATED! The protocol object cannot be shared in high load
+environments.
 
-Holds an object used to parse/generate Redis messages.
+=head2 protocol_class
+
+  $str = $self->protocol_class;
+  $self = $self->protocol_class('Protocol::Redis::XS');
+
+Holds the class name used to parse/generate Redis messages.
 Defaults to L<Protocol::Redis::XS> or L<Protocol::Redis>.
 
 L<Protocol::Redis::XS> need to be installed manually.
 
 =cut
 
-has encoding => 'UTF-8';
-has protocol => sub { $PROTOCOL_CLASS->new(api => 1); };
+has encoding       => 'UTF-8';
+has protocol_class => $PROTOCOL_CLASS;
+
+# DEPRECATED
+has protocol => sub {
+  Mojo::Util::deprecated('protocol is deprecated in favor or protocol_class');
+  $_[0]->protocol_class->new(api => 1);
+};
 
 =head2 url
 
@@ -356,7 +367,7 @@ which will run all the Redis commands inside a transaction.
 
 sub multi {
   my $self       = shift;
-  my @attributes = qw( encoding protocol url );
+  my @attributes = qw( encoding protocol_class url );
   require Mojo::Redis2::Transaction;
   Mojo::Redis2::Transaction->new(map { $_ => $self->$_ } @attributes);
 }
@@ -445,6 +456,8 @@ sub _connect {
   my @userinfo = split /:/, +($url->userinfo // '');
 
   Scalar::Util::weaken($self);
+  $c->{protocol} = $self->protocol_class->new(api => 1);
+  $c->{name} = "$self->{name}:$c->{group}:$c->{nb}" if DEBUG;
   $c->{id} = $self->_loop($c->{nb})->client(
     {address => $url->host, port => $url->port || DEFAULT_PORT},
     sub {
@@ -455,7 +468,7 @@ sub _connect {
         return $self->_error($c, $err);
       }
 
-      warn "[$self->{name}] --- @{[$self->_debug_url($url, $c)]}\n" if DEBUG;
+      warn "[$c->{name}] --- @{[$self->_debug_url($url, $c)]}\n" if DEBUG;
 
       $stream->timeout(0);
       $stream->on(close => sub { $self and $self->_error($c) });
@@ -505,8 +518,8 @@ sub _dequeue {
   }
 
   push @{$c->{waiting}}, shift @$queue;
-  $buf = $self->_op_to_command($c->{waiting}[-1]);
-  do { local $_ = $buf; s!\r\n!\\r\\n!g; warn "[$self->{name}] <<< ($_)\n" } if DEBUG;
+  $buf = $self->_op_to_command($c);
+  do { local $_ = $buf; s!\r\n!\\r\\n!g; warn "[$c->{name}] <<< ($_)\n" } if DEBUG;
   $stream->write($buf);
   $self;
 }
@@ -515,7 +528,7 @@ sub _error {
   my ($self, $c, $err) = @_;
   my $waiting = $c->{waiting} || $c->{queue};
 
-  warn "[$self->{name}] !!! @{[$err // 'close']}\n" if DEBUG;
+  warn "[$c->{name}] !!! @{[$err // 'close']}\n" if DEBUG;
 
   return if $self->{destroy};
   return $self->_requeue($c)->_connect($c) unless defined $err;
@@ -552,7 +565,8 @@ sub _loop {
 }
 
 sub _op_to_command {
-  my ($self, $op) = @_;
+  my ($self, $c) = @_;
+  my $op = $c->{waiting}[-1];
   my ($i, @data);
 
   for my $token (@$op) {
@@ -561,7 +575,7 @@ sub _op_to_command {
     push @data, {type => '$', data => $token};
   }
 
-  $self->protocol->encode({type => '*', data => \@data});
+  $c->{protocol}->encode({type => '*', data => \@data});
 }
 
 sub _pubsub {
@@ -580,10 +594,10 @@ sub _pubsub {
 
 sub _read {
   my ($self, $c, $buf) = @_;
-  my $protocol = $self->protocol;
+  my $protocol = $c->{protocol};
   my $event;
 
-  do { local $_ = $buf; s!\r\n!\\r\\n!g; warn "[$self->{name}] >>> ($_)\n" } if DEBUG;
+  do { local $_ = $buf; s!\r\n!\\r\\n!g; warn "[$c->{name}] >>> ($_)\n" } if DEBUG;
   $protocol->parse($buf);
 
 MESSAGE:
