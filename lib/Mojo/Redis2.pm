@@ -257,6 +257,8 @@ Object constructor. Makes sure L</url> is an object.
 sub new {
   my $self = shift->SUPER::new(@_);
 
+  $self->{name} = Mojo::Util::steady_time if DEBUG;
+
   if ($self->{url} and ref $self->{url} eq '') {
     $self->{url} = "redis://$self->{url}" unless $self->{url} =~ /^redis:/;
     $self->{url} = Mojo::URL->new($self->{url});
@@ -443,7 +445,6 @@ sub _connect {
   my @userinfo = split /:/, +($url->userinfo // '');
 
   Scalar::Util::weaken($self);
-  $c->{name} = $url->clone->userinfo('')->query({g => $c->{group}})->to_string if DEBUG;
   $c->{id} = $self->_loop($c->{nb})->client(
     {address => $url->host, port => $url->port || DEFAULT_PORT},
     sub {
@@ -454,7 +455,7 @@ sub _connect {
         return $self->_error($c, $err);
       }
 
-      warn "[$c->{name}] connected\n" if DEBUG;
+      warn "[$self->{name}] --- @{[$self->_debug_url($url, $c)]}\n" if DEBUG;
 
       $stream->timeout(0);
       $stream->on(close => sub { $self and $self->_error($c) });
@@ -471,6 +472,19 @@ sub _connect {
   );
 
   $self;
+}
+
+sub _debug_url {
+  my $self = shift;
+  my $url  = shift->clone;
+  my $c    = shift;
+
+  if (my $userinfo = $url->userinfo) {
+    $userinfo =~ s!:.*!:******!;
+    $url->userinfo($userinfo);
+  }
+
+  return $url->query({g => $c->{group}});
 }
 
 sub _dequeue {
@@ -492,7 +506,7 @@ sub _dequeue {
 
   push @{$c->{waiting}}, shift @$queue;
   $buf = $self->_op_to_command($c->{waiting}[-1]);
-  do { local $_ = $buf; s!\r\n!\\r\\n!g; warn "[$c->{name}] <<< ($_)\n" } if DEBUG;
+  do { local $_ = $buf; s!\r\n!\\r\\n!g; warn "[$self->{name}] <<< ($_)\n" } if DEBUG;
   $stream->write($buf);
   $self;
 }
@@ -501,7 +515,7 @@ sub _error {
   my ($self, $c, $err) = @_;
   my $waiting = $c->{waiting} || $c->{queue};
 
-  warn "[$c->{name}] !!! @{[$err // 'close']}\n" if DEBUG;
+  warn "[$self->{name}] !!! @{[$err // 'close']}\n" if DEBUG;
 
   return if $self->{destroy};
   return $self->_connect($c) unless defined $err;
@@ -569,7 +583,7 @@ sub _read {
   my $protocol = $self->protocol;
   my $event;
 
-  do { local $_ = $buf; s!\r\n!\\r\\n!g; warn "[$c->{name}] >>> ($_)\n" } if DEBUG;
+  do { local $_ = $buf; s!\r\n!\\r\\n!g; warn "[$self->{name}] >>> ($_)\n" } if DEBUG;
   $protocol->parse($buf);
 
 MESSAGE:
