@@ -6,6 +6,9 @@ perl:
   - "5.10"
 env:
   - "HARNESS_OPTIONS=j9"
+before_install:
+  - sudo apt-get update -qq
+  - sudo apt-get install redis-server
 install:
   - "cpanm -n Test::Pod Test::Pod::Coverage IO::Socket::SSL"
   - "cpanm -n --installdeps ."
