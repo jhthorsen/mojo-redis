@@ -1,7 +1,9 @@
 Revision history for Mojo-Redis2
 
-0.17
+0.17     Thu Jan 29 08:58:00 2015
        * Will requeue actions on disconnect
+       * Deprecated "protocol" attribute
+       * One protocol per connection
 
 0.16     Fri Jan  2 13:47:53 2015
        * Change psubscribe() and subscribe() require an array-ref of channel names

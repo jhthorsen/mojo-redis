@@ -2,7 +2,7 @@ NAME
     Mojo::Redis2 - Pure-Perl non-blocking I/O Redis driver
 
 VERSION
-    0.16
+    0.17
 
 DESCRIPTION
     THIS MODULE IS UNDER DEVELOPMENT! FEEDBACK WANTED!
@@ -109,7 +109,7 @@ EVENTS
     with:
 
       {
-        group => $str, # basic, blpop, brpop, brpoplpush, publish, ...
+        group => $str, # basic, blocking, blpop, brpop, brpoplpush, publish, ...
         id => $connection_id,
         nb => $bool, # blocking/non-blocking
       }
@@ -145,10 +145,14 @@ ATTRIBUTES
     Holds the encoding using for data from/to Redis. Default is UTF-8.
 
   protocol
-      $obj = $self->protocol;
-      $self = $self->protocol($obj);
+    DEPRECATED! The protocol object cannot be shared in high load
+    environments.
 
-    Holds an object used to parse/generate Redis messages. Defaults to
+  protocol_class
+      $str = $self->protocol_class;
+      $self = $self->protocol_class('Protocol::Redis::XS');
+
+    Holds the class name used to parse/generate Redis messages. Defaults to
     Protocol::Redis::XS or Protocol::Redis.
 
     Protocol::Redis::XS need to be installed manually.
