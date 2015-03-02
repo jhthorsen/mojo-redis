@@ -6,7 +6,7 @@ Mojo::Redis2 - Pure-Perl non-blocking I/O Redis driver
 
 =head1 VERSION
 
-0.17
+0.18
 
 =head1 DESCRIPTION
 
@@ -131,7 +131,7 @@ use Carp ();
 use constant DEBUG => $ENV{MOJO_REDIS_DEBUG} || 0;
 use constant DEFAULT_PORT => 6379;
 
-our $VERSION = '0.17';
+our $VERSION = '0.18';
 
 my $PROTOCOL_CLASS = do {
   my $class = $ENV{MOJO_REDIS_PROTOCOL}
@@ -144,7 +144,7 @@ my $PROTOCOL_CLASS = do {
 
 =head2 connection
 
-  $self->on(error => sub { my ($self, $info) = @_; ... });
+  $self->on(connection => sub { my ($self, $info) = @_; ... });
 
 Emitted when a new connection has been established. C<$info> is a hash ref
 with:
