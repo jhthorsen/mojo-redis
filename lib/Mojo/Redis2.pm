@@ -85,7 +85,7 @@ the same Redis server. It will also re-use the same connection when you
     my ($self, $message, $channel) = @_;
   });
 
-  $self->subscribe("some:channel" => sub {
+  $self->subscribe(["some:channel"], sub {
     my ($self, $err) = @_;
 
     return $self->publish("myapp:errors" => $err) if $err;
