@@ -6,11 +6,9 @@ Mojo::Redis2 - Pure-Perl non-blocking I/O Redis driver
 
 =head1 VERSION
 
-0.18
+0.19
 
 =head1 DESCRIPTION
-
-THIS MODULE IS UNDER DEVELOPMENT! FEEDBACK WANTED!
 
 L<Mojo::Redis2> is a pure-Perl non-blocking I/O L<Redis|http://redis.io>
 driver for the L<Mojolicious> real-time framework.
@@ -131,7 +129,7 @@ use Carp ();
 use constant DEBUG => $ENV{MOJO_REDIS_DEBUG} || 0;
 use constant DEFAULT_PORT => 6379;
 
-our $VERSION = '0.18';
+our $VERSION = '0.19';
 
 my $PROTOCOL_CLASS = do {
   my $class = $ENV{MOJO_REDIS_PROTOCOL}

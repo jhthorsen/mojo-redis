@@ -1,85 +1,87 @@
-Revision history for Mojo-Redis2
+Revision history for perl distribution Mojo-Redis2
 
-0.18     Mon Mar  2 08:36:10 2015
-       * Fix documenation #10
-       * Add examples/chat.pl
+0.19 2015-07-06T21:10:01+0200
+ - Remove "THIS MODULE IS UNDER DEVELOPMENT" warning
 
-0.17     Thu Jan 29 08:58:00 2015
-       * Will requeue actions on disconnect
-       * Deprecated "protocol" attribute
-       * One protocol per connection
+0.18 2015-03-02T08:36:10Z
+ - Fix documenation #10
+ - Add examples/chat.pl
 
-0.16     Fri Jan  2 13:47:53 2015
-       * Change psubscribe() and subscribe() require an array-ref of channel names
-       * Add punsubscribe()
-       * Add unsubscribe()
+0.17 2015-01-29T08:58:00Z
+ - Will requeue actions on disconnect
+ - Deprecated "protocol" attribute
+ - One protocol per connection
 
-0.15     Thu Nov 13 17:50:21 2014
-       * Skip tests on Win32
+0.16 2015-01-02T13:47:53Z
+ - Change psubscribe() and subscribe() require an array-ref of channel
+   names
+ - Add punsubscribe()
+ - Add unsubscribe()
 
-0.14     Sun Oct 26 09:32:58 2014
-       * Fix empty collection evaluation
-         Contributor: Jan Tore Morken
+0.15 2014-11-13T17:50:21Z
+ - Skip tests on Win32
 
-0.13     Wed Oct 22 20:53:41 2014
-       * Fix "Connection refused" now makes blocking requests die with
-         correct error message.
+0.14 2014-10-26T09:32:58Z
+ - Fix empty collection evaluation Contributor: Jan Tore Morken
 
-0.12     Tue Sep 16 21:13:54 2014
-       * Fix response list in POD for blpop, brpop and brpoplpush.
-       * emit_safe() is deprecated in Mojolicious
+0.13 2014-10-22T20:53:41Z
+ - Fix "Connection refused" now makes blocking requests die with correct
+   error message.
 
-0.11     Tue Aug 26 15:05:16 2014
-       * Add simpler "CONFIG GET key" result
+0.12 2014-09-16T21:13:54Z
+ - Fix response list in POD for blpop, brpop and brpoplpush.
+ - emit_safe() is deprecated in Mojolicious
 
-0.10     Tue Aug 26 14:07:30 2014
-       * Add Mojo::Redis2::Backend for server commands
+0.11 2014-08-26T15:05:16Z
+ - Add simpler "CONFIG GET key" result
 
-0.09     Sun Aug 24 12:00:43 2014
-       * Improved detection of running server
+0.10 2014-08-26T14:07:30Z
+ - Add Mojo::Redis2::Backend for server commands
 
-0.08     Sat Aug 23 18:24:11 2014
-       * Fix t/start-server.t test for DESTROY()-ed server
+0.09 2014-08-24T12:00:43Z
+ - Improved detection of running server
 
-0.07     Fri Aug 22 16:34:14 2014
-       * Replace start_server() with Mojo::Redis2::Server
+0.08 2014-08-23T18:24:11Z
+ - Fix t/start-server.t test for DESTROY()-ed server
 
-0.0602   Wed Aug 20 12:06:20 2014
-       * Fix failed CPAN index, by adding $VERSION to
-         Mojo::Redis2::Transaction
+0.07 2014-08-22T16:34:14Z
+ - Replace start_server() with Mojo::Redis2::Server
 
-0.0601   Wed Aug 20 11:59:46 2014
-       * Fix failed CPAN index, by adding $VERSION to
-         Mojo::Redis2::Transaction
+0.0602 2014-08-20T12:06:20Z
+ - Fix failed CPAN index, by adding $VERSION to Mojo::Redis2::Transaction
 
-0.06     Wed Aug 20 11:49:23 2014
-       * Add Mojo::Redis2::Bulk for grouped commands
-       * Add Mojo::Redis2::Client for CLIENT commands
+0.0601 2014-08-20T11:59:46Z
+ - Fix failed CPAN index, by adding $VERSION to Mojo::Redis2::Transaction
 
-0.05     Tue Aug 19 14:29:23 2014
-       * Add connection event
+0.06 2014-08-20T11:49:23Z
+ - Add Mojo::Redis2::Bulk for grouped commands
+ - Add Mojo::Redis2::Client for CLIENT commands
 
-0.0401   Wed Aug 13 16:41:39 2014
-       * Fix "Could not start Redis" test
+0.05 2014-08-19T14:29:23Z
+ - Add connection event
 
-0.04     Wed Aug 13 16:39:28 2014
-       * Fix Not enough arguments for grep at Mojo/Redis2.pm line 444, near "};"
-       * Add blpop(), brpop() and brpoplpush() as invalid methods on
-         Mojo::Redis2::Transaction
+0.0401 2014-08-13T16:41:39Z
+ - Fix "Could not start Redis" test
 
-0.03     Wed Aug  6 11:35:43 2014
-       * Add watch() to Mojo::Redis2::Transaction
-       * Add blpop(), brpop() and brpoplpush() to Mojo::Redis2
+0.04 2014-08-13T16:39:28Z
+ - Fix Not enough arguments for grep at Mojo/Redis2.pm line 444, near "};"
+ - Add blpop(), brpop() and brpoplpush() as invalid methods on
+   Mojo::Redis2::Transaction
 
-0.02     Wed Aug  6 10:20:32 2014
-       * Fix the order commands are sent
-       * Fix missing dependency: Protocol::Redis
-       * Add support for transactions
+0.03 2014-08-06T11:35:43Z
+ - Add watch() to Mojo::Redis2::Transaction
+ - Add blpop(), brpop() and brpoplpush() to Mojo::Redis2
 
-0.01     Tue Aug  5 13:32:27 2014
-       * Started project
-       * Add blocking support
-       * Add message/pmessage events for pub/sub
-       * Add support for basic Redis operations
-       * Add error handling
-       * Can start Redis server
+0.02 2014-08-06T10:20:32Z
+ - Fix the order commands are sent
+ - Fix missing dependency: Protocol::Redis
+ - Add support for transactions
+
+0.01 2014-08-05T13:32:27Z
+ - Started project
+ - Add blocking support
+ - Add message/pmessage events for pub/sub
+ - Add support for basic Redis operations
+ - Add error handling
+ - Can start Redis server
+
