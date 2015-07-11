@@ -1,5 +1,8 @@
 Revision history for perl distribution Mojo-Redis2
 
+0.20 Not Released
+ - Add hidden methods to t/00-basic.t to fix POD coverage
+
 0.19 2015-07-06T21:10:01+0200
  - Remove "THIS MODULE IS UNDER DEVELOPMENT" warning
 
