@@ -1,6 +1,6 @@
 Revision history for perl distribution Mojo-Redis2
 
-0.20 Not Released
+0.20 2015-07-11T12:35:34+0200
  - Add hidden methods to t/00-basic.t to fix POD coverage
 
 0.19 2015-07-06T21:10:01+0200
