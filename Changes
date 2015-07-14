@@ -1,5 +1,8 @@
 Revision history for perl distribution Mojo-Redis2
 
+0.21 Not Released
+ - Will use Mojo::Redis2 to check if test redis server is up and running
+
 0.20 2015-07-11T12:35:34+0200
  - Add hidden methods to t/00-basic.t to fix POD coverage
 

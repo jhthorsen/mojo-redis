@@ -31,7 +31,6 @@ use feature 'state';
 use Mojo::Asset::File;
 use Mojo::Base -base;
 use Mojo::IOLoop;
-use IO::Socket::INET;
 use Time::HiRes ();
 use constant SERVER_DEBUG => $ENV{MOJO_REDIS_SERVER_DEBUG} || 0;
 
@@ -120,10 +119,12 @@ sub start {
     $cfg->add_chunk("$key $value\n") if length $value;
   }
 
+  require Mojo::Redis2;
+
   if ($self->{pid} = fork) {    # parent
     $self->{config} = \%config;
-    $self->_wait_for_server_to_start;
     $self->{url} = sprintf 'redis://x:%s@%s:%s/', map { $_ // '' } @config{qw( requirepass bind port )};
+    $self->_wait_for_server_to_start;
     $ENV{MOJO_REDIS_URL} //= $self->{url} if $self->configure_environment;
     return $self;
   }
@@ -163,19 +164,15 @@ sub _wait_for_server_to_start {
   my $self  = shift;
   my $guard = 100;
 
+  local $@;
+
   while (--$guard) {
     Time::HiRes::usleep(10e3);
-    return
-      if IO::Socket::INET->new(
-      PeerAddr => $self->config->{bind},
-      PeerPort => $self->config->{port},
-      Proto    => 'tcp',
-      Timeout  => 1
-      );
+    return if eval { Mojo::Redis2->new(url => $self->url)->ping };
   }
 
-  die "Failed to start $self->{bin}. ($?)" if $self->pid and waitpid $self->pid, 0;
-  die 'Redis server has unknown status';
+  die "Failed to start $self->{bin}: $?" if $self->pid and waitpid $self->pid, 0;
+  die "Failed to start $self->{bin}: $@";
 }
 
 sub DESTROY { shift->stop; }
