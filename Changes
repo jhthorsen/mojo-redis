@@ -1,6 +1,6 @@
 Revision history for perl distribution Mojo-Redis2
 
-0.21 Not Released
+0.21 2015-07-14T17:53:28+0200
  - Will use Mojo::Redis2 to check if test redis server is up and running
 
 0.20 2015-07-11T12:35:34+0200
