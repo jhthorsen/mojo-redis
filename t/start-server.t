@@ -6,10 +6,11 @@ my $pid;
 plan skip_all => 'Cannot test on Win32' if $^O =~ /win/i;
 
 {
-  my $server = Mojo::Redis2::Server->new;
   local $ENV{REDIS_SERVER_BIN} = './does-not-exist-nope-for-sure-i-hope-not';
-  eval { $server->start };
-  like $@, qr{Failed to start}, 'No such file';
+  my $server = Mojo::Redis2::Server->new;
+  $server->{pong} //= 'x';
+  is eval { $server->start; 'started, when it should fail' }, undef, 'start() failed';
+  like $@, qr{Failed to start}, "No such file (bin=$server->{bin},pong=$server->{pong})";
 }
 
 SKIP: {

@@ -162,16 +162,21 @@ sub _instance { ref $_[0] ? $_[0] : $_[0]->singleton; }
 sub _wait_for_server_to_start {
   my $self  = shift;
   my $guard = 100;
-
-  local $@;
+  my $e;
 
   while (--$guard) {
+    local $@;
     Time::HiRes::usleep(10e3);
     return if eval { Mojo::Redis2->new(url => $self->url)->ping };
+    $e = $@ || 'No idea why we cannot connect to Mojo::Redis2::Server';
   }
 
-  die "Failed to start $self->{bin}: $?" if $self->pid and waitpid $self->pid, 0;
-  die "Failed to start $self->{bin}: $@";
+  if ($self->pid and waitpid $self->pid, 0) {
+    my ($x, $s, $d) = ($? >> 8, $? & 127, $? & 128);
+    die "Failed to start $self->{bin}: exit=$x, signal=$s, dump=$d";
+  }
+
+  die $e;
 }
 
 sub DESTROY { shift->stop; }
