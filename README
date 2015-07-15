@@ -2,7 +2,7 @@ NAME
     Mojo::Redis2 - Pure-Perl non-blocking I/O Redis driver
 
 VERSION
-    0.21
+    0.22
 
 DESCRIPTION
     Mojo::Redis2 is a pure-Perl non-blocking I/O Redis <http://redis.io>
