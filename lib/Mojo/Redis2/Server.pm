@@ -108,7 +108,6 @@ sub start {
   $config{requirepass}                 ||= '';
   $config{stop_writes_on_bgsave_error} ||= 'no';
   $config{syslog_enabled}              ||= 'no';
-  $config{tcp_keepalive}               ||= 0;
 
   $cfg = Mojo::Asset::File->new;
   $self->{bin} = $ENV{REDIS_SERVER_BIN} || 'redis-server';

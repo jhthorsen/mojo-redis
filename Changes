@@ -1,5 +1,8 @@
 Revision history for perl distribution Mojo-Redis2
 
+0.22 Not Released
+ - Remove "tcp-keepalive" as default config parameter from Mojo::Redis2::Server
+
 0.21 2015-07-14T17:53:28+0200
  - Will use Mojo::Redis2 to check if test redis server is up and running
 
