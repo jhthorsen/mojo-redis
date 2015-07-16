@@ -99,7 +99,7 @@ sub start {
 
   return $self if $self->pid and kill 0, $self->pid;
 
-  $config{bind}                        ||= 'localhost';
+  $config{bind}                        ||= '127.0.0.1';
   $config{daemonize}                   ||= 'no';
   $config{databases}                   ||= 16;
   $config{loglevel}                    ||= SERVER_DEBUG ? 'verbose' : 'warning';
