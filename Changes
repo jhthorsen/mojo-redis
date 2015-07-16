@@ -1,7 +1,7 @@
 Revision history for perl distribution Mojo-Redis2
 
 0.23 2015-07-16T09:32:21+0200
- - Fix Mojo::Redis2::Server need to bind to 127.0.0.1 and not localhost
+ - Fix Mojo::Redis2::Server need to bind to 127.0.0.1 and not localhost #12
    Issues arise when ::1 and 127.0.0.1 is set to "localhost" in /etc/hosts
 
 0.22 2015-07-15T08:22:37+0200
