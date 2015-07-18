@@ -1,6 +1,6 @@
 Revision history for perl distribution Mojo-Redis2
 
-0.24
+0.24 2015-07-18T08:19:34+0200
  - Mark t/connection-refused.t as TODO, since it fail because of i18n
 
 0.23 2015-07-16T09:32:21+0200
