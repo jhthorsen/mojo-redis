@@ -4,7 +4,7 @@ use Test::More;
 use List::Util 'shuffle';
 use t::Util;
 
-plan skip_all => 'Cannot test on Win32' if $^O =~ /win/i;
+plan skip_all => 'Cannot test on Win32' if $^O eq 'Win32';
 
 my %ops = t::Util->get_documented_redis_methods;
 my @categories = $ENV{TEST_CATEGORY} || qw( Hashes Keys Lists PubSub Sets SortedSets Strings Connection );

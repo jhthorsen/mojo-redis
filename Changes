@@ -1,5 +1,8 @@
 Revision history for perl distribution Mojo-Redis2
 
+0.25 Not Released
+ - Enable tests to run in OS X
+
 0.24 2015-07-18T08:19:34+0200
  - Mark t/connection-refused.t as TODO, since it fail because of i18n
 
