@@ -607,7 +607,7 @@ MESSAGE:
     if (ref $data eq 'SCALAR') {
       $self->$cb($$data, []) if $cb;
     }
-    elsif (ref $data eq 'ARRAY' and @$data and $data->[0] =~ /^(p?message)$/i) {
+    elsif (ref $data eq 'ARRAY' and $data->[0] and $data->[0] =~ /^(p?message)$/i) {
       $event = shift @$data;
       $self->emit($event => reverse @$data);
     }
