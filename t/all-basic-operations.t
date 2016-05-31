@@ -34,10 +34,13 @@ sub Hashes {
   is $redis->hincrby($key, foo => 3), 45, 'hincrby return new value';
   is_deeply [sort @{ $redis->hkeys($key) }], [qw( bar foo )], 'hkeys';
 
+  my $warning = '';
   {
   local $TODO = 'Should this return a hash?';
-  is_deeply $redis->hmget($key, qw( foo bar baz )), [45, 'fourty_two', undef], 'hmget';
+  local $SIG{__WARN__} = sub { $warning = $_[0] };
+  is_deeply $redis->hmget($key, qw( baz bar foo )), [undef, 'fourty_two', 45], 'hmget';
   }
+  is $warning, '', 'no warning github#17';
 
   is $redis->hset($key => baz => 'yikes'), 1, 'hset';
   is $redis->hlen($key), 3, 'hlen get number of keys in hash';
