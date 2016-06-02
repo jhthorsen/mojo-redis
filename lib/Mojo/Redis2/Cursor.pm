@@ -116,11 +116,11 @@ sub _clone {
 1;
 
 =encoding utf8
- 
+
 =head1 NAME
- 
+
 Mojo::Redis2::Cursor - Cursor iterator for SCAN commands.
- 
+
 =head1 SYNOPSIS
 
   use Mojo::Redis2;
@@ -130,9 +130,9 @@ Mojo::Redis2::Cursor - Cursor iterator for SCAN commands.
   my $cursor
     = Mojo::Redis2::Cursor->new('SCAN', match => 'mynamespace*')->redis($redis);
 
-  # blocking  
+  # blocking
   while (my $r = $cursor->next) { say join "\n", @$r }
-  
+
   # or non-blocking
   use feature 'current_sub';
   $cursor->next(
@@ -144,9 +144,9 @@ Mojo::Redis2::Cursor - Cursor iterator for SCAN commands.
   );
   Mojo::IOLoop->start();
 
- 
+
 =head1 DESCRIPTION
- 
+
 L<Mojo::Redis2::Cursor> is an iterator object for C<SCAN> family commands.
 
 =head1 ATTRIBUTES
@@ -165,16 +165,16 @@ Command to be issued to server.
 Redis key to work with for commands that need it. Overrides value from L</new>.
 
 =head1 METHODS
- 
+
 L<Mojo::Redis2::Cursor> inherits all methods from L<Mojo::Base> and implements
 the following new ones.
- 
+
 =head2 again
- 
+
   $cursor->again();
   my $res = $cursor->again->slurp();
 
-Reset cursor to start iterating from the beginning. 
+Reset cursor to start iterating from the beginning.
 
 =head2 finished
 
