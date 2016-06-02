@@ -28,7 +28,7 @@ sub hkeys {
   my $cb = ref $_[-1] eq 'CODE' ? pop : undef;
   my $cur = shift->_clone('HSCAN' => @_);
   my $wrapper = sub {
-    my $keys = [ grep { $a = !$a } @{$_[2] || []} ];
+    my $keys = [grep { $a = !$a } @{$_[2] || []}];
     return $cur->$cb($_[1], $keys);
   };
   my $resp = $cur->slurp($cb ? ($wrapper) : ());
@@ -67,9 +67,10 @@ sub next {
     return $self->$cb($err, $resp->[1]);
   };
 
-  my $resp = $self->redis->_execute(
-    basic => $self->command,
-    $self->{key} ? ($self->{key}) : (), $self->_cursor, @$args,
+  my $command = $self->command;
+  my $resp    = $self->redis->_execute(
+    basic => $command,
+    $command ne 'SCAN' ? ($self->key) : (), $self->_cursor, @$args,
     $cb ? ($wrapper) : ()
   );
   return $resp if $cb;
