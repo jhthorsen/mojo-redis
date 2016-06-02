@@ -19,6 +19,30 @@ sub again {
 
 sub finished { !!shift->{_finished} }
 
+sub hgetall {
+  my $cur = shift->_clone('HSCAN', shift);
+  return $cur->slurp(@_);
+}
+
+sub hkeys {
+  my $cb = ref $_[-1] eq 'CODE' ? pop : undef;
+  my $cur = shift->_clone('HSCAN' => @_);
+  my $wrapper = sub {
+    my $keys = [ grep { $a = !$a } @{$_[2] || []} ];
+    return $cur->$cb($_[1], $keys);
+  };
+  my $resp = $cur->slurp($cb ? ($wrapper) : ());
+  return $resp if $cb;
+  $cb = sub { $_[2] };
+  return $wrapper->(undef, '', $resp);
+}
+
+sub keys {
+  my $cur = shift->_clone('SCAN');
+  unshift @_, 'MATCH' if $_[0] && !ref $_[0];
+  return $cur->slurp(@_);
+}
+
 sub new {
   my $self = shift->SUPER::new();
   $self->command(my $command = shift);
@@ -77,6 +101,16 @@ sub slurp {
     while (my $r = $self->next(@_)) { push @$list, @$r }
     return $list;
   }
+}
+
+sub smembers {
+  my $cur = shift->_clone('SSCAN', shift);
+  return $cur->slurp(@_);
+}
+
+sub _clone {
+  my $self = shift;
+  return $self->new(@_)->redis($self->redis);
 }
 
 1;
@@ -149,6 +183,33 @@ Reset cursor to start iterating from the beginning.
 Indicate that full iteration had been made and no additional elements can be
 fetched.
 
+=head2 hgetall
+
+  my $hash = $redis2->scan->hgetall('redis.key');
+  $hash = $cursor->hgetall('redis.key');
+  $cursor->hgetall('redis.key' => sub {...});
+
+Implements standard C<HGETALL> command using C<HSCAN>.
+
+=head2 hkeys
+
+  my $keys = $redis2->scan->hkeys('redis.key');
+  $keys = $cursor->hkeys('redis.key');
+  $cursor->hkeys('redis.key' => sub {...});
+
+Implements standard C<HKEYS> command using C<HSCAN>.
+
+=head2 keys
+
+  my $keys = $redis2->scan->keys;
+  $keys = $cursor->keys('*');
+  $cursor->keys('*' => sub {
+    my ($cur, $err, $keys) = @_;
+    ...
+  });
+
+Implements standard C<KEYS> command using C<SCAN>.
+
 =head2 new
 
   my $cursor  = Mojo::Redis2::Cursor->new(SCAN => MATCH => 'namespace*');
@@ -190,6 +251,14 @@ Repeatedly call L</next> to fetch all matching elements. Optional
 arguments will be passed along.
 
 In case of error will return all data fetched so far.
+
+=head2 smembers
+
+  my $list = $redis2->scan->smembers('redis.key');
+  $list = $cursor->smembers('redis.key');
+  $cursor->smembers('redis.key' => sub {...});
+
+Implements standard C<SMEMBERS> command using C<SSCAN>.
 
 =head1 LINKS
 
