@@ -4,10 +4,9 @@ use Mojo::Base '-base';
 use Carp 'croak';
 use Scalar::Util 'looks_like_number';
 
-has command => 'SCAN';
 has 'redis';
-has key     => '';
-has _args   => sub { [] };
+has _args => sub { [] };
+has '_command';
 has _cursor => 0;
 
 sub again {
@@ -16,6 +15,8 @@ sub again {
   delete $self->{_finished};
   return $self;
 }
+
+sub command { shift->{_command}[0] }
 
 sub finished { !!shift->{_finished} }
 
@@ -37,6 +38,8 @@ sub hkeys {
   return $wrapper->(undef, '', $resp);
 }
 
+sub key { shift->{_command}[1] }
+
 sub keys {
   my $cur = shift->_clone('SCAN');
   unshift @_, 'MATCH' if $_[0] && !ref $_[0];
@@ -44,9 +47,9 @@ sub keys {
 }
 
 sub new {
-  my $self = shift->SUPER::new();
-  $self->command(my $command = shift);
-  $self->key(shift) if $command ne 'SCAN';
+  my $self    = shift->SUPER::new();
+  my $command = shift;
+  $self->_command($command eq 'SCAN' ? [$command] : [$command, shift]);
   croak 'ERR Should not specify cursor value manualy.'
     if looks_like_number $_[0];
   $self->_args(\@_) if @_;
@@ -67,11 +70,9 @@ sub next {
     return $self->$cb($err, $resp->[1]);
   };
 
-  my $command = $self->command;
-  my $resp    = $self->redis->_execute(
-    basic => $command,
-    $command ne 'SCAN' ? ($self->key) : (), $self->_cursor, @$args,
-    $cb ? ($wrapper) : ()
+  my $resp = $self->redis->_execute(
+    basic => @{$self->_command},
+    $self->_cursor, @$args, $cb ? ($wrapper) : ()
   );
   return $resp if $cb;
   $cb = sub { $_[2] };
@@ -152,18 +153,12 @@ L<Mojo::Redis2::Cursor> is an iterator object for C<SCAN> family commands.
 
 =head1 ATTRIBUTES
 
-=head2 command
+=head2 redis
 
- my $command = $cursor->command;
+  my $redus = $cursor->redis;
+  $cursor->redis(Mojo::Redis2->new());
 
-Command to be issued to server.
-
-=head2 key
-
-  my $key    = $cursor->key;
-  my $cursor = $cursor->key('new.redis.key');
-
-Redis key to work with for commands that need it. Overrides value from L</new>.
+Redis object to work with.
 
 =head1 METHODS
 
@@ -176,6 +171,12 @@ the following new ones.
   my $res = $cursor->again->slurp();
 
 Reset cursor to start iterating from the beginning.
+
+=head2 command
+
+ my $command = $cursor->command;
+
+Command to be sent to server.
 
 =head2 finished
 
@@ -199,6 +200,12 @@ Implements standard C<HGETALL> command using C<HSCAN>.
   $cursor->hkeys('redis.key' => sub {...});
 
 Implements standard C<HKEYS> command using C<HSCAN>.
+
+=head2 key
+
+  my $key    = $cursor->key;
+
+Redis key to work with for commands that need it.
 
 =head2 keys
 
