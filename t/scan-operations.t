@@ -42,11 +42,11 @@ ok !$cursor->finished, 'reset finished';
 
 # slurp
 $list = [];
-$list = $cursor->slurp();
-is_deeply [sort @$list], $expected, 'slurp blocking';
+$list = $cursor->all();
+is_deeply [sort @$list], $expected, 'fetch all blocking';
 
 # non-blocking
-$list = [];
+$list  = [];
 $guard = 1000;
 my $cb;
 $cb = sub {
@@ -58,20 +58,21 @@ $cursor->again->next($cb);
 Mojo::IOLoop->start();
 is_deeply [sort @$list], $expected, 'fetch with next non-blocking';
 $list = [];
-$cursor->again->slurp(sub { $list = $_[2]; Mojo::IOLoop->stop() });
+$cursor->again->all(sub { $list = $_[2]; Mojo::IOLoop->stop() });
 Mojo::IOLoop->start();
-is_deeply [sort @$list], $expected, 'slurp non-blocking';
+is_deeply [sort @$list], $expected, 'fetch all non-blocking';
 
 # hscan
-$redis->hset('redis2.scan_test.hash', "key.$_" => "val.$_") for 1 .. ELEMENTS_COUNT;
+$redis->hset('redis2.scan_test.hash', "key.$_" => "val.$_")
+  for 1 .. ELEMENTS_COUNT;
 $expected = {map { 'key.' . $_ => 'val.' . $_ } (1 .. ELEMENTS_COUNT)};
 $cursor   = $redis->hscan('redis2.scan_test.hash');
-$list     = $cursor->slurp();
+$list     = $cursor->all();
 is_deeply {@$list}, $expected, 'right result hscan';
 
 # hscan nb
 $list = [];
-$cursor->again->slurp(sub { $list = $_[2]; Mojo::IOLoop->stop() });
+$cursor->again->all(sub { $list = $_[2]; Mojo::IOLoop->stop() });
 Mojo::IOLoop->start();
 is_deeply {@$list}, $expected, 'right result hscan non-blocking';
 
@@ -79,12 +80,12 @@ is_deeply {@$list}, $expected, 'right result hscan non-blocking';
 $redis->sadd('redis2.scan_test.set', $_) for 1 .. ELEMENTS_COUNT;
 $expected = [sort 1 .. ELEMENTS_COUNT];
 $cursor   = $redis->sscan('redis2.scan_test.set');
-$list     = $cursor->slurp();
+$list     = $cursor->all();
 is_deeply [sort @$list], $expected, 'right result sscan';
 
 # sscan nb
 $list = [];
-$cursor->again->slurp(sub { $list = $_[2]; Mojo::IOLoop->stop() });
+$cursor->again->all(sub { $list = $_[2]; Mojo::IOLoop->stop() });
 Mojo::IOLoop->start();
 is_deeply [sort @$list], $expected, 'right result sscan non-blocking';
 
@@ -92,12 +93,12 @@ is_deeply [sort @$list], $expected, 'right result sscan non-blocking';
 $redis->zadd('redis2.scan_test.zset', $_, "val.$_") for 1 .. ELEMENTS_COUNT;
 $expected = sort_zset([map { 'val.' . $_ => $_ } 1 .. ELEMENTS_COUNT]);
 $cursor   = $redis->zscan('redis2.scan_test.zset');
-$list     = $cursor->slurp();
+$list     = $cursor->all();
 is_deeply sort_zset($list), $expected, 'right result zscan';
 
 # zscan nb
 $list = [];
-$cursor->again->slurp(sub { $list = $_[2]; Mojo::IOLoop->stop() });
+$cursor->again->all(sub { $list = $_[2]; Mojo::IOLoop->stop() });
 Mojo::IOLoop->start();
 is_deeply sort_zset($list), $expected, 'right result zscan non-blocking';
 
@@ -106,10 +107,10 @@ eval { $cursor = $redis->scan(0, MATCH => '*') };
 ok $@ && $@ =~ /ERR Should not specify cursor value/,
   'right error manual cursor';
 $cursor = $redis->scan(FOO => 'bar');
-eval { $list = $cursor->slurp() };
+eval { $list = $cursor->all() };
 ok $@ && $@ =~ /ERR syntax error/, 'right error redis syntax';
 my $error;
-$cursor->again->slurp(sub { $error = $_[1]; Mojo::IOLoop->stop() });
+$cursor->again->all(sub { $error = $_[1]; Mojo::IOLoop->stop() });
 Mojo::IOLoop->start();
 ok $error && $error =~ /ERR syntax error/, 'right error redis syntax nb';
 
@@ -119,33 +120,37 @@ my $keys = $redis->keys('redis2.scan_test.key.*');
 my $keysh = $cursor->keys('redis2.scan_test.key.*');
 is_deeply [sort @$keysh], $keys, 'same results for keys';
 $keysh = [];
-$cursor->keys('redis2.scan_test.key.*' => sub { $keysh = $_[2]; Mojo::IOLoop->stop() });
+$cursor->keys(
+  'redis2.scan_test.key.*' => sub { $keysh = $_[2]; Mojo::IOLoop->stop() });
 Mojo::IOLoop->start();
 is_deeply [sort @$keysh], $keys, 'same results for keys nb';
 
-$keys = $redis->hkeys('redis2.scan_test.hash');
+$keys  = $redis->hkeys('redis2.scan_test.hash');
 @$keys = sort @$keys;
 $keysh = $cursor->hkeys('redis2.scan_test.hash');
 is_deeply [sort @$keysh], $keys, 'same results for hkeys';
 $keysh = [];
-$cursor->hkeys('redis2.scan_test.hash' => sub { $keysh = $_[2]; Mojo::IOLoop->stop() });
+$cursor->hkeys(
+  'redis2.scan_test.hash' => sub { $keysh = $_[2]; Mojo::IOLoop->stop() });
 Mojo::IOLoop->start();
 is_deeply [sort @$keysh], $keys, 'same results for hkeys nb';
 
-$keys = $redis->hgetall('redis2.scan_test.hash');
+$keys  = $redis->hgetall('redis2.scan_test.hash');
 $keysh = $cursor->hgetall('redis2.scan_test.hash');
 is_deeply {@$keysh}, {@$keys}, 'same results for hgetall';
 $keysh = [];
-$cursor->hgetall('redis2.scan_test.hash' => sub { $keysh = $_[2]; Mojo::IOLoop->stop() });
+$cursor->hgetall(
+  'redis2.scan_test.hash' => sub { $keysh = $_[2]; Mojo::IOLoop->stop() });
 Mojo::IOLoop->start();
 is_deeply {@$keysh}, {@$keys}, 'same results for hgetall nb';
 
-$keys = $redis->smembers('redis2.scan_test.set');
+$keys  = $redis->smembers('redis2.scan_test.set');
 @$keys = sort @$keys;
 $keysh = $cursor->smembers('redis2.scan_test.set');
 is_deeply [sort @$keysh], $keys, 'same results for smembers';
 $keysh = [];
-$cursor->smembers('redis2.scan_test.set' => sub { $keysh = $_[2]; Mojo::IOLoop->stop() });
+$cursor->smembers(
+  'redis2.scan_test.set' => sub { $keysh = $_[2]; Mojo::IOLoop->stop() });
 Mojo::IOLoop->start();
 is_deeply [sort @$keysh], $keys, 'same results for smembers nb';
 

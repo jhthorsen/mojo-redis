@@ -16,11 +16,37 @@ sub again {
   return $self;
 }
 
+sub all {
+  my $cb = ref $_[-1] eq 'CODE' ? pop : undef;
+  my $self = shift;
+
+  my $list = [];
+
+  # non-blocking
+  if ($cb) {
+
+    # __SUB__ available only from 5.16
+    my $wrapper;
+    $wrapper = sub {
+      push @$list, @{$_[2] // []};
+      return $self->$cb($_[1], $list) if $_[0]->{_finished};
+      $self->next($wrapper);
+    };
+    return $self->next(@_ => $wrapper);
+  }
+
+  # blocking
+  else {
+    while (my $r = $self->next(@_)) { push @$list, @$r }
+    return $list;
+  }
+}
+
 sub finished { !!shift->{_finished} }
 
 sub hgetall {
   my $cur = shift->_clone('HSCAN', shift);
-  return $cur->slurp(@_);
+  return $cur->all(@_);
 }
 
 sub hkeys {
@@ -30,7 +56,7 @@ sub hkeys {
     my $keys = [grep { $a = !$a } @{$_[2] || []}];
     return $cur->$cb($_[1], $keys);
   };
-  my $resp = $cur->slurp($cb ? ($wrapper) : ());
+  my $resp = $cur->all($cb ? ($wrapper) : ());
   return $resp if $cb;
   $cb = sub { $_[2] };
   return $wrapper->(undef, '', $resp);
@@ -39,7 +65,7 @@ sub hkeys {
 sub keys {
   my $cur = shift->_clone('SCAN');
   unshift @_, 'MATCH' if $_[0] && !ref $_[0];
-  return $cur->slurp(@_);
+  return $cur->all(@_);
 }
 
 sub new {
@@ -75,35 +101,9 @@ sub next {
   return $wrapper->(undef, '', $resp);
 }
 
-sub slurp {
-  my $cb = ref $_[-1] eq 'CODE' ? pop : undef;
-  my $self = shift;
-
-  my $list = [];
-
-  # non-blocking
-  if ($cb) {
-
-    # __SUB__ available only from 5.16
-    my $wrapper;
-    $wrapper = sub {
-      push @$list, @{$_[2] // []};
-      return $self->$cb($_[1], $list) if $_[0]->{_finished};
-      $self->next($wrapper);
-    };
-    return $self->next(@_ => $wrapper);
-  }
-
-  # blocking
-  else {
-    while (my $r = $self->next(@_)) { push @$list, @$r }
-    return $list;
-  }
-}
-
 sub smembers {
   my $cur = shift->_clone('SSCAN', shift);
-  return $cur->slurp(@_);
+  return $cur->all(@_);
 }
 
 sub _clone {
@@ -164,15 +164,21 @@ the following new ones.
 =head2 again
 
   $cursor->again();
-  my $res = $cursor->again->slurp();
+  my $res = $cursor->again->all();
 
 Reset cursor to start iterating from the beginning.
 
-=head2 command
+=head2 all
 
- my $command = $cursor->command;
+  my $keys = $cursor->all(COUNT => 5);
+  $cursor->all(sub {
+    my ($cur, $err, $res) = @_;
+  });
 
-Command to be sent to server.
+Repeatedly call L</next> to fetch all matching elements. Optional
+arguments will be passed along.
+
+In case of error will return all data fetched so far.
 
 =head2 finished
 
@@ -196,12 +202,6 @@ Implements standard C<HGETALL> command using C<HSCAN>.
   $cursor->hkeys('redis.key' => sub {...});
 
 Implements standard C<HKEYS> command using C<HSCAN>.
-
-=head2 key
-
-  my $key    = $cursor->key;
-
-Redis key to work with for commands that need it.
 
 =head2 keys
 
@@ -243,18 +243,6 @@ C<undef>, for both blocking and non-blocking, without calling callback.
 
 Accepts the same optional arguments as original Redis command, which will replace
 old values and will be used for this and next iterations.
-
-=head2 slurp
-
-  my $keys = $cursor->slurp(COUNT => 5);
-  $cursor->slurp(sub {
-    my ($cur, $err, $res) = @_;
-  });
-
-Repeatedly call L</next> to fetch all matching elements. Optional
-arguments will be passed along.
-
-In case of error will return all data fetched so far.
 
 =head2 smembers
 
