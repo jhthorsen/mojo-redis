@@ -1,9 +1,6 @@
 package Mojo::Redis2::Cursor;
 use Mojo::Base '-base';
 
-use Carp 'croak';
-use Scalar::Util 'looks_like_number';
-
 has 'redis';
 has command => sub { ['SCAN', 0] };
 has _cursor_pos => 1;
@@ -141,6 +138,13 @@ Mojo::Redis2::Cursor - Cursor iterator for SCAN commands.
 L<Mojo::Redis2::Cursor> is an iterator object for C<SCAN> family commands.
 
 =head1 ATTRIBUTES
+
+=head2 command
+
+  $arrayref = $self->command;
+
+Holds the command that is issued to the redis server, but without updated index
+information.
 
 =head2 redis
 

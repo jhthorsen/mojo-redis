@@ -1,5 +1,8 @@
 Revision history for perl distribution Mojo-Redis2
 
+0.26 Not Released
+ - Fix missing POD and removed code that is not in use #18
+
 0.25 2016-06-04T13:01:53+0200
  - Enable tests to run in OS X
  - Add Mojo::Redis2::Cursor and support for scan, hscan, sscan, zscan #18
