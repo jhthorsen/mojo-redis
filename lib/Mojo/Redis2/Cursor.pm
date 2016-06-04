@@ -5,7 +5,7 @@ use Carp 'croak';
 use Scalar::Util 'looks_like_number';
 
 has 'redis';
-has command => sub { ['SCAN'] };
+has command => sub { ['SCAN', 0] };
 has _cursor_pos => 1;
 
 sub again {
