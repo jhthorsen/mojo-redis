@@ -16,8 +16,6 @@ sub again {
   return $self;
 }
 
-sub command { shift->{_command}[0] }
-
 sub finished { !!shift->{_finished} }
 
 sub hgetall {
@@ -37,8 +35,6 @@ sub hkeys {
   $cb = sub { $_[2] };
   return $wrapper->(undef, '', $resp);
 }
-
-sub key { shift->{_command}[1] }
 
 sub keys {
   my $cur = shift->_clone('SCAN');

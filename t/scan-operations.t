@@ -11,16 +11,16 @@ my $redis = Mojo::Redis2->new();
 
 # constructor
 my $cursor = $redis->scan(MATCH => '*', COUNT => 100);
-is $cursor->command, 'SCAN', 'right command SCAN';
+is $cursor->_command->[0], 'SCAN', 'right command SCAN';
 is_deeply $cursor->_args, ['MATCH', '*', 'COUNT', 100], 'right args';
 $cursor = $redis->hscan('redis2.scan_test.key', COUNT => 20);
-is $cursor->command, 'HSCAN', 'right command HSCAN';
-is $cursor->key, 'redis2.scan_test.key', 'right key';
+is $cursor->_command->[0], 'HSCAN', 'right command HSCAN';
+is $cursor->_command->[1], 'redis2.scan_test.key', 'right key';
 is_deeply $cursor->_args, ['COUNT', 20], 'right args';
 $cursor = $redis->sscan('redis2.scan_test.key');
-is $cursor->command, 'SSCAN', 'right command SSCAN';
+is $cursor->_command->[0], 'SSCAN', 'right command SSCAN';
 $cursor = $redis->zscan('redis2.scan_test.key');
-is $cursor->command, 'ZSCAN', 'right command ZSCAN';
+is $cursor->_command->[0], 'ZSCAN', 'right command ZSCAN';
 
 $redis->set("redis2.scan_test.key.$_", $_) for 1 .. ELEMENTS_COUNT;
 my $list = [];
