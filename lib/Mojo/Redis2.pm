@@ -390,9 +390,9 @@ See L<http://redis.io/topics/pubsub> for details.
 =head2 scan, hscan, sscan, zscan
 
   $cur  = $self->scan(MATCH => 'namesoace*', COUNT => 15);
-  $hcur = $self->hscan('hash.key', MATCH => 'pref.*');
-  $scur = $self->sscan('set.key');
-  $zcur = $self->zscan('zset.key');
+  $cur = $self->hscan('hash.key', MATCH => 'pref.*');
+  $cur = $self->sscan('set.key');
+  $cur = $self->zscan('zset.key');
 
   $res = $cur->next();
 
