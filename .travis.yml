@@ -6,6 +6,7 @@ perl:
   - "5.10"
 env:
   - "HARNESS_OPTIONS=j9"
+  - "TEST_SLOW=1"
 before_install:
   - sudo apt-get update -qq
   - sudo apt-get install redis-server

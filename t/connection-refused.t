@@ -2,6 +2,8 @@ use Mojo::Base -strict;
 use Mojo::Redis2;
 use Test::More;
 
+plan skip_all => 'TEST_SLOW=1' unless $ENV{TEST_SLOW};
+
 my $port = Mojo::IOLoop::Server->generate_port;
 my $redis = Mojo::Redis2->new(url => "redis://127.0.42.123:$port");
 my ($err, $res);
