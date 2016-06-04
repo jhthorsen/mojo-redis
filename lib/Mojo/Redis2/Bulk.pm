@@ -1,4 +1,42 @@
 package Mojo::Redis2::Bulk;
+use Mojo::Base -base;
+use Mojo::Collection;
+
+require Mojo::Redis2;
+
+has _redis => undef;
+
+sub execute {
+  my ($self, $cb) = @_;
+  my $redis = $self->_redis;
+  my @ops   = @{delete $self->{queue} || []};
+  my $err   = Mojo::Collection->new;
+  my $res   = [];
+  my (@err, @res);
+
+  my $collector = sub {
+    push @$err, $_[1];
+    push @$res, $_[2];
+    $self->$cb($err, $res) if @ops == @$res;    # done
+  };
+
+  $redis->_execute(@$_, $collector) for @ops;
+
+  return $self if $cb;
+  $cb = sub { $redis->_loop(1)->stop };
+  $redis->_loop(1)->start;
+  die $err->join('. ') if $err->compact->size > 0;
+  return $res;
+}
+
+for my $method (Mojo::Redis2->_basic_operations) {
+  my $op = uc $method;
+  eval "sub $method { my \$self = shift; push \@{ \$self->{queue} }, [basic => $op => \@_]; \$self; }; 1" or die $@;
+}
+
+1;
+
+=encoding utf8
 
 =head1 NAME
 
@@ -42,15 +80,6 @@ In both the sync and async examples above, C<$res> will contain on success:
 C<$err> on the other hand will be a L<Mojo::Collection> object with
 all one element for each error message.
 
-=cut
-
-use Mojo::Base -base;
-use Mojo::Collection;
-
-require Mojo::Redis2;
-
-has _redis => undef;
-
 =head1 METHODS
 
 In addition to the methods listed in this module, you can call these Redis
@@ -80,36 +109,6 @@ zscore and zunionstore.
 
 Will execute all the queued Redis operations.
 
-=cut
-
-sub execute {
-  my ($self, $cb) = @_;
-  my $redis = $self->_redis;
-  my @ops   = @{delete $self->{queue} || []};
-  my $err   = Mojo::Collection->new;
-  my $res   = [];
-  my (@err, @res);
-
-  my $collector = sub {
-    push @$err, $_[1];
-    push @$res, $_[2];
-    $self->$cb($err, $res) if @ops == @$res;    # done
-  };
-
-  $redis->_execute(@$_, $collector) for @ops;
-
-  return $self if $cb;
-  $cb = sub { $redis->_loop(1)->stop };
-  $redis->_loop(1)->start;
-  die $err->join('. ') if $err->compact->size > 0;
-  return $res;
-}
-
-for my $method (Mojo::Redis2->_basic_operations) {
-  my $op = uc $method;
-  eval "sub $method { my \$self = shift; push \@{ \$self->{queue} }, [basic => $op => \@_]; \$self; }; 1" or die $@;
-}
-
 =head1 COPYRIGHT AND LICENSE
 
 Copyright (C) 2014, Jan Henning Thorsen
@@ -122,5 +121,3 @@ the terms of the Artistic License version 2.0.
 Jan Henning Thorsen - C<jhthorsen@cpan.org>
 
 =cut
-
-1;

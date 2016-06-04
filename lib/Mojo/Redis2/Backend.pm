@@ -1,4 +1,69 @@
 package Mojo::Redis2::Backend;
+use Mojo::Base -base;
+
+has _redis => undef;
+
+sub config {
+  my @cb = ref $_[-1] eq 'CODE' ? (pop) : ();
+  my ($self, $key, $value) = @_;
+
+  if (defined $value) {
+    my $res = $self->_redis->_execute(basic => CONFIG => SET => $key => $value, @cb);
+    return $self if @cb;
+    return $res;
+  }
+  elsif (my $cb = $cb[0]) {
+    $self->_redis->_execute(
+      basic => CONFIG => GET => $key => sub {
+        my ($redis, $err, $params) = @_;
+        $params //= [];
+        $_[0]->$cb($err, $key =~ /\*/ ? {@$params} : $params->[1]);
+      }
+    );
+    return $self;
+  }
+  else {
+    my $params = $self->_redis->_execute(basic => CONFIG => GET => $key);
+    return $key =~ /\*/ ? {@$params} : $params->[1];
+  }
+}
+
+sub info {
+  my $cb      = ref $_[-1] eq 'CODE' ? pop : undef;
+  my $self    = shift;
+  my $section = shift || '';
+
+  if ($cb) {
+    $self->_redis->_execute(
+      basic => INFO => $section => sub {
+        $_[0]->$cb($_[1], {map { split /:/, $_, 2 } grep {/:/} split /\r\n/, $_[2] // ''});
+      }
+    );
+    return $self;
+  }
+  else {
+    my $text = $self->_redis->_execute(basic => INFO => $section);
+    return {map { split /:/, $_, 2 } grep {/:/} split /\r\n/, $text};
+  }
+}
+
+for my $method (qw( resetstat rewrite )) {
+  my $op = uc $method;
+  eval
+    "sub $method { my \$self = shift; my \$r = \$self->_redis->_execute(basic => CONFIG => $op => \@_); return \@_ ? \$self : \$r }; 1"
+    or die $@;
+}
+
+for my $method (qw( bgrewriteaof bgsave dbsize flushall flushdb lastsave save time )) {
+  my $op = uc $method;
+  eval
+    "sub $method { my \$self = shift; my \$r = \$self->_redis->_execute(basic => $op => \@_); return \@_ ? \$self : \$r }; 1"
+    or die $@;
+}
+
+1;
+
+=encoding utf8
 
 =head1 NAME
 
@@ -29,12 +94,6 @@ change in the future)
       $self->render(text => $err || $dbfilename);
     },
   );
-
-=cut
-
-use Mojo::Base -base;
-
-has _redis => undef;
 
 =head1 METHODS
 
@@ -68,33 +127,6 @@ input:
   | $self->config(dbfilename => "foo.rdb") | $res = "OK"                 |
   | $self->config("dbfilename")            | "foo.rdb"                   |
   | $self->config("dbfile*")               | { dbfilename => "foo.rdb" } |
-
-=cut
-
-sub config {
-  my @cb = ref $_[-1] eq 'CODE' ? (pop) : ();
-  my ($self, $key, $value) = @_;
-
-  if (defined $value) {
-    my $res = $self->_redis->_execute(basic => CONFIG => SET => $key => $value, @cb);
-    return $self if @cb;
-    return $res;
-  }
-  elsif (my $cb = $cb[0]) {
-    $self->_redis->_execute(
-      basic => CONFIG => GET => $key => sub {
-        my ($redis, $err, $params) = @_;
-        $params //= [];
-        $_[0]->$cb($err, $key =~ /\*/ ? {@$params} : $params->[1]);
-      }
-    );
-    return $self;
-  }
-  else {
-    my $params = $self->_redis->_execute(basic => CONFIG => GET => $key);
-    return $key =~ /\*/ ? {@$params} : $params->[1];
-  }
-}
 
 =head2 dbsize
 
@@ -131,27 +163,6 @@ C<$section> is "clients":
     client_biggest_input_buf => "100",
     blocked_clients => "0",
   }
-
-=cut
-
-sub info {
-  my $cb      = ref $_[-1] eq 'CODE' ? pop : undef;
-  my $self    = shift;
-  my $section = shift || '';
-
-  if ($cb) {
-    $self->_redis->_execute(
-      basic => INFO => $section => sub {
-        $_[0]->$cb($_[1], {map { split /:/, $_, 2 } grep {/:/} split /\r\n/, $_[2] // ''});
-      }
-    );
-    return $self;
-  }
-  else {
-    my $text = $self->_redis->_execute(basic => INFO => $section);
-    return {map { split /:/, $_, 2 } grep {/:/} split /\r\n/, $text};
-  }
-}
 
 =head2 lastsave
 
@@ -191,22 +202,6 @@ format as L<Time::Hires/gettimeofday> in an array-ref:
 
   [ 1409045324, 311294 ];
 
-=cut
-
-for my $method (qw( resetstat rewrite )) {
-  my $op = uc $method;
-  eval
-    "sub $method { my \$self = shift; my \$r = \$self->_redis->_execute(basic => CONFIG => $op => \@_); return \@_ ? \$self : \$r }; 1"
-    or die $@;
-}
-
-for my $method (qw( bgrewriteaof bgsave dbsize flushall flushdb lastsave save time )) {
-  my $op = uc $method;
-  eval
-    "sub $method { my \$self = shift; my \$r = \$self->_redis->_execute(basic => $op => \@_); return \@_ ? \$self : \$r }; 1"
-    or die $@;
-}
-
 =head1 COPYRIGHT AND LICENSE
 
 Copyright (C) 2014, Jan Henning Thorsen
@@ -219,5 +214,3 @@ the terms of the Artistic License version 2.0.
 Jan Henning Thorsen - C<jhthorsen@cpan.org>
 
 =cut
-
-1;
