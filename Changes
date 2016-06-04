@@ -1,7 +1,9 @@
 Revision history for perl distribution Mojo-Redis2
 
-0.25 Not Released
+0.25 2016-06-04T13:01:53+0200
  - Enable tests to run in OS X
+ - Add Mojo::Redis2::Cursor and support for scan, hscan, sscan, zscan
+   Contributor: Andre Parker
 
 0.24 2015-07-18T08:19:34+0200
  - Mark t/connection-refused.t as TODO, since it fail because of i18n

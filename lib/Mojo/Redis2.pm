@@ -6,7 +6,7 @@ Mojo::Redis2 - Pure-Perl non-blocking I/O Redis driver
 
 =head1 VERSION
 
-0.24
+0.25
 
 =head1 DESCRIPTION
 
@@ -130,7 +130,7 @@ use Carp ();
 use constant DEBUG => $ENV{MOJO_REDIS_DEBUG} || 0;
 use constant DEFAULT_PORT => 6379;
 
-our $VERSION = '0.24';
+our $VERSION = '0.25';
 
 my $PROTOCOL_CLASS = do {
   my $class = $ENV{MOJO_REDIS_PROTOCOL}
@@ -681,6 +681,8 @@ This program is free software, you can redistribute it and/or modify it under
 the terms of the Artistic License version 2.0.
 
 =head1 AUTHOR
+
+Andre Parker
 
 Ben Tyler - C<benjamin.tyler@gmail.com>
 

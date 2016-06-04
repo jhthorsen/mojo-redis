@@ -2,7 +2,7 @@ NAME
     Mojo::Redis2 - Pure-Perl non-blocking I/O Redis driver
 
 VERSION
-    0.24
+    0.25
 
 DESCRIPTION
     Mojo::Redis2 is a pure-Perl non-blocking I/O Redis <http://redis.io>
@@ -253,6 +253,17 @@ METHODS
     The reverse of "psubscribe". See <http://redis.io/topics/pubsub> for
     details.
 
+  scan, hscan, sscan, zscan
+      $cur = $self->scan(0, MATCH => 'namesoace*', COUNT => 15);
+      $cur = $self->hscan('hash.key', 0, MATCH => 'pref.*');
+      $cur = $self->sscan('set.key', 0);
+      $cur = $self->zscan('zset.key', 0);
+
+      $res = $cur->next();
+
+    Methods from "SCAN" family will return Mojo::Redis2::Cursor object to
+    iterate over elements collection.
+
   subscribe
       $self = $self->subscribe(\@channels, sub { my ($self, $err, $res) = @_; ... });
 
@@ -279,6 +290,8 @@ COPYRIGHT AND LICENSE
     under the terms of the Artistic License version 2.0.
 
 AUTHOR
+    Andre Parker
+
     Ben Tyler - "benjamin.tyler@gmail.com"
 
     Jan Henning Thorsen - "jhthorsen@cpan.org"
