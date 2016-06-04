@@ -389,10 +389,10 @@ See L<http://redis.io/topics/pubsub> for details.
 
 =head2 scan, hscan, sscan, zscan
 
-  $cur  = $self->scan(MATCH => 'namesoace*', COUNT => 15);
-  $cur = $self->hscan('hash.key', MATCH => 'pref.*');
-  $cur = $self->sscan('set.key');
-  $cur = $self->zscan('zset.key');
+  $cur  = $self->scan(0, MATCH => 'namesoace*', COUNT => 15);
+  $cur = $self->hscan('hash.key', 0, MATCH => 'pref.*');
+  $cur = $self->sscan('set.key', 0);
+  $cur = $self->zscan('zset.key', 0);
 
   $res = $cur->next();
 
@@ -669,7 +669,7 @@ for my $method (__PACKAGE__->_scan_operations) {
   my $op = uc $method;
   Mojo::Base::_monkey_patch(__PACKAGE__, $method, sub {
     my $self = shift;
-    return Mojo::Redis2::Cursor->new($op => @_)->redis($self);
+    return Mojo::Redis2::Cursor->new(command => [$op => @_])->redis($self);
   });
 }
 

@@ -10,24 +10,23 @@ use constant ELEMENTS_COUNT => $ENV{REDIS2_TEST_ELEMENTS_COUNT} || 5_000;
 my $redis = Mojo::Redis2->new();
 
 # constructor
-my $cursor = $redis->scan(MATCH => '*', COUNT => 100);
-is $cursor->_command->[0], 'SCAN', 'right command SCAN';
-is_deeply $cursor->_args, ['MATCH', '*', 'COUNT', 100], 'right args';
-$cursor = $redis->hscan('redis2.scan_test.key', COUNT => 20);
-is $cursor->_command->[0], 'HSCAN', 'right command HSCAN';
-is $cursor->_command->[1], 'redis2.scan_test.key', 'right key';
-is_deeply $cursor->_args, ['COUNT', 20], 'right args';
-$cursor = $redis->sscan('redis2.scan_test.key');
-is $cursor->_command->[0], 'SSCAN', 'right command SSCAN';
-$cursor = $redis->zscan('redis2.scan_test.key');
-is $cursor->_command->[0], 'ZSCAN', 'right command ZSCAN';
+my $cursor = $redis->scan(0, MATCH => '*', COUNT => 100);
+is_deeply $cursor->command, ['SCAN', 0, 'MATCH', '*', 'COUNT', 100],
+  'right cmd & args';
+$cursor = $redis->hscan('redis2.scan_test.key', 0, COUNT => 20);
+is_deeply $cursor->command, ['HSCAN', 'redis2.scan_test.key', 0, 'COUNT', 20],
+  'right cmd, key & args';
+$cursor = $redis->sscan('redis2.scan_test.key', 0);
+is $cursor->command->[0], 'SSCAN', 'right command SSCAN';
+$cursor = $redis->zscan('redis2.scan_test.key', 0);
+is $cursor->command->[0], 'ZSCAN', 'right command ZSCAN';
 
 $redis->set("redis2.scan_test.key.$_", $_) for 1 .. ELEMENTS_COUNT;
 my $list = [];
 my $expected = [sort map {"redis2.scan_test.key.$_"} 1 .. ELEMENTS_COUNT];
 
 # blocking
-$cursor = $redis->scan(MATCH => 'redis2.scan_test.key.*');
+$cursor = $redis->scan(0, MATCH => 'redis2.scan_test.key.*');
 
 # next
 my $guard = 1000;
@@ -37,12 +36,19 @@ is_deeply [sort @$list], $expected, 'fetch with next blocking';
 # again
 ok $cursor->finished, 'finished is set';
 $cursor->again();
-is $cursor->_cursor, 0, 'reset cursor';
+is $cursor->command->[$cursor->_cursor_pos], 0, 'reset cursor';
 ok !$cursor->finished, 'reset finished';
 
-# slurp
+# change args with next call
+$cursor->next(MATCH => 'redis2.scan_test.key.*', COUNT => 15);
+my $cur_value = $cursor->command->[1];
+is_deeply $cursor->command,
+  ['SCAN', $cur_value, MATCH => 'redis2.scan_test.key.*', COUNT => 15],
+  'right cmd & args after next';
+
+# fetch all
 $list = [];
-$list = $cursor->all();
+$list = $cursor->again->all();
 is_deeply [sort @$list], $expected, 'fetch all blocking';
 
 # non-blocking
@@ -66,8 +72,8 @@ is_deeply [sort @$list], $expected, 'fetch all non-blocking';
 $redis->hset('redis2.scan_test.hash', "key.$_" => "val.$_")
   for 1 .. ELEMENTS_COUNT;
 $expected = {map { 'key.' . $_ => 'val.' . $_ } (1 .. ELEMENTS_COUNT)};
-$cursor   = $redis->hscan('redis2.scan_test.hash');
-$list     = $cursor->all();
+$cursor = $redis->hscan('redis2.scan_test.hash', 0);
+$list = $cursor->all();
 is_deeply {@$list}, $expected, 'right result hscan';
 
 # hscan nb
@@ -79,7 +85,7 @@ is_deeply {@$list}, $expected, 'right result hscan non-blocking';
 # sscan
 $redis->sadd('redis2.scan_test.set', $_) for 1 .. ELEMENTS_COUNT;
 $expected = [sort 1 .. ELEMENTS_COUNT];
-$cursor   = $redis->sscan('redis2.scan_test.set');
+$cursor   = $redis->sscan('redis2.scan_test.set', 0);
 $list     = $cursor->all();
 is_deeply [sort @$list], $expected, 'right result sscan';
 
@@ -92,8 +98,8 @@ is_deeply [sort @$list], $expected, 'right result sscan non-blocking';
 # zscan
 $redis->zadd('redis2.scan_test.zset', $_, "val.$_") for 1 .. ELEMENTS_COUNT;
 $expected = sort_zset([map { 'val.' . $_ => $_ } 1 .. ELEMENTS_COUNT]);
-$cursor   = $redis->zscan('redis2.scan_test.zset');
-$list     = $cursor->all();
+$cursor = $redis->zscan('redis2.scan_test.zset', 0);
+$list = $cursor->all();
 is_deeply sort_zset($list), $expected, 'right result zscan';
 
 # zscan nb
@@ -103,10 +109,7 @@ Mojo::IOLoop->start();
 is_deeply sort_zset($list), $expected, 'right result zscan non-blocking';
 
 # errors
-eval { $cursor = $redis->scan(0, MATCH => '*') };
-ok $@ && $@ =~ /ERR Should not specify cursor value/,
-  'right error manual cursor';
-$cursor = $redis->scan(FOO => 'bar');
+$cursor = $redis->scan(0, COUNTER => 10);
 eval { $list = $cursor->all() };
 ok $@ && $@ =~ /ERR syntax error/, 'right error redis syntax';
 my $error;

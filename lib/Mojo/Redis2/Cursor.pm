@@ -5,13 +5,12 @@ use Carp 'croak';
 use Scalar::Util 'looks_like_number';
 
 has 'redis';
-has _args => sub { [] };
-has '_command';
-has _cursor => 0;
+has command => sub { ['SCAN'] };
+has _cursor_pos => 1;
 
 sub again {
   my $self = shift;
-  $self->_cursor(0);
+  $self->command->[$self->_cursor_pos] = 0;
   delete $self->{_finished};
   return $self;
 }
@@ -45,13 +44,13 @@ sub all {
 sub finished { !!shift->{_finished} }
 
 sub hgetall {
-  my $cur = shift->_clone('HSCAN', shift);
+  my $cur = shift->_clone('HSCAN', shift, 0);
   return $cur->all(@_);
 }
 
 sub hkeys {
   my $cb = ref $_[-1] eq 'CODE' ? pop : undef;
-  my $cur = shift->_clone('HSCAN' => @_);
+  my $cur = shift->_clone('HSCAN' => shift, 0, @_);
   my $wrapper = sub {
     my $keys = [grep { $a = !$a } @{$_[2] || []}];
     return $cur->$cb($_[1], $keys);
@@ -63,18 +62,14 @@ sub hkeys {
 }
 
 sub keys {
-  my $cur = shift->_clone('SCAN');
+  my $cur = shift->_clone('SCAN', 0);
   unshift @_, 'MATCH' if $_[0] && !ref $_[0];
   return $cur->all(@_);
 }
 
 sub new {
-  my $self    = shift->SUPER::new();
-  my $command = shift;
-  $self->_command($command eq 'SCAN' ? [$command] : [$command, shift]);
-  croak 'ERR Should not specify cursor value manualy.'
-    if looks_like_number $_[0];
-  $self->_args(\@_) if @_;
+  my $self = shift->SUPER::new(@_);
+  $self->_cursor_pos($self->command->[0] eq 'SCAN' ? 1 : 2);
   return $self;
 }
 
@@ -84,31 +79,29 @@ sub next {
 
   return undef if $self->{_finished};
 
-  my $args = @_ ? $self->_args(\@_)->{_args} : $self->_args;
+  my ($command, $pos) = ($self->command, $self->_cursor_pos);
+  if (@_) { splice @$command, $pos + 1, 4, @_ }
   my $wrapper = sub {
     my (undef, $err, $resp) = @_;
-    $self->_cursor(my $cur = $resp->[0] // 0);
+    $command->[$pos] = (my $cur = $resp->[0] // 0);
     $self->{_finished} = 1 if $cur == 0;
     return $self->$cb($err, $resp->[1]);
   };
 
-  my $resp = $self->redis->_execute(
-    basic => @{$self->_command},
-    $self->_cursor, @$args, $cb ? ($wrapper) : ()
-  );
+  my $resp = $self->redis->_execute(basic => @$command, $cb ? ($wrapper) : ());
   return $resp if $cb;
   $cb = sub { $_[2] };
   return $wrapper->(undef, '', $resp);
 }
 
 sub smembers {
-  my $cur = shift->_clone('SSCAN', shift);
+  my $cur = shift->_clone('SSCAN', shift, 0);
   return $cur->all(@_);
 }
 
 sub _clone {
   my $self = shift;
-  return $self->new(@_)->redis($self->redis);
+  return $self->new(command => [@_])->redis($self->redis);
 }
 
 1;
@@ -216,11 +209,12 @@ Implements standard C<KEYS> command using C<SCAN>.
 
 =head2 new
 
-  my $cursor  = Mojo::Redis2::Cursor->new(SCAN => MATCH => 'namespace*');
-  my $zcursor = Mojo::Redis2::Cursor->new(ZSCAN => 'redis.key', COUNT => 15);
+  my $cursor  = Mojo::Redis2::Cursor->new(
+    command => ['SCAN', 0, MATCH => 'namespace*']);
+  $cursor = Mojo::Redis2::Cursor->new(
+    command => [ZSCAN => 'redis.key', 0, COUNT => 15]);
 
-Object constructor. Follows same semantics as Redis command, except you B<should>
-omit cursor field.
+Object constructor. Follows same semantics as Redis command.
 
 =head2 next
 
