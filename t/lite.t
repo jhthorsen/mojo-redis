@@ -5,7 +5,7 @@ use Test::More;
 use lib '.';
 use t::Util;
 
-plan skip_all => 'Cannot test on Win32' if $^O eq 'Win32';
+plan skip_all => 'Cannot test on Win32' if $^O eq 'MSWin32';
 plan skip_all => $@ unless eval { Mojo::Redis2::Server->start };
 
 t::Util->compile_lite_app;
