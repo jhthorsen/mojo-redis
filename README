@@ -171,19 +171,60 @@ METHODS
     In addition to the methods listed in this module, you can call these
     Redis methods on $self:
 
-    append, bitcount, bitop, bitpos, decr, decrby, del, echo, exists,
-    expire, expireat, get, getbit, getrange, getset, hdel, hexists, hget,
-    hgetall, hincrby, hincrbyfloat, hkeys, hlen, hmget, hmset, hset, hsetnx,
-    hvals, incr, incrby, incrbyfloat, keys, lindex, linsert, llen, lpop,
-    lpush, lpushx, lrange, lrem, lset, ltrim, mget, move, mset, msetnx,
-    persist, pexpire, pexpireat, ping, psetex, pttl, publish, randomkey,
-    rename, renamenx, rpop, rpoplpush, rpush, rpushx, sadd, scard, sdiff,
-    sdiffstore, set, setbit, setex, setnx, setrange, sinter, sinterstore,
-    sismember, smembers, smove, sort, spop, srandmember, srem, strlen,
-    sunion, sunionstore, ttl, type, zadd, zcard, zcount, zincrby,
-    zinterstore, zlexcount, zrange, zrangebylex, zrangebyscore, zrank, zrem,
-    zremrangebylex, zremrangebyrank, zremrangebyscore, zrevrange,
-    zrevrangebylex, zrevrangebyscore, zrevrank, zscore and zunionstore.
+    CONNECTION
+
+      echo, ping
+
+    GEO
+
+      geoadd, geodist, geohash, geopos, georadius,
+      georadiusbymember
+
+    HASHES
+
+      hdel, hexists, hget, hgetall, hincrby, hincrbyfloat,
+      hkeys, hlen, hmget, hmset, hset, hsetnx, hstrlen, hvals
+
+    HYPERLOGLOG
+
+      pfadd, pfcount, pfmerge
+
+    KEYS
+
+      del, exists, expire, expireat, keys, move, persist,
+      pexpire, pexpireat, pttl, randomkey, rename, renamenx,
+      sort, ttl, type
+
+    LISTS
+
+      lindex, linsert, llen, lpop, lpush, lpushx, lrange, lrem,
+      lset, ltrim, rpop, rpoplpush, rpush, rpushx
+
+    PUB/SUB
+
+      publish
+
+    SETS
+
+      sadd, scard, sdiff, sdiffstore, sinter, sinterstore,
+      sismember, smembers, smove, spop, srandmember, srem,
+      sunion, sunionstore
+
+    SORTED SETS
+
+      zadd, zcard, zcount, zincrby, zinterstore, zlexcount,
+      zrange, zrangebylex, zrangebyscore, zrank, zrem,
+      zremrangebylex, zremrangebyrank, zremrangebyscore,
+      zrevrange, zrevrangebylex, zrevrangebyscore,
+      zrevrank, zscore, zunionstore
+
+    STRINGS
+
+      append, bitcount, bitop, bitpos, decr, decrby, get,
+      getbit, getrange, getset, incr, incrby, incrbyfloat,
+      mget, mset, msetnx, psetex, set, setbit, setex, setnx,
+      setrange, strlen
+
 
     See <http://redis.io/commands> for details.
 
