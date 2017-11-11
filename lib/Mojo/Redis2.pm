@@ -318,7 +318,7 @@ for my $method (__PACKAGE__->_basic_operations) {
 
 for my $method (__PACKAGE__->_scan_operations) {
   my $op = uc $method;
-  Mojo::Base::_monkey_patch(__PACKAGE__,
+  Mojo::Util::monkey_patch(__PACKAGE__,
     $method,
     sub {
       my $self = shift;
