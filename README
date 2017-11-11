@@ -2,7 +2,7 @@ NAME
     Mojo::Redis2 - Pure-Perl non-blocking I/O Redis driver
 
 VERSION
-    0.27
+    0.28
 
 DESCRIPTION
     Mojo::Redis2 is a pure-Perl non-blocking I/O Redis <http://redis.io>
@@ -171,60 +171,44 @@ METHODS
     In addition to the methods listed in this module, you can call these
     Redis methods on $self:
 
-    CONNECTION
+   Connection
+    echo, ping
 
-      echo, ping
+   Geo
+    geoadd, geodist, geohash, geopos, georadius, georadiusbymember
 
-    GEO
+   Hashes
+    hdel, hexists, hget, hgetall, hincrby, hincrbyfloat, hkeys, hlen, hmget,
+    hmset, hset, hsetnx, hstrlen, hvals
 
-      geoadd, geodist, geohash, geopos, georadius,
-      georadiusbymember
+   HyperLogLog
+    pfadd, pfcount, pfmerge
 
-    HASHES
+   Keys
+    del, exists, expire, expireat, keys, move, persist, pexpire, pexpireat,
+    pttl, randomkey, rename, renamenx, sort, ttl, type
 
-      hdel, hexists, hget, hgetall, hincrby, hincrbyfloat,
-      hkeys, hlen, hmget, hmset, hset, hsetnx, hstrlen, hvals
+   Lists
+    lindex, linsert, llen, lpop, lpush, lpushx, lrange, lrem, lset, ltrim,
+    rpop, rpoplpush, rpush, rpushx
 
-    HYPERLOGLOG
+   PubSub
+    publish
 
-      pfadd, pfcount, pfmerge
+   Sets
+    sadd, scard, sdiff, sdiffstore, sinter, sinterstore, sismember,
+    smembers, smove, spop, srandmember, srem, sunion, sunionstore
 
-    KEYS
+   Sorted Sets
+    zadd, zcard, zcount, zincrby, zinterstore, zlexcount, zrange,
+    zrangebylex, zrangebyscore, zrank, zrem, zremrangebylex,
+    zremrangebyrank, zremrangebyscore, zrevrange, zrevrangebylex,
+    zrevrangebyscore, zrevrank, zscore, zunionstore
 
-      del, exists, expire, expireat, keys, move, persist,
-      pexpire, pexpireat, pttl, randomkey, rename, renamenx,
-      sort, ttl, type
-
-    LISTS
-
-      lindex, linsert, llen, lpop, lpush, lpushx, lrange, lrem,
-      lset, ltrim, rpop, rpoplpush, rpush, rpushx
-
-    PUB/SUB
-
-      publish
-
-    SETS
-
-      sadd, scard, sdiff, sdiffstore, sinter, sinterstore,
-      sismember, smembers, smove, spop, srandmember, srem,
-      sunion, sunionstore
-
-    SORTED SETS
-
-      zadd, zcard, zcount, zincrby, zinterstore, zlexcount,
-      zrange, zrangebylex, zrangebyscore, zrank, zrem,
-      zremrangebylex, zremrangebyrank, zremrangebyscore,
-      zrevrange, zrevrangebylex, zrevrangebyscore,
-      zrevrank, zscore, zunionstore
-
-    STRINGS
-
-      append, bitcount, bitop, bitpos, decr, decrby, get,
-      getbit, getrange, getset, incr, incrby, incrbyfloat,
-      mget, mset, msetnx, psetex, set, setbit, setex, setnx,
-      setrange, strlen
-
+   Strings
+    append, bitcount, bitop, bitpos, decr, decrby, get, getbit, getrange,
+    getset, incr, incrby, incrbyfloat, mget, mset, msetnx, psetex, set,
+    setbit, setex, setnx, setrange, strlen
 
     See <http://redis.io/commands> for details.
 
@@ -338,4 +322,6 @@ AUTHOR
     Ben Tyler - "benjamin.tyler@gmail.com"
 
     Jan Henning Thorsen - "jhthorsen@cpan.org"
+
+    Mike Magowan
 

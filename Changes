@@ -1,5 +1,10 @@
 Revision history for perl distribution Mojo-Redis2
 
+0.28 2017-11-11T09:59:37+0800
+ - Fix monkey_patch() usage
+ - Add Geo command support
+ - Add HyperLogLog command support
+
 0.27 2017-10-09T12:50:29+0200
  - Add new methods: bitcount, bitop bitpos, hincrbyfloat, incrbyfloat, pexpire,
    pexpireat, psetex, pttl, zlexcount, zrangebylex, zremrangebylex and zrevrangebylex. #25

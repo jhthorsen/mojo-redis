@@ -15,6 +15,6 @@ WriteMakefile(
     },
   },
   BUILD_REQUIRES => {'Test::More'  => '0.88'},
-  PREREQ_PM      => {'Mojolicious' => '5.0', 'Protocol::Redis' => '1.0'},
+  PREREQ_PM      => {'Mojolicious' => '7.50', 'Protocol::Redis' => '1.0'},
   test           => {TESTS         => (-e 'META.yml' ? 't/*.t' : 't/*.t xt/*.t')},
 );
