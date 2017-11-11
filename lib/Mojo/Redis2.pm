@@ -84,16 +84,15 @@ sub unsubscribe {
 sub DESTROY { $_[0]->{destroy} = 1; $_[0]->_cleanup; }
 
 sub _basic_operations {
-  'append', 'bitcount', 'bitop', 'bitpos', 'decr', 'decrby', 'del', 'echo', 'exists', 'expire', 'expireat', 'get',
-    'getbit', 'getrange', 'getset', 'hdel', 'hexists', 'hget', 'hgetall', 'hincrby', 'hincrbyfloat', 'hkeys', 'hlen',
-    'hmget', 'hmset', 'hset', 'hsetnx', 'hvals', 'incr', 'incrby', 'incrbyfloat', 'keys', 'lindex', 'linsert', 'llen',
-    'lpop', 'lpush', 'lpushx', 'lrange', 'lrem', 'lset', 'ltrim', 'mget', 'move', 'mset', 'msetnx', 'persist',
-    'pexpire', 'pexpireat', 'ping', 'psetex', 'pttl', 'publish', 'randomkey', 'rename', 'renamenx', 'rpop',
-    'rpoplpush', 'rpush', 'rpushx', 'sadd', 'scard', 'sdiff', 'sdiffstore', 'set', 'setbit', 'setex', 'setnx',
-    'setrange', 'sinter', 'sinterstore', 'sismember', 'smembers', 'smove', 'sort', 'spop', 'srandmember', 'srem',
-    'strlen', 'sunion', 'sunionstore', 'ttl', 'type', 'zadd', 'zcard', 'zcount', 'zincrby', 'zinterstore', 'zlexcount',
-    'zrange', 'zrangebylex', 'zrangebyscore', 'zrank', 'zrem', 'zremrangebylex', 'zremrangebyrank', 'zremrangebyscore',
-    'zrevrange', 'zrevrangebylex', 'zrevrangebyscore', 'zrevrank', 'zscore', 'zunionstore',;
+  'append', 'bitcount', 'bitop', 'bitpos', 'decr', 'decrby', 'del', 'echo', 'exists', 'expire', 'expireat', 'get', 'getbit', 'getrange',
+  'getset', 'geoadd', 'geodist', 'geohash', 'geopos', 'georadius', 'georadiusbymember', 'hdel', 'hexists', 'hget', 'hgetall', 'hincrby',
+  'hincrbyfloat', 'hkeys', 'hlen', 'hmget', 'hmset', 'hset', 'hsetnx', 'hstrlen', 'hvals', 'incr', 'incrby', 'incrbyfloat', 'keys', 'lindex',
+  'linsert', 'llen', 'lpop', 'lpush', 'lpushx', 'lrange', 'lrem', 'lset', 'ltrim', 'mget', 'move', 'mset', 'msetnx', 'persist', 'pexpire',
+  'pexpireat', 'pfadd', 'pfcount', 'pfmerge', 'ping', 'psetex', 'pttl', 'publish', 'randomkey', 'rename', 'renamenx', 'rpop', 'rpoplpush',
+  'rpush', 'rpushx', 'sadd', 'scard', 'sdiff', 'sdiffstore', 'set', 'setbit', 'setex', 'setnx', 'setrange', 'sinter', 'sinterstore',
+  'sismember', 'smembers', 'smove', 'sort', 'spop', 'srandmember', 'srem', 'strlen', 'sunion', 'sunionstore', 'ttl', 'type', 'zadd',
+  'zcard', 'zcount', 'zincrby', 'zinterstore', 'zlexcount', 'zrange', 'zrangebylex', 'zrangebyscore', 'zrank', 'zrem', 'zremrangebylex',
+  'zremrangebyrank', 'zremrangebyscore', 'zrevrange', 'zrevrangebylex', 'zrevrangebyscore', 'zrevrank', 'zscore', 'zunionstore';
 }
 
 sub _blocking_group {'blocking'}
@@ -532,22 +531,60 @@ in constructor. Examples:
 In addition to the methods listed in this module, you can call these Redis
 methods on C<$self>:
 
-append, bitcount, bitop, bitpos, decr, decrby,
-del, echo, exists, expire, expireat, get, getbit,
-getrange, getset, hdel, hexists, hget, hgetall,
-hincrby, hincrbyfloat, hkeys, hlen, hmget, hmset, hset,
-hsetnx, hvals, incr, incrby, incrbyfloat, keys, lindex,
-linsert, llen, lpop, lpush, lpushx, lrange,
-lrem, lset, ltrim, mget, move, mset,
-msetnx, persist, pexpire, pexpireat, ping, psetex, pttl, publish, 
-randomkey, rename, renamenx, rpop, rpoplpush, rpush, rpushx, 
-sadd, scard, sdiff, sdiffstore, set, setbit, setex,
-setnx, setrange, sinter, sinterstore, sismember, smembers,
-smove, sort, spop, srandmember, srem, strlen,
-sunion, sunionstore, ttl, type, zadd, zcard,
-zcount, zincrby, zinterstore, zlexcount, zrange, zrangebylex, zrangebyscore,
-zrank, zrem, zremrangebylex, zremrangebyrank, zremrangebyscore, zrevrange, 
-zrevrangebylex, zrevrangebyscore, zrevrank, zscore and zunionstore.
+=head3 Connection
+
+echo, ping
+
+=head3 Geo
+
+geoadd, geodist, geohash, geopos, georadius,
+georadiusbymember
+
+=head3 Hashes
+
+hdel, hexists, hget, hgetall, hincrby, hincrbyfloat,
+hkeys, hlen, hmget, hmset, hset, hsetnx, hstrlen, hvals
+
+=head3 HyperLogLog
+
+pfadd, pfcount, pfmerge
+
+=head3 Keys
+
+del, exists, expire, expireat, keys, move, persist,
+pexpire, pexpireat, pttl, randomkey, rename, renamenx,
+sort, ttl, type
+
+=head3 Lists
+
+lindex, linsert, llen, lpop, lpush, lpushx, lrange, lrem,
+lset, ltrim, rpop, rpoplpush, rpush, rpushx
+
+=head3 PubSub
+
+publish
+
+=head3 Sets
+
+sadd, scard, sdiff, sdiffstore, sinter, sinterstore,
+sismember, smembers, smove, spop, srandmember, srem,
+sunion, sunionstore
+
+=head3 Sorted Sets
+
+zadd, zcard, zcount, zincrby, zinterstore, zlexcount,
+zrange, zrangebylex, zrangebyscore, zrank, zrem,
+zremrangebylex, zremrangebyrank, zremrangebyscore,
+zrevrange, zrevrangebylex, zrevrangebyscore,
+zrevrank, zscore, zunionstore
+
+=head3 Strings
+
+append, bitcount, bitop, bitpos, decr, decrby, get,
+getbit, getrange, getset, incr, incrby, incrbyfloat,
+mget, mset, msetnx, psetex, set, setbit, setex, setnx,
+setrange, strlen
+
 
 See L<http://redis.io/commands> for details.
 
