@@ -10,7 +10,7 @@ use Carp ();
 use constant DEBUG => $ENV{MOJO_REDIS_DEBUG} || 0;
 use constant DEFAULT_PORT => 6379;
 
-our $VERSION = '0.28';
+our $VERSION = '0.29';
 
 my $PROTOCOL_CLASS = do {
   my $class = $ENV{MOJO_REDIS_PROTOCOL}
@@ -339,7 +339,7 @@ Mojo::Redis2 - Pure-Perl non-blocking I/O Redis driver
 
 =head1 VERSION
 
-0.28
+0.29
 
 =head1 DESCRIPTION
 
