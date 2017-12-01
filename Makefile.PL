@@ -20,12 +20,12 @@ my %WriteMakefileArgs = (
       },
     },
   },
-  TEST_REQUIRES => {'Test::More'  => '0.88', 'Sort::Versions' => '1.5'},
+  TEST_REQUIRES => {'Test::More'  => '0.88', 'Sort::Versions'  => '1.5'},
   PREREQ_PM     => {'Mojolicious' => '7.50', 'Protocol::Redis' => '1.0'},
-  test          => {TESTS         => (-e 'META.yml' ? 't/*.t' : 't/*.t xt/*.t')},
+  test => {TESTS => (-e 'META.yml' ? 't/*.t' : 't/*.t xt/*.t')},
 );
 
-unless ( eval { ExtUtils::MakeMaker->VERSION('6.63_03') } ) {
+unless (eval { ExtUtils::MakeMaker->VERSION('6.63_03') }) {
   my $test_requires = delete $WriteMakefileArgs{TEST_REQUIRES};
   @{$WriteMakefileArgs{PREREQ_PM}}{keys %$test_requires} = values %$test_requires;
 }
