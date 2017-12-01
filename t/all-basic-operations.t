@@ -2,6 +2,7 @@ use Mojo::Base -strict;
 use Mojo::Redis2;
 use Test::More;
 use List::Util 'shuffle';
+use Sort::Versions 'versioncmp';
 use lib '.';
 use t::Util;
 
@@ -10,10 +11,13 @@ plan skip_all => 'Cannot test on Win32' if $^O eq 'MSWin32';
 my %ops = t::Util->get_documented_redis_methods;
 my @categories = $ENV{TEST_CATEGORY} || qw( Hashes Keys Lists PubSub Sets SortedSets Strings Connection Geo HyperLogLog );
 my $redis = Mojo::Redis2::RECORDER->new;
+my $server = Mojo::Redis2::Server->new;
 my $key;
 
-plan skip_all => $@ unless eval { Mojo::Redis2::Server->start };
+plan skip_all => $@ unless eval { $server->start };
 add_recorder();
+
+my $redis_version = $redis->backend->info('server')->{redis_version};
 
 for my $category (shuffle @categories) {
   local $@ = '';
@@ -61,7 +65,11 @@ sub Hashes {
   is $redis->hdel($key, "foo"), 1, 'hdel';
   is_deeply [sort @{ $redis->hvals($key) }], [qw( aaa fourty_two yikes )], 'hvals';
   is $redis->hexists($key, "foo"), 0, 'hexists';
-  is $redis->hstrlen($key, 'bar'), 10, 'hstrlen';
+
+  SKIP: {
+    skip 'hstrlen requires Redis 3.2.0', 1 if versioncmp($redis_version, '3.2.0') == -1;
+    is $redis->hstrlen($key, 'bar'), 10, 'hstrlen';
+  }
 
 }
 
@@ -222,49 +230,60 @@ sub Strings {
 
 sub Geo {
 
-  my @testlocs = qw(
-                     -3.055344 53.815931 Blackpool
-                     -2.700635 53.759607 Preston
-                     -3.006270 53.647920 Southport
-                     -3.014240 53.919310 Fleetwood
-                     -2.799996 54.045655 Lancaster
-                     -0.798977 51.214957 Farnham
-  );
+  SKIP: {
 
-  is $redis->geoadd($key => @testlocs), scalar(@testlocs) / 3, 'geoadd';
-  is $redis->geodist($key => qw( Blackpool Farnham km )), 327.0952, 'geodist in km';
-  is $redis->geodist($key => qw( Blackpool NonExisting )), undef, 'geoexist missing location';
-  is $redis->geodist($key => qw( Farnham Fleetwood ft )), 1102286.9318, 'geodist in feet';
-  is_deeply $redis->geohash($key => qw( Lancaster Southport Blackpool )), ['gcw52q9ng20','gctc5w6cuc0','gctf4kzht20'], 'geohash';
+    skip 'geo commands require Redis 3.2.0',12 if versioncmp($redis_version, '3.2.0') == -1;
 
-  {
-    # Return values will be slightly different due to redis converting locations into 52 bit geohashes
-    # So we round and then compare
+    my @testlocs = qw(
+                       -3.055344 53.815931 Blackpool
+                       -2.700635 53.759607 Preston
+                       -3.006270 53.647920 Southport
+                       -3.014240 53.919310 Fleetwood
+                       -2.799996 54.045655 Lancaster
+                       -0.798977 51.214957 Farnham
+    );
 
-    my $res = $redis->geopos($key => qw( Preston NonExisting Blackpool ));
+    is $redis->geoadd($key => @testlocs), scalar(@testlocs) / 3, 'geoadd';
+    is $redis->geodist($key => qw( Blackpool Farnham km )), 327.0952, 'geodist in km';
+    is $redis->geodist($key => qw( Blackpool NonExisting )), undef, 'geoexist missing location';
+    is $redis->geodist($key => qw( Farnham Fleetwood ft )), 1102286.9318, 'geodist in feet';
+    is_deeply $redis->geohash($key => qw( Lancaster Southport Blackpool )), ['gcw52q9ng20','gctc5w6cuc0','gctf4kzht20'], 'geohash';
 
-    is sprintf("%.4f", $res->[0][0]), sprintf("%.4f", $testlocs[3]), 'getpos element 1.0'; ## Preston Longtitude
-    is sprintf("%.4f", $res->[0][1]), sprintf("%.4f", $testlocs[4]), 'getpos element 1.1'; ## Preston Latitude
-    is $res->[1][0], undef, 'getpos element 2 - nonlocation';                              ## NonExistent Location
-    is sprintf("%.4f", $res->[2][0]), sprintf("%.4f", $testlocs[0]), 'getpos element 2.0'; ## Blackpool Longtitude
-    is sprintf("%.4f", $res->[2][1]), sprintf("%.4f", $testlocs[1]), 'getpos element 2.1'; ## Blackpool Latitude
+    {
+      # Return values will be slightly different due to redis converting locations into 52 bit geohashes
+      # So we round and then compare
+
+      my $res = $redis->geopos($key => qw( Preston NonExisting Blackpool ));
+
+      is sprintf("%.4f", $res->[0][0]), sprintf("%.4f", $testlocs[3]), 'getpos element 1.0'; ## Preston Longtitude
+      is sprintf("%.4f", $res->[0][1]), sprintf("%.4f", $testlocs[4]), 'getpos element 1.1'; ## Preston Latitude
+      is $res->[1][0], undef, 'getpos element 2 - nonlocation';                              ## NonExistent Location
+      is sprintf("%.4f", $res->[2][0]), sprintf("%.4f", $testlocs[0]), 'getpos element 2.0'; ## Blackpool Longtitude
+      is sprintf("%.4f", $res->[2][1]), sprintf("%.4f", $testlocs[1]), 'getpos element 2.1'; ## Blackpool Latitude
+    }
+
+    is_deeply $redis->georadius($key => qw( -3.0 53.8 20 km WITHDIST ASC) ), [['Blackpool', '4.0438'], ['Fleetwood', '13.3032'], ['Southport', '16.9204']], 'georadius';
+    is_deeply $redis->georadiusbymember($key => qw( Preston 30 km DESC)), ['Fleetwood', 'Blackpool', 'Southport', 'Preston'], 'georadiusbymember';
   }
-
-  is_deeply $redis->georadius($key => qw( -3.0 53.8 20 km WITHDIST ASC) ), [['Blackpool', '4.0438'], ['Fleetwood', '13.3032'], ['Southport', '16.9204']], 'georadius';
-  is_deeply $redis->georadiusbymember($key => qw( Preston 30 km DESC)), ['Fleetwood', 'Blackpool', 'Southport', 'Preston'], 'georadiusbymember';
 
 }
 
 sub HyperLogLog {
 
-  my @dt1 = shuffle qw( a a a a a a a a b b b b b b c c c c d e f g h i j k l m );
-  my @dt2 = shuffle qw( z z z z z z z z y y y y y y x x x x w v u t s r q p o n );
+  SKIP: {
 
-  is $redis->pfadd("$key:a" => @dt1), 1, 'pfadd';
-  is $redis->pfadd("$key:b" => @dt2), 1, 'pfadd';
-  is $redis->pfcount("$key:a"), 13, 'pfcount';
-  is $redis->pfmerge($key => ("$key:a", "$key:b")), 'OK', 'pfmerge';
-  is $redis->pfcount($key), 25, 'pfcount merged'; ## 26 uniques but probabilistic data structure
+    skip 'hyperloglog commands require Redis 2.8.9',5 if versioncmp($redis_version, '2.8.9') == -1;
+
+    my @dt1 = shuffle qw( a a a a a a a a b b b b b b c c c c d e f g h i j k l m );
+    my @dt2 = shuffle qw( z z z z z z z z y y y y y y x x x x w v u t s r q p o n );
+
+    is $redis->pfadd("$key:a" => @dt1), 1, 'pfadd';
+    is $redis->pfadd("$key:b" => @dt2), 1, 'pfadd';
+    is $redis->pfcount("$key:a"), 13, 'pfcount';
+    is $redis->pfmerge($key => ("$key:a", "$key:b")), 'OK', 'pfmerge';
+    is $redis->pfcount($key), 25, 'pfcount merged'; ## 26 uniques but probabilistic data structure
+
+  }
 
 }
 

@@ -14,7 +14,7 @@ WriteMakefile(
       repository => 'https://github.com/jhthorsen/mojo-redis2.git',
     },
   },
-  BUILD_REQUIRES => {'Test::More'  => '0.88'},
+  BUILD_REQUIRES => {'Test::More'  => '0.88', 'Sort::Versions' => '1.5'},
   PREREQ_PM      => {'Mojolicious' => '7.50', 'Protocol::Redis' => '1.0'},
   test           => {TESTS         => (-e 'META.yml' ? 't/*.t' : 't/*.t xt/*.t')},
 );
