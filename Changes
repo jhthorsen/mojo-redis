@@ -1,4 +1,8 @@
 Revision history for perl distribution Mojo-Redis2
+0.30
+ - Check version of redis in tests and skip tests of unsupported functions. #31
+   Contributor: Mike Magowan
+
 0.29 2017-11-19T20:16:11-0500
  - Prevent forked processes from terminating the Mojo::Redis2::Server test
    server when they destroy the object. #29
