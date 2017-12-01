@@ -8,10 +8,16 @@ my %WriteMakefileArgs = (
   VERSION_FROM  => 'lib/Mojo/Redis2.pm',
   EXE_FILES     => [qw()],
   META_MERGE    => {
-    resources => {
-      bugtracker => 'https://github.com/jhthorsen/mojo-redis2/issues',
+    dynamic_config => 0,
+    'meta-spec'    => {version => 2},
+    resources      => {
+      bugtracker => {web => 'https://github.com/jhthorsen/mojo-redis2/issues'},
       homepage   => 'https://github.com/jhthorsen/mojo-redis2',
-      repository => 'https://github.com/jhthorsen/mojo-redis2.git',
+      repository => {
+        type => 'git',
+        url  => 'https://github.com/jhthorsen/mojo-redis2.git',
+        web  => 'https://github.com/jhthorsen/mojo-redis2',
+      },
     },
   },
   TEST_REQUIRES => {'Test::More'  => '0.88', 'Sort::Versions' => '1.5'},
