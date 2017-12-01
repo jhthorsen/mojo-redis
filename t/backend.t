@@ -1,6 +1,7 @@
 use Mojo::Base -strict;
 use Mojo::Redis2;
 use Test::More;
+use Time::HiRes 'sleep';
 
 plan skip_all => 'Cannot test on Win32' if $^O eq 'MSWin32';
 plan skip_all => $@ unless eval { Mojo::Redis2::Server->start };
@@ -47,15 +48,21 @@ SKIP: {
 for my $method (qw( flushall flushdb resetstat save )) {
   @res = $backend->$method;
   is $res[0], 'OK', $method;
-  sleep 1 while $backend->info('persistence')->{aof_rewrite_in_progress};
+  sleep 0.1 while $backend->info('persistence')->{aof_rewrite_in_progress};
 }
 
 {
   @res = $backend->bgsave;
   like $res[0], qr{start}i, 'bgsave started';
 
+  # Give the rewrite chance to complete
+  sleep 0.1 while $backend->info('persistence')->{rdb_bgsave_in_progress};
+
   @res = $backend->bgrewriteaof;
-  like $res[0], qr{scheduled}i, 'bgrewriteaof scheduled';
+  like $res[0], qr{scheduled|started}i, 'bgrewriteaof scheduled/started';
+
+  # Give the rewrite chance to complete
+  sleep 0.1 while $backend->info('persistence')->{aof_rewrite_in_progress};
 
   # needed to make sure dump.rdb exists
   Mojo::Redis2::Server->stop;
