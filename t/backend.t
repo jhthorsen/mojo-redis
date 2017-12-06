@@ -6,14 +6,14 @@ use Time::HiRes 'sleep';
 plan skip_all => 'Cannot test on Win32' if $^O eq 'MSWin32';
 plan skip_all => $@ unless eval { Mojo::Redis2::Server->start };
 
-my $redis = Mojo::Redis2->new;
+my $redis   = Mojo::Redis2->new;
 my $backend = $redis->backend;
 my ($err, @res);
 
 {
   my $info = $backend->info('clients');
   is $info->{connected_clients}, 1, 'connected_clients';
-  is $info->{blocked_clients}, 0, 'blocked_clients';
+  is $info->{blocked_clients},   0, 'blocked_clients';
 
   $info = {};
   Mojo::IOLoop->delay(
@@ -29,12 +29,12 @@ my ($err, @res);
   Mojo::IOLoop->start;
 
   is $info->{connected_clients}, 2, 'async connected_clients';
-  is $info->{blocked_clients}, 0, 'async blocked_clients';
+  is $info->{blocked_clients},   0, 'async blocked_clients';
 }
 
 {
   $redis->set(foo => 123);
-  is $backend->dbsize, 1, 'dbsize';
+  is $backend->dbsize,     1,         'dbsize';
   like $backend->lastsave, qr{^\d+$}, 'lastsave';
   like $backend->time->[0], qr{^\d+$}, 'time.0';
   like $backend->time->[1], qr{^\d+$}, 'time.1';

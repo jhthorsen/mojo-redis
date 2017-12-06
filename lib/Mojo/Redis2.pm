@@ -85,17 +85,18 @@ sub unsubscribe {
 sub DESTROY { $_[0]->{destroy} = 1; $_[0]->_cleanup; }
 
 sub _basic_operations {
-  'append', 'bitcount', 'bitop', 'bitpos', 'decr', 'decrby', 'del', 'echo', 'eval', 'evalsha', 'exists', 'expire', 'expireat', 'get',
-    'getbit', 'getrange', 'getset', 'geoadd', 'geodist', 'geohash', 'geopos', 'georadius', 'georadiusbymember', 'hdel',
-    'hexists', 'hget', 'hgetall', 'hincrby', 'hincrbyfloat', 'hkeys', 'hlen', 'hmget', 'hmset', 'hset', 'hsetnx',
-    'hstrlen', 'hvals', 'incr', 'incrby', 'incrbyfloat', 'keys', 'lindex', 'linsert', 'llen', 'lpop', 'lpush',
-    'lpushx', 'lrange', 'lrem', 'lset', 'ltrim', 'mget', 'move', 'mset', 'msetnx', 'persist', 'pexpire', 'pexpireat',
-    'pfadd', 'pfcount', 'pfmerge', 'ping', 'psetex', 'pttl', 'publish', 'randomkey', 'rename', 'renamenx', 'rpop',
-    'rpoplpush', 'rpush', 'rpushx', 'sadd', 'scard', 'sdiff', 'sdiffstore', 'set', 'setbit', 'setex', 'setnx',
-    'setrange', 'sinter', 'sinterstore', 'sismember', 'smembers', 'smove', 'sort', 'spop', 'srandmember', 'srem',
-    'strlen', 'sunion', 'sunionstore', 'ttl', 'type', 'zadd', 'zcard', 'zcount', 'zincrby', 'zinterstore', 'zlexcount',
-    'zrange', 'zrangebylex', 'zrangebyscore', 'zrank', 'zrem', 'zremrangebylex', 'zremrangebyrank', 'zremrangebyscore',
-    'zrevrange', 'zrevrangebylex', 'zrevrangebyscore', 'zrevrank', 'zscore', 'zunionstore';
+  'append', 'bitcount', 'bitop', 'bitpos', 'decr', 'decrby', 'del', 'echo', 'eval', 'evalsha', 'exists', 'expire',
+    'expireat', 'get', 'getbit', 'getrange', 'getset', 'geoadd', 'geodist', 'geohash', 'geopos', 'georadius',
+    'georadiusbymember', 'hdel', 'hexists', 'hget', 'hgetall', 'hincrby', 'hincrbyfloat', 'hkeys', 'hlen', 'hmget',
+    'hmset', 'hset', 'hsetnx', 'hstrlen', 'hvals', 'incr', 'incrby', 'incrbyfloat', 'keys', 'lindex', 'linsert',
+    'llen', 'lpop', 'lpush', 'lpushx', 'lrange', 'lrem', 'lset', 'ltrim', 'mget', 'move', 'mset', 'msetnx', 'persist',
+    'pexpire', 'pexpireat', 'pfadd', 'pfcount', 'pfmerge', 'ping', 'psetex', 'pttl', 'publish', 'randomkey', 'rename',
+    'renamenx', 'rpop', 'rpoplpush', 'rpush', 'rpushx', 'sadd', 'scard', 'sdiff', 'sdiffstore', 'set', 'setbit',
+    'setex', 'setnx', 'setrange', 'sinter', 'sinterstore', 'sismember', 'smembers', 'smove', 'sort', 'spop',
+    'srandmember', 'srem', 'strlen', 'sunion', 'sunionstore', 'ttl', 'type', 'zadd', 'zcard', 'zcount', 'zincrby',
+    'zinterstore', 'zlexcount', 'zrange', 'zrangebylex', 'zrangebyscore', 'zrank', 'zrem', 'zremrangebylex',
+    'zremrangebyrank', 'zremrangebyscore', 'zrevrange', 'zrevrangebylex', 'zrevrangebyscore', 'zrevrank', 'zscore',
+    'zunionstore';
 }
 
 sub _blocking_group {'blocking'}
