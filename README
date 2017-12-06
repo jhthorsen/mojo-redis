@@ -195,6 +195,9 @@ METHODS
    PubSub
     publish
 
+   Scripting
+    eval, evalsha
+
    Sets
     sadd, scard, sdiff, sdiffstore, sinter, sinterstore, sismember,
     smembers, smove, spop, srandmember, srem, sunion, sunionstore
@@ -323,5 +326,5 @@ AUTHOR
 
     Jan Henning Thorsen - "jhthorsen@cpan.org"
 
-    Mike Magowan
+    Mike Magowan - "mike@magowan.co.uk"
 

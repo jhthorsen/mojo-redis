@@ -1,5 +1,7 @@
 use Mojo::Base -strict;
 use Mojo::Redis2;
+use Mojo::Util qw(sha1_sum encode);
+use Mojo::Collection ();
 use Test::More;
 use List::Util 'shuffle';
 use Sort::Versions 'versioncmp';
@@ -9,7 +11,7 @@ use t::Util;
 plan skip_all => 'Cannot test on Win32' if $^O eq 'MSWin32';
 
 my %ops = t::Util->get_documented_redis_methods;
-my @categories = $ENV{TEST_CATEGORY} || qw( Hashes Keys Lists PubSub Sets SortedSets Strings Connection Geo HyperLogLog );
+my @categories = $ENV{TEST_CATEGORY} || qw( Hashes Keys Lists PubSub Sets SortedSets Strings Connection Geo HyperLogLog Scripting );
 my $redis = Mojo::Redis2::RECORDER->new;
 my $server = Mojo::Redis2::Server->new;
 my $key;
@@ -285,6 +287,63 @@ sub HyperLogLog {
 
   }
 
+}
+
+sub Scripting {
+
+  # Change database, add 3 numbers and change back to default database
+
+  my $script_val = <<'  EOF';
+    redis.call("SELECT", 1)
+    redis.call("SET", KEYS[1], ARGV[1])
+    redis.call("INCRBY", KEYS[1], ARGV[2])
+    local myid = redis.call("INCRBY", KEYS[1], ARGV[3])
+    redis.call("DEL", KEYS[1])
+    redis.call("SELECT", 0)
+    return myid
+  EOF
+
+  # Pull out from a redis list, generate sha1hex for each element and return the array
+
+  my $script_ary = <<'  EOF';
+    local intable = redis.call('LRANGE', KEYS[1], 0, -1);
+    local outtable = {}
+    for _,val in ipairs(intable) do
+      table.insert(outtable, redis.sha1hex(val))
+    end
+    redis.call('DEL', KEYS[1])
+    return outtable
+  EOF
+
+  my $script_val_sha = sha1_sum(encode 'UTF-8', $script_val);
+  my $script_ary_sha = sha1_sum(encode 'UTF-8', $script_ary);
+
+  my $input     = Mojo::Collection->new(1..3)  ->map(sub {int(rand(999999)) });
+  my $input_ary = Mojo::Collection->new(1..100)->map(sub {int(rand(999999)) });
+
+  $redis->rpush("$key:a", @$input_ary);    # Set up a redis list
+  $redis->rpush("$key:b", @$input_ary);    #
+
+  is $redis->eval($script_val, 1, $key, @$input), $input->reduce(sub {$a+$b}), 'eval - single response';
+  is_deeply $redis->eval($script_ary, 1, "$key:a"), $input_ary->map(sub{sha1_sum($_[0])}), 'eval - list response';
+
+  like $redis->eval('return redis.call("INFO", ARGV[1])', 0, 'PERSISTENCE'), qr{^aof_enabled}m, 'eval - return multiline string';
+  is $redis->eval('redis.pcall("INCRBY", KEYS[1], ARGV[1])', 1, $key, 'NOT_A_NUMBER'), undef, 'eval - redis.pcall failure';
+
+  eval { $redis->eval('redis.call("INCRBY", KEYS[1], ARGV[1])', 1, $key, 'NOT_A_NUMBER') };
+    like $@, qr{not an integer}, 'eval - redis.call failure';
+
+  eval { $redis->eval($script_val) };
+    like $@, qr{wrong number of arguments}, 'eval - missing arguments';
+
+  eval { $redis->eval('INVALID**LUA', 0) };
+    like $@, qr{Error compiling script}, 'eval - compile error';
+
+  is $redis->evalsha($script_val_sha, 1, $key, @$input), $input->reduce(sub {$a+$b}), 'evalsha';
+  is_deeply $redis->evalsha($script_ary_sha, 1, "$key:b"), $input_ary->map(sub{sha1_sum($_[0])}), 'evalsha - list response';
+
+  eval { $redis->evalsha(sha1_sum('Does not exist'), 1, $key, @$input) };
+    like $@, qr{NOSCRIPT}i, 'evalsha - missing script';
 }
 
 sub add_recorder {

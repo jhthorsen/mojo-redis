@@ -85,7 +85,7 @@ sub unsubscribe {
 sub DESTROY { $_[0]->{destroy} = 1; $_[0]->_cleanup; }
 
 sub _basic_operations {
-  'append', 'bitcount', 'bitop', 'bitpos', 'decr', 'decrby', 'del', 'echo', 'exists', 'expire', 'expireat', 'get',
+  'append', 'bitcount', 'bitop', 'bitpos', 'decr', 'decrby', 'del', 'echo', 'eval', 'evalsha', 'exists', 'expire', 'expireat', 'get',
     'getbit', 'getrange', 'getset', 'geoadd', 'geodist', 'geohash', 'geopos', 'georadius', 'georadiusbymember', 'hdel',
     'hexists', 'hget', 'hgetall', 'hincrby', 'hincrbyfloat', 'hkeys', 'hlen', 'hmget', 'hmset', 'hset', 'hsetnx',
     'hstrlen', 'hvals', 'incr', 'incrby', 'incrbyfloat', 'keys', 'lindex', 'linsert', 'llen', 'lpop', 'lpush',
@@ -567,6 +567,10 @@ lset, ltrim, rpop, rpoplpush, rpush, rpushx
 
 publish
 
+=head3 Scripting
+
+eval, evalsha
+
 =head3 Sets
 
 sadd, scard, sdiff, sdiffstore, sinter, sinterstore,
@@ -715,6 +719,6 @@ Ben Tyler - C<benjamin.tyler@gmail.com>
 
 Jan Henning Thorsen - C<jhthorsen@cpan.org>
 
-Mike Magowan
+Mike Magowan - C<mike@magowan.co.uk>
 
 =cut
