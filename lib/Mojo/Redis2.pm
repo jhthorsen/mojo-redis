@@ -138,7 +138,7 @@ sub _connect {
       $stream->timeout(0);
       $stream->on(close => sub { $self and $self->_error($c) });
       $stream->on(error => sub { $self and $self->_error($c, $_[1]) });
-      $stream->on(read => sub { $self->_read($c, $_[1]) });
+      $stream->on(read => sub { $self and $self->_read($c, $_[1]) });
 
       # NOTE: unshift() will cause AUTH to be sent before SELECT
       unshift @{$c->{queue}}, [undef, SELECT => $db]          if $db;
