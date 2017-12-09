@@ -1,8 +1,7 @@
 #!/usr/bin/env perl
 
-use Mojolicious::Lite;
+use Mojolicious::Lite -signatures;
 use Mojo::Redis2;
-use experimental 'signatures';
 
 helper redis => sub { state $r = Mojo::Redis2->new };
 
