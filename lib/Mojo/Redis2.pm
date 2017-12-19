@@ -500,7 +500,9 @@ C<$pattern>, after it has been L<subscribed|/psubscribe> to.
   $str = $self->encoding;
   $self = $self->encoding('UTF-8');
 
-Holds the encoding using for data from/to Redis. Default is UTF-8.
+Holds the character encoding to use for data from/to Redis. Default is
+C<UTF-8>. Set to C<undef> to disable encoding/decoding data. Without an
+encoding set, Redis expects and returns bytes.
 
 =head2 protocol
 
