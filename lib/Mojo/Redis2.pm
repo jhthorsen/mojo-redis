@@ -268,10 +268,9 @@ sub _read {
 MESSAGE:
   while (my $message = $protocol->get_message) {
     my $data = $self->_reencode_message($message);
-    my $op   = shift @{$c->{waiting} || []};
-    my $cb   = $op->[0];
 
     if (ref $data eq 'SCALAR') {
+      my $cb = (shift @{$c->{waiting}} || [])->[0];
       $self->$cb($$data, []) if $cb;
     }
     elsif (ref $data eq 'ARRAY' and $data->[0] and $data->[0] =~ /^(p?message)$/i) {
@@ -279,6 +278,7 @@ MESSAGE:
       $self->emit($event => reverse @$data);
     }
     else {
+      my $cb = (shift @{$c->{waiting}} || [])->[0];
       $self->$cb('', $data) if $cb;
     }
 
