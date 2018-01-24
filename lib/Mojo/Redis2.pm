@@ -10,7 +10,7 @@ use Carp ();
 use constant DEBUG => $ENV{MOJO_REDIS_DEBUG} || 0;
 use constant DEFAULT_PORT => 6379;
 
-our $VERSION = '0.30';
+our $VERSION = '0.31';
 
 my $PROTOCOL_CLASS = do {
   my $class = $ENV{MOJO_REDIS_PROTOCOL}
@@ -138,7 +138,7 @@ sub _connect {
       $stream->timeout(0);
       $stream->on(close => sub { $self and $self->_error($c) });
       $stream->on(error => sub { $self and $self->_error($c, $_[1]) });
-      $stream->on(read => sub { $self and $self->_read($c, $_[1]) });
+      $stream->on(read  => sub { $self and $self->_read($c, $_[1]) });
 
       # NOTE: unshift() will cause AUTH to be sent before SELECT
       unshift @{$c->{queue}}, [undef, SELECT => $db]          if $db;
@@ -340,7 +340,7 @@ Mojo::Redis2 - Pure-Perl non-blocking I/O Redis driver
 
 =head1 VERSION
 
-0.30
+0.31
 
 =head1 DESCRIPTION
 
