@@ -7,17 +7,15 @@ use Test::More;
 # Logic of the test is following:
 # 1. client subscribes to channel
 # 2. client publishes a message on channel
-# 4. client recieves message on a channel
+# 3. client recieves message on a channel
 # All counters should be the same
 
 use constant {TEST_MESSAGES => 500, TIMEOUT => 3};
 
 plan skip_all => 'Cannot test on Win32' if $^O eq 'MSWin32';
 
-# not sure if setting requirepass and path matter,
-# but adding it for the sake of complexity
-plan skip_all => $@ unless eval { Mojo::Redis2::Server->start(requirepass => 's3cret') };
-my $url = Mojo::URL->new($ENV{MOJO_REDIS_URL})->path(3);
+plan skip_all => $@ unless eval { Mojo::Redis2::Server->start };
+my $url = Mojo::URL->new($ENV{MOJO_REDIS_URL});
 my $redis = Mojo::Redis2->new(url => $url);
 
 my ($got_messages, $subscribed);
