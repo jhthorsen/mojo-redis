@@ -1,16 +1,16 @@
 use Mojo::Base -strict;
-use Mojo::IOLoop::Subprocess;
+use Mojo::IOLoop;
 use Mojo::Redis2;
+use Mojo::URL;
 use Test::More;
 
 # Logic of the test is following:
 # 1. client subscribes to channel
-# 2. client pushes channel name inside queue-array
-# 3. server brpop's channel name, and publishes a message there
+# 2. client publishes a message on channel
 # 4. client recieves message on a channel
 # All counters should be the same
 
-use constant {TEST_MESSAGES => 500, TIMEOUT => 3, REDIS_QUEUE_NAME => 'queue'};
+use constant {TEST_MESSAGES => 500, TIMEOUT => 3};
 
 plan skip_all => 'Cannot test on Win32' if $^O eq 'MSWin32';
 
@@ -22,38 +22,24 @@ my $redis = Mojo::Redis2->new(url => $url);
 
 my ($got_messages, $subscribed);
 
-sub server {
-  my $c;
-  while (my $r = $redis->brpop(REDIS_QUEUE_NAME, 0)) {
-    my $key = $r->[1];
-    $redis->publish($key, $key);
-    return 0 if ++$c == TEST_MESSAGES;
+$redis->on(
+  message => sub {
+    my ($self, $msg, $channel) = @_;
+    $got_messages++ if $msg eq $channel;
   }
-}
-
-sub stress {
-  $redis->on(
-    message => sub {
-      my ($self, $msg, $channel) = @_;
-      $got_messages++ if $msg eq $channel;
+);
+for my $channel (1 .. TEST_MESSAGES) {
+  $redis->subscribe(
+    [$channel],
+    sub {
+      $subscribed++;
+      my ($redis, $err) = @_;
+      $redis->publish($channel, $channel);
     }
   );
-  for my $channel (1 .. TEST_MESSAGES) {
-    $redis->subscribe(
-      [$channel],
-      sub {
-        $subscribed++;
-        my ($self, $err) = @_;
-        $self->lpush(REDIS_QUEUE_NAME, $channel);
-      }
-    );
-  }
 }
 
-# run server in a separate process,
-# and stop processing if all requests are finished
-Mojo::IOLoop::Subprocess->new->run(\&server, sub { Mojo::IOLoop->stop });
-Mojo::IOLoop->timer(0.1 => \&stress);
+# stop processing if all requests are finished
 Mojo::IOLoop->timer(TIMEOUT() => sub { Mojo::IOLoop->stop });
 Mojo::IOLoop->start;
 
