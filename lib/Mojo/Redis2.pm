@@ -198,7 +198,7 @@ sub _error {
   return if $self->{destroy};
   return $self->_requeue($c)->_connect($c) unless defined $err;
   return $self->emit(error => $err) unless @$waiting;
-  return $self->$_($err, undef) for grep {$_} map { $_->[0] } @$waiting;
+  $self->$_($err, undef) for grep {$_} map { $_->[0] } @$waiting;
 }
 
 sub _execute {
