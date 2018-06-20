@@ -14,7 +14,8 @@ $redis->on(connection => sub { my ($redis, $conn) = @_; @write = @{$conn->{write
 
 my $db = $redis->db;
 my $err;
-$db->connection->connect(sub { $err = $_[1]; Mojo::IOLoop->stop });
+$db->connection->once(connect => sub { $err = $_[1]; Mojo::IOLoop->stop });
+$db->connection->_connect;
 Mojo::IOLoop->start;
 is_deeply \@write, [['AUTH s3cret'], ['SELECT 12']], 'write queue';
 

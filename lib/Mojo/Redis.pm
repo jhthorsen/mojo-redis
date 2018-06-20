@@ -34,7 +34,7 @@ sub _dequeue {
   delete @$self{qw(pid queue)} unless ($self->{pid} //= $$) eq $$;    # Fork-safety
 
   # Exsting connection
-  while (my $conn = shift @{$self->{queue} || []}) { return $conn if $conn->connected }
+  while (my $conn = shift @{$self->{queue} || []}) { return $conn if $conn->is_connected }
 
   # New connection
   my $conn = Mojo::Redis::Connection->new(protocol => $self->protocol_class->new(api => 1), url => $self->url);
@@ -46,7 +46,7 @@ sub _dequeue {
 sub _enqueue {
   my ($self, $conn) = @_;
   my $queue = $self->{queue} ||= [];
-  push @$queue, $conn if $conn->connected;
+  push @$queue, $conn if $conn->is_connected;
   shift @$queue while @$queue > $self->max_connections;
 }
 

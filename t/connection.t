@@ -16,8 +16,9 @@ $redis->on(connection => sub { $redis->{connections}++ });
 # Create one connection
 my $connected = 0;
 my $err;
+$conn->once(connect => sub { $connected++; Mojo::IOLoop->stop });
 $conn->once(error => sub { $err = $_[1]; Mojo::IOLoop->stop });
-is $conn->connect(sub { $connected++; Mojo::IOLoop->stop }), $conn, 'connect()';
+is $conn->_connect, $conn, '_connect()';
 Mojo::IOLoop->start;
 is $connected, 1, 'connected' or diag $err;
 is @{$redis->{queue} || []}, 0, 'zero connections in queue';
@@ -29,7 +30,7 @@ is @{$redis->{queue}}, 1, 'one connection in queue';
 # Create more connections than max_connections
 my @db;
 push @db, $redis->db for 1 .. 6;    # one extra
-$_->connection->connect->once(connect => sub { ++$connected == 6 and Mojo::IOLoop->stop }) for @db;
+$_->connection->_connect->once(connect => sub { ++$connected == 6 and Mojo::IOLoop->stop }) for @db;
 Mojo::IOLoop->start;
 
 # Put max connections back into the queue

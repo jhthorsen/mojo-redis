@@ -5,14 +5,32 @@ use Mojo::IOLoop;
 
 use constant DEBUG => $ENV{MOJO_REDIS_DEBUG};
 
-has encoding => 'UTF-8';
 has protocol => sub { Carp::confess('protocol is not set') };
 has url      => sub { Carp::confess('url is not set') };
 has _loop    => sub { Mojo::IOLoop->singleton };
 
-sub connect {
-  my ($self, $cb) = @_;
-  $self->once(connect => $cb) if $cb;
+sub disconnect {
+  my $self = shift;
+  $self->{stream}->close if $self->{stream};
+  return $self;
+}
+
+sub is_connected { shift->{stream} ? 1 : 0 }
+
+sub write {
+  my $cb = ref $_[-1] eq 'CODE' ? pop : undef;
+  my $self = shift;
+
+  push @{$self->{write}},
+    [$self->protocol->encode({type => '*', data => [map { +{type => '$', data => $_} } @_]}), $cb];
+
+  Scalar::Util::weaken($self);
+  $self->{stream} ? $self->_loop->next_tick(sub { $self->_write }) : $self->_connect;
+  return $self;
+}
+
+sub _connect {
+  my $self = shift;
   return $self if $self->{id};    # Connecting
   Scalar::Util::weaken($self);
 
@@ -60,27 +78,6 @@ sub connect {
   return $self;
 }
 
-sub connected { shift->{stream} ? 1 : 0 }
-
-sub disconnect {
-  my $self = shift;
-  $self->{stream}->close if $self->{stream};
-  return $self;
-}
-
-sub write {
-  my $cb       = ref $_[-1] eq 'CODE' ? pop : undef;
-  my $self     = shift;
-  my $encoding = $self->encoding;
-
-  push @{$self->{write}},
-    [$self->protocol->encode({type => '*', data => [map { +{type => '$', data => $_} } @_]}), $cb];
-
-  Scalar::Util::weaken($self);
-  $self->{stream} ? $self->_loop->next_tick(sub { $self->_write }) : $self->connect;
-  return $self;
-}
-
 sub _on_close_cb {
   my $self = shift;
 
@@ -116,7 +113,7 @@ sub _write {
   if (!$self->_loop->is_running and $self->{stream}->is_readable) {
     delete($self->{stream})->close;
     delete $self->{id};
-    $self->connect;
+    $self->_connect;
     return $self;
   }
 
