@@ -5,9 +5,9 @@ use Mojo::IOLoop;
 
 use constant DEBUG => $ENV{MOJO_REDIS_DEBUG};
 
+has loop     => sub { Mojo::IOLoop->singleton };
 has protocol => sub { Carp::confess('protocol is not set') };
 has url      => sub { Carp::confess('url is not set') };
-has _loop    => sub { Mojo::IOLoop->singleton };
 
 sub disconnect {
   my $self = shift;
@@ -25,7 +25,7 @@ sub write {
     [$self->protocol->encode({type => '*', data => [map { +{type => '$', data => $_} } @_]}), $cb];
 
   Scalar::Util::weaken($self);
-  $self->{stream} ? $self->_loop->next_tick(sub { $self->_write }) : $self->_connect;
+  $self->{stream} ? $self->loop->next_tick(sub { $self->_write }) : $self->_connect;
   return $self;
 }
 
@@ -45,7 +45,7 @@ sub _connect {
 
   my $url = $self->url;
   my $db  = $url->path->[0];
-  $self->{id} = $self->_loop->client(
+  $self->{id} = $self->loop->client(
     {address => $url->host, port => $url->port || 6379},
     sub {
       my ($loop, $err, $stream) = @_;
@@ -104,13 +104,13 @@ sub _on_read_cb {
 
 sub _write {
   my $self  = shift;
-  my $loop  = $self->_loop;
+  my $loop  = $self->loop;
   my $queue = $self->{write} || [];
 
   return unless @$queue;
 
   # Make sure connection has not been corrupted while event loop was stopped
-  if (!$self->_loop->is_running and $self->{stream}->is_readable) {
+  if (!$self->loop->is_running and $self->{stream}->is_readable) {
     delete($self->{stream})->close;
     delete $self->{id};
     $self->_connect;

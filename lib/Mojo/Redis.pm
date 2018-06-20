@@ -26,6 +26,16 @@ has pubsub => sub {
 
 has url => sub { Mojo::URL->new('redis://localhost:6379') };
 
+# Not sure, but this attribute should maybe be public?
+has _blocking_connection => sub {
+  my $self = shift;
+  return Mojo::Redis::Connection->new(
+    loop     => Mojo::IOLoop->new,
+    protocol => $self->protocol_class->new(api => 1),
+    url      => $self->url
+  );
+};
+
 sub db { Mojo::Redis::Database->new(connection => $_[0]->_dequeue, redis => $_[0]); }
 sub new { @_ == 2 ? $_[0]->SUPER::new->url(Mojo::URL->new($_[1])) : $_[0]->SUPER::new }
 

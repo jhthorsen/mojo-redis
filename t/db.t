@@ -24,8 +24,6 @@ Mojo::IOLoop->start;
 is_deeply \@res, ['', '123'], 'get';
 
 # DEL
-$db->del($0 => sub { @res = @_[1, 2]; Mojo::IOLoop->stop });
-Mojo::IOLoop->start;
-is_deeply \@res, ['', 1], 'get';
+is_deeply $db->del($0), 1, 'blocking del';
 
 done_testing;

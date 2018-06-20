@@ -26,9 +26,20 @@ for my $method (@BASIC_OPERATIONS) {
   my $op = uc $method;
   Mojo::Util::monkey_patch(__PACKAGE__,
     $method => sub {
+      my $cb   = ref $_[-1] eq 'CODE' ? pop : undef;
       my $self = shift;
-      $self->connection->write($op, @_);
-      return $self;
+      my $conn = $cb ? $self->connection : $self->redis->_blocking_connection;
+      my @res;
+
+      $conn->write($op, @_, $cb ? ($cb) : sub { shift->loop->stop; @res = @_ });
+
+      # Non-blocking
+      return $self if $cb;
+
+      # Blocking
+      $conn->loop->start;
+      die $res[0] if $res[0];
+      return $res[1];
     }
   );
 }
