@@ -2,9 +2,8 @@ use Mojo::Base -strict;
 use Test::More;
 use Mojo::Redis;
 
-use Test::Memory::Cycle;
-
 plan skip_all => 'TEST_ONLINE=redis://localhost' unless $ENV{TEST_ONLINE};
+*memory_cycle_ok = eval 'require Test::Memory::Cycle;1' ? \&Test::Memory::Cycle::memory_cycle_ok : sub { };
 
 my $redis = Mojo::Redis->new($ENV{TEST_ONLINE});
 my $db    = $redis->db;
