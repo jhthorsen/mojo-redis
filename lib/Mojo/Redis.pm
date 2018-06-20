@@ -6,6 +6,8 @@ use Mojo::Redis::Connection;
 use Mojo::Redis::Database;
 use Mojo::Redis::PubSub;
 
+our $VERSION = '3.00';
+
 has protocol_class => do {
   my $class = $ENV{MOJO_REDIS_PROTOCOL};
   $class ||= eval q(require Protocol::Redis::XS; 'Protocol::Redis::XS');
