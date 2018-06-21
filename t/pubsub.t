@@ -13,25 +13,28 @@ my $pubsub = $redis->pubsub;
 my (@messages, @res);
 memory_cycle_ok($redis, 'cycle ok for Mojo::Redis::PubSub');
 
-is ref($pubsub->listen(rtest1 => sub { push @messages, $_[1] })), 'CODE', 'listen';
-$pubsub->listen(rtest2 => sub { push @messages, $_[1]; Mojo::IOLoop->stop; });
+is ref($pubsub->listen(rtest1 => \&gather)), 'CODE', 'listen';
+$pubsub->listen(rtest2 => \&gather);
+diag 'Waiting for subscriptions to be set up...';
+Mojo::IOLoop->timer(0.15 => sub { Mojo::IOLoop->stop });
+Mojo::IOLoop->start;
 memory_cycle_ok($redis, 'cycle ok after listen');
 
-# Not a good solution to run a timer, but that's what I have for now
-Mojo::IOLoop->timer(0.2 => sub { Mojo::IOLoop->stop });
-Mojo::IOLoop->start;
-
-$pubsub->notify(rtest1 => '123');
-$db->publish(rtest2 => 'stopping');
+$pubsub->notify(rtest1 => 'message one');
+$db->publish_p(rtest2 => 'message two');
 memory_cycle_ok($redis, 'cycle ok after notify');
-Mojo::IOLoop->timer(2 => sub { Mojo::IOLoop->stop });    # guard
+
 Mojo::IOLoop->start;
+is_deeply [sort @messages], ['message one', 'message two'], 'got messages' or diag join ", ", @messages;
 
 is $pubsub->unlisten('rtest1'), $pubsub, 'unlisten';
 memory_cycle_ok($pubsub, 'cycle ok after unlisten');
-$db->publish(rtest1 => 42);
+$db->publish_p(rtest1 => 'nobody is listening to this');
 
-is_deeply \@messages, ['123', 'stopping'], 'got notified';
+diag 'Making sure the last message is not received';
+Mojo::IOLoop->timer(0.15 => sub { Mojo::IOLoop->stop });
+Mojo::IOLoop->start;
+is_deeply [sort @messages], ['message one', 'message two'], 'got messages' or diag join ", ", @messages;
 
 my $conn = $pubsub->connection;
 is @{$conn->subscribers('message')}, 1, 'only one message subscriber';
@@ -41,3 +44,8 @@ undef $redis->{pubsub};
 isnt $redis->db->connection, $conn, 'pubsub connection cannot be re-used';
 
 done_testing;
+
+sub gather {
+  push @messages, $_[1];
+  Mojo::IOLoop->stop if @messages == 2;
+}
