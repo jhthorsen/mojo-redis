@@ -23,6 +23,9 @@ $db->get($0 => sub { @res = @_[1, 2]; Mojo::IOLoop->stop });
 Mojo::IOLoop->start;
 is_deeply \@res, ['', '123'], 'get';
 
+$db->get_p($0)->then(sub { @res = (then => @_) })->catch(sub { @res = (catch => @_) })->wait;
+is_deeply \@res, [then => '123'], 'get_p';
+
 # DEL
 is_deeply $db->del($0), 1, 'blocking del';
 

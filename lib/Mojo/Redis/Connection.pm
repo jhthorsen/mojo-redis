@@ -2,6 +2,7 @@ package Mojo::Redis::Connection;
 use Mojo::Base 'Mojo::EventEmitter';
 
 use Mojo::IOLoop;
+use Mojo::Promise;
 
 use constant DEBUG => $ENV{MOJO_REDIS_DEBUG};
 
@@ -29,6 +30,17 @@ sub write {
   return $self;
 }
 
+sub write_p {
+  my $self = shift;
+  my $p    = Mojo::Promise->new;
+
+  push @{$self->{write}}, [$self->protocol->encode({type => '*', data => [map { +{type => '$', data => $_} } @_]}), $p];
+
+  Scalar::Util::weaken($self);
+  $self->{stream} ? $self->loop->next_tick(sub { $self->_write }) : $self->_connect;
+  return $p;
+}
+
 sub _connect {
   my $self = shift;
   return $self if $self->{id};    # Connecting
@@ -37,8 +49,18 @@ sub _connect {
   $self->protocol->on_message(
     sub {
       my ($protocol, $message) = @_;
-      my $cb = shift @{$self->{waiting} || []};
-      $cb ? $self->$cb('', $message->{data}) : $self->emit(message => $message);
+      my $h = shift @{$self->{waiting} || []};
+
+      if (ref $h eq 'CODE') {
+        $self->$h('', $message->{data});
+      }
+      elsif ($h) {
+        $h->resolve($message->{data});
+      }
+      else {
+        $self->emit(message => $message);
+      }
+
       $self->_write;
     }
   );
@@ -59,13 +81,12 @@ sub _connect {
       my $close_cb = $self->_on_close_cb;
       return $self->$close_cb($err) if $err;
 
-      warn "[$self->{id}] CONNECTED\n" if DEBUG;
       $stream->timeout(0);
       $stream->on(close => $close_cb);
       $stream->on(error => $close_cb);
       $stream->on(read  => $self->_on_read_cb);
 
-      unshift @{$self->{write}}, ["SELECT $db"] if $db;
+      unshift @{$self->{write}}, ["SELECT $db"] if length $db;
       unshift @{$self->{write}}, ["AUTH @{[$url->password]}"] if length $url->password;
 
       $self->{stream} = $stream;
@@ -74,9 +95,11 @@ sub _connect {
     },
   );
 
-  warn "[$self->{id}] CONNECTING $url\n" if DEBUG;
+  warn "[$self->{id}] CONNECTING $url (blocking=@{[$self->_loop_is_singleton ? 0 : 1]})\n" if DEBUG;
   return $self;
 }
+
+sub _loop_is_singleton { shift->loop eq Mojo::IOLoop->singleton }
 
 sub _on_close_cb {
   my $self = shift;

@@ -24,6 +24,9 @@ has redis      => sub { Carp::confess('redis is not set') };
 
 for my $method (@BASIC_OPERATIONS) {
   my $op = uc $method;
+
+  Mojo::Util::monkey_patch(__PACKAGE__, "${method}_p" => sub { shift->connection->write_p($op => @_) });
+
   Mojo::Util::monkey_patch(__PACKAGE__,
     $method => sub {
       my $cb   = ref $_[-1] eq 'CODE' ? pop : undef;
