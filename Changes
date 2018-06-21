@@ -1,4 +1,7 @@
 Revision history for perl distribution Mojo-Redis
 
-0.01 Not Released
- - Started project
+3.00 Not Released
+ - Started on a new version to replace Mojo::Redis2 and the old Mojo::Redis
+ - Add connection pool
+ - Add Mojo::Redis::PubSub
+ - Add Mojo::Redis::Database
