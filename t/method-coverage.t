@@ -11,7 +11,7 @@ my $methods = Mojo::UserAgent->new->get('https://redis.io/commands')->res->dom->
 my @classes = qw(Mojo::Redis::Database Mojo::Redis::PubSub);
 my (%doc, %skip);
 
-$skip{method}{$_} = 1 for qw(auth quit migrate select swapdb wait);
+$skip{method}{$_} = 1 for qw(auth quit migrate pubsub select swapdb wait);
 $skip{group}{$_}  = 1 for qw(cluster scripting server stream transactions);
 
 $methods = $methods->map(sub {

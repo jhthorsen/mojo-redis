@@ -120,16 +120,7 @@ sub _parse_message_cb {
 sub _write {
   my $self = shift;
   my $loop = $self->ioloop;
-
-  # Make sure connection has not been corrupted while event loop was stopped
-  if (!$loop->is_running and $self->{stream}->is_readable) {
-    delete($self->{stream})->close;
-    delete $self->{id};
-    $self->_connect;
-    return $self;
-  }
-
-  my $op = shift @{$self->{write}} or return;
+  my $op   = shift @{$self->{write}} or return;
   do { local $_ = $op->[0]; s!\r\n!\\r\\n!g; warn "[$self->{id}] <<< ($_)\n" } if DEBUG;
   push @{$self->{waiting}}, $op->[1] || sub { shift->emit(error => $_[1]) if $_[1] };
   $self->{stream}->write($op->[0]);

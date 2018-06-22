@@ -27,6 +27,15 @@ memory_cycle_ok($redis, 'cycle ok after notify');
 Mojo::IOLoop->start;
 is_deeply [sort @messages], ['message one', 'message two'], 'got messages' or diag join ", ", @messages;
 
+$pubsub->channels_p('rtest*')->then(sub { @res = @_ })->wait;
+is_deeply $res[0], [qw(rtest1 rtest2)], 'channels_p';
+
+$pubsub->numsub_p('rtest1')->then(sub { @res = @_ })->wait;
+is_deeply $res[0], {rtest1 => 1}, 'numsub_p';
+
+$pubsub->numpat_p->then(sub { @res = @_ })->wait;
+is_deeply $res[0], 0, 'numpat_p';
+
 is $pubsub->unlisten('rtest1'), $pubsub, 'unlisten';
 memory_cycle_ok($pubsub, 'cycle ok after unlisten');
 $db->publish_p(rtest1 => 'nobody is listening to this');
