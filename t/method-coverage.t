@@ -53,7 +53,7 @@ if (open my $SRC, '<', $INC{'Mojo/Redis/Database.pm'}) {
   my %has_doc;
   /^=head2 (\w+)/ and $has_doc{$1} = 1 for <$SRC>;
 
-  for my $method (sort @Mojo::Redis::Database::BASIC_COMMANDS) {
+  for my $method (sort @Mojo::Redis::Database::BASIC_COMMANDS, @Mojo::Redis::Database::BLOCKING_COMMANDS) {
     next if $has_doc{$method} or !$doc{$method};
     my ($summary, $args) = @{$doc{$method}};
     $summary .= '.' unless $summary =~ /\W$/;

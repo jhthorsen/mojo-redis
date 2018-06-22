@@ -35,6 +35,8 @@ our @BASIC_COMMANDS = (
   'zunionstore',
 );
 
+our @BLOCKING_COMMANDS = ('blpop', 'brpop', 'brpoplpush', 'bzpopmax', 'bzpopmin');
+
 has connection => sub { Carp::confess('connection is required in constructor') };
 has redis      => sub { Carp::confess('redis is required in constructor') };
 
@@ -58,6 +60,19 @@ for my $method (@BASIC_COMMANDS) {
       $conn->loop->start;
       die $res[0] if $res[0];
       return $res[1];
+    }
+  );
+}
+
+for my $method (@BLOCKING_COMMANDS) {
+  my $op = uc $method;
+
+  Mojo::Util::monkey_patch(__PACKAGE__, "${method}_p" => sub { shift->connection->write_p($op => @_) });
+  Mojo::Util::monkey_patch(__PACKAGE__,
+    $method => sub {
+      my $self = shift;
+      $self->connection->write(@_);
+      return $self;
     }
   );
 }
@@ -164,6 +179,56 @@ See L<https://redis.io/commands/bitop> for more information.
 Find first bit set or clear in a string.
 
 See L<https://redis.io/commands/bitpos> for more information.
+
+=head2 blpop
+
+  @res     = $self->blpop($key [key ...], $timeout);
+  $self    = $self->blpop($key [key ...], $timeout, sub { my ($self, @res) = @_ });
+  $promise = $self->blpop_p($key [key ...], $timeout);
+
+Remove and get the first element in a list, or block until one is available.
+
+See L<https://redis.io/commands/blpop> for more information.
+
+=head2 brpop
+
+  @res     = $self->brpop($key [key ...], $timeout);
+  $self    = $self->brpop($key [key ...], $timeout, sub { my ($self, @res) = @_ });
+  $promise = $self->brpop_p($key [key ...], $timeout);
+
+Remove and get the last element in a list, or block until one is available.
+
+See L<https://redis.io/commands/brpop> for more information.
+
+=head2 brpoplpush
+
+  @res     = $self->brpoplpush($source, $destination, $timeout);
+  $self    = $self->brpoplpush($source, $destination, $timeout, sub { my ($self, @res) = @_ });
+  $promise = $self->brpoplpush_p($source, $destination, $timeout);
+
+Pop a value from a list, push it to another list and return it; or block until one is available.
+
+See L<https://redis.io/commands/brpoplpush> for more information.
+
+=head2 bzpopmax
+
+  @res     = $self->bzpopmax($key [key ...], $timeout);
+  $self    = $self->bzpopmax($key [key ...], $timeout, sub { my ($self, @res) = @_ });
+  $promise = $self->bzpopmax_p($key [key ...], $timeout);
+
+Remove and return the member with the highest score from one or more sorted sets, or block until one is available.
+
+See L<https://redis.io/commands/bzpopmax> for more information.
+
+=head2 bzpopmin
+
+  @res     = $self->bzpopmin($key [key ...], $timeout);
+  $self    = $self->bzpopmin($key [key ...], $timeout, sub { my ($self, @res) = @_ });
+  $promise = $self->bzpopmin_p($key [key ...], $timeout);
+
+Remove and return the member with the lowest score from one or more sorted sets, or block until one is available.
+
+See L<https://redis.io/commands/bzpopmin> for more information.
 
 =head2 decr
 

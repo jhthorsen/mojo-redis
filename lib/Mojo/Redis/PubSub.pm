@@ -45,9 +45,8 @@ sub _setup {
   Scalar::Util::weaken($self);
   $self->{cb} = $self->connection->on(
     message => sub {
-      my ($conn, $message) = @_;
-      my ($type, $name, $payload) = @{$message->{data}};
-      for my $cb (@{$self->{chans}{$name->{data}}}) { $self->$cb($payload->{data}) }
+      my ($conn, $type, $name, $payload) = @_;
+      for my $cb (@{$self->{chans}{$name}}) { $self->$cb($payload) }
     }
   );
 }

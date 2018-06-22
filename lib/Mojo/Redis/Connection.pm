@@ -46,22 +46,7 @@ sub _connect {
   return $self if $self->{id};    # Connecting
   Scalar::Util::weaken($self);
 
-  $self->protocol->on_message(sub {
-    my ($protocol, $message) = @_;
-    my $h = shift @{$self->{waiting} || []};
-
-    if (ref $h eq 'CODE') {
-      $self->$h('', $message->{data});
-    }
-    elsif ($h) {
-      $h->resolve($message->{data});
-    }
-    else {
-      $self->emit(message => $message);
-    }
-
-    $self->_write;
-  });
+  $self->protocol->on_message($self->_parse_message_cb);
 
   my $url = $self->url;
   my $db  = $url->path->[0];
@@ -123,12 +108,41 @@ sub _on_read_cb {
   };
 }
 
-sub _write {
-  my $self  = shift;
-  my $loop  = $self->loop;
-  my $queue = $self->{write} || [];
+sub _parse_message_cb {
+  my $self = shift;
 
-  return unless @$queue;
+  Scalar::Util::weaken($self);
+  return sub {
+    my ($protocol, @messages) = @_;
+    my (@res, @err);
+
+    $self->_write;
+
+    while (@messages) {
+      my ($type, $data) = @{shift(@messages)}{qw(type data)};
+      if    ($type eq '-') { push @err, $data }
+      elsif ($type eq ':') { push @res, 0 + $data }
+      elsif ($type eq '*' and ref $data) { push @messages, @$data }
+      else                               { push @res,      $data }
+    }
+
+    my $h = shift @{$self->{waiting} || []};
+    if (@err) {
+      return $self->$h($err[0], undef) if ref $h eq 'CODE';
+      return $h->reject(@err) if $h;
+      return $self->emit(error => @err);
+    }
+    else {
+      return $self->$h('', @res) if ref $h eq 'CODE';
+      return $h->resolve(@res) if $h;
+      return $self->emit(message => @res);
+    }
+  };
+}
+
+sub _write {
+  my $self = shift;
+  my $loop = $self->loop;
 
   # Make sure connection has not been corrupted while event loop was stopped
   if (!$self->loop->is_running and $self->{stream}->is_readable) {
@@ -138,7 +152,7 @@ sub _write {
     return $self;
   }
 
-  my $op = shift @$queue;
+  my $op = shift @{$self->{write}} or return;
   do { local $_ = $op->[0]; s!\r\n!\\r\\n!g; warn "[$self->{id}] <<< ($_)\n" } if DEBUG;
   push @{$self->{waiting}}, $op->[1] || sub { shift->emit(error => $_[1]) if $_[1] };
   $self->{stream}->write($op->[0]);

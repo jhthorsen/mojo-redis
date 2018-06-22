@@ -29,4 +29,16 @@ is_deeply \@res, [then => '123'], 'get_p';
 # DEL
 is_deeply $db->del($0), 1, 'blocking del';
 
+# Blocking Redis methods
+@res = ();
+$db->del_p('some:empty:list', $0);
+$db->lpush_p($0 => '456')->then(gather_cb('then'))->catch(gather_cb('catch'));
+$db->blpop_p('some:empty:list', $0, 2)->then(gather_cb('popped'))->wait;
+is_deeply \@res, ["then: 1", "popped: $0 456"], 'blpop_p' or diag join ', ', @res;
+
 done_testing;
+
+sub gather_cb {
+  my $prefix = shift;
+  return sub { push @res, "$prefix: @_" };
+}
