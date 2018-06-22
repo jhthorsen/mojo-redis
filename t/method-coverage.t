@@ -1,6 +1,7 @@
 use Mojo::Base -strict;
 use Test::More;
 use Mojo::Util 'trim';
+use Mojo::Redis::Cursor;
 use Mojo::Redis::Database;
 use Mojo::Redis::PubSub;
 use Mojo::UserAgent;
@@ -11,7 +12,7 @@ my $methods = Mojo::UserAgent->new->get('https://redis.io/commands')->res->dom->
 my @classes = qw(Mojo::Redis::Database Mojo::Redis::PubSub);
 my (%doc, %skip);
 
-$skip{method}{$_} = 1 for qw(auth quit migrate pubsub select swapdb wait);
+$skip{method}{$_} = 1 for qw(auth hscan quit migrate pubsub scan select sscan swapdb wait zscan);
 $skip{group}{$_}  = 1 for qw(cluster scripting server stream transactions);
 
 $methods = $methods->map(sub {
@@ -42,7 +43,7 @@ for my $t (sort { "@$a" cmp "@$b" } @$methods) {
 
 REDIS_CLASS:
   for my $class (@classes) {
-    next REDIS_CLASS unless $class->can($method);
+    next REDIS_CLASS unless $class->can($method) or $class->can("${method}_p");
     ok 1, "$class can $method (@$t)";
     next METHOD;
   }

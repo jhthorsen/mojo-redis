@@ -3,6 +3,7 @@ use Mojo::Base 'Mojo::EventEmitter';
 
 use Mojo::URL;
 use Mojo::Redis::Connection;
+use Mojo::Redis::Cursor;
 use Mojo::Redis::Database;
 use Mojo::Redis::PubSub;
 
@@ -31,8 +32,14 @@ has url => sub { Mojo::URL->new($ENV{MOJO_REDIS_URL}) };
 # TODO: Should this attribute be public?
 has _blocking_connection => sub { shift->_connection(ioloop => Mojo::IOLoop->new) };
 
+sub cursor {
+  my $self = shift;
+  return Mojo::Redis::Cursor->new(command => [@_ ? @_ : (scan => 0)], redis => $self);
+}
+
 sub db {
-  return Mojo::Redis::Database->new(connection => $_[0]->_dequeue, redis => $_[0]);
+  my $self = shift;
+  return Mojo::Redis::Database->new(redis => $self);
 }
 
 sub new {
@@ -141,6 +148,14 @@ Holds an instance of L<Mojo::URL> that describes how to connect to the Redis ser
   $db = $self->db;
 
 Returns an instance of L<Mojo::Redis::Database>.
+
+=head2 cursor
+
+  $cursor = $self->cursor(@command);
+
+Returns an instance of L<Mojo::Redis::Cursor> with
+L<Mojo::Redis::Cursor/command> set to the arguments passed. See
+L<Mojo::Redis::Cursor/new>. for possible commands.
 
 =head2 new
 

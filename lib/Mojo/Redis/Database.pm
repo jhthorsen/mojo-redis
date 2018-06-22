@@ -37,7 +37,7 @@ our @BASIC_COMMANDS = (
 
 our @BLOCKING_COMMANDS = ('blpop', 'brpop', 'brpoplpush', 'bzpopmax', 'bzpopmin');
 
-has connection => sub { Carp::confess('connection is required in constructor') };
+has connection => sub { shift->redis->_dequeue };
 has redis      => sub { Carp::confess('redis is required in constructor') };
 
 for my $method (@BASIC_COMMANDS) {
