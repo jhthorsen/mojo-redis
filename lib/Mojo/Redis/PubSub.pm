@@ -1,9 +1,10 @@
 package Mojo::Redis::PubSub;
 use Mojo::Base 'Mojo::EventEmitter';
 
-has connection => sub { Carp::confess('connection is not set') };
-has redis      => sub { Carp::confess('redis is not set') };
-has _db        => sub {
+has connection => sub { shift->redis->_connection };
+has redis      => sub { Carp::confess('redis is requried in constructor') };
+
+has _db => sub {
   my $db = shift->redis->db;
   Scalar::Util::weaken($db->{redis});
   return $db;
@@ -52,3 +53,80 @@ sub _setup {
 }
 
 1;
+
+=encoding utf8
+
+=head1 NAME
+
+Mojo::Redis::PubSub - Publish and subscribe to Redis messages
+
+=head1 SYNOPSIS
+
+  use Mojo::Redis;
+
+  my $redis  = Mojo::Redis->new;
+  my $pubsub = $redis->pubsub;
+
+  $pubsub->listen("user:superwoman:messages" => sub {
+    my ($pubsub, $message) = @_;
+    say "superwoman got a message: $message";
+  });
+
+  $pubsub->notify("user:batboy:messages", "How are you doing?");
+
+=head1 DESCRIPTION
+
+L<Mojo::Redis::PubSub> is an implementation of the Redis Publish/Subscribe
+messaging paradigm. This class has the same API as L<Mojo::Pg::PubSub>, so
+you can easily switch between the backends.
+
+This object holds one connection for receiving messages, and one connection
+for sending messages. They are created lazily the first time L</listen> or
+L</notify> is called. These connections does not affect the connection pool
+for L<Mojo::Redis>.
+
+See L<pubsub|https://redis.io/topics/pubsub> for more details.
+
+=head1 ATTRIBUTES
+
+=head2 connection
+
+  $conn = $self->connection;
+  $self = $self->connection(Mojo::Redis::Connection->new);
+
+Holds a L<Mojo::Redis::Connection> object.
+
+=head2 redis
+
+  $conn = $self->connection;
+  $self = $self->connection(Mojo::Redis::Connection->new);
+
+Holds a L<Mojo::Redis> object used to create the connections to talk with Redis.
+
+=head1 METHODS
+
+=head2 listen
+
+  $cb = $self->listen($channel => sub { my ($self, $message) = @_ });
+
+Subscribe to a channel, there is no limit on how many subscribers a channel
+can have. The returning code ref can be passed on to L</unlisten>.
+
+=head2 notify
+
+  $self = $self->notfy($channel => $message);
+
+Send a plain string message to a channel.
+
+=head2 unlisten
+
+  $self = $self->unlisten($channel);
+  $self = $self->unlisten($channel, $cb);
+
+Unsubscribe from a channel.
+
+=head1 SEE ALSO
+
+L<Mojo::Redis>.
+
+=cut

@@ -8,6 +8,8 @@ use Mojo::Redis::PubSub;
 
 our $VERSION = '3.00';
 
+has max_connections => 5;
+
 has protocol_class => do {
   my $class = $ENV{MOJO_REDIS_PROTOCOL};
   $class ||= eval q(require Protocol::Redis::XS; 'Protocol::Redis::XS');
@@ -16,28 +18,30 @@ has protocol_class => do {
   $class;
 };
 
-has max_connections => 5;
-
 has pubsub => sub {
-  my $pubsub = Mojo::Redis::PubSub->new(connection => $_[0]->_dequeue, redis => $_[0]);
+  my $pubsub = Mojo::Redis::PubSub->new(redis => $_[0]);
   Scalar::Util::weaken($pubsub->{redis});
   return $pubsub;
 };
 
 has url => sub { Mojo::URL->new('redis://localhost:6379') };
 
-# Not sure, but this attribute should maybe be public?
-has _blocking_connection => sub {
-  my $self = shift;
-  return Mojo::Redis::Connection->new(
-    loop     => Mojo::IOLoop->new,
-    protocol => $self->protocol_class->new(api => 1),
-    url      => $self->url
-  );
-};
+# TODO: Should this attribute be public?
+has _blocking_connection => sub { shift->_connection(loop => Mojo::IOLoop->new) };
 
 sub db { Mojo::Redis::Database->new(connection => $_[0]->_dequeue, redis => $_[0]); }
 sub new { @_ == 2 ? $_[0]->SUPER::new->url(Mojo::URL->new($_[1])) : $_[0]->SUPER::new }
+
+sub _connection {
+  my ($self, %args) = @_;
+
+  $args{loop} ||= Mojo::IOLoop->singleton;
+  my $conn = Mojo::Redis::Connection->new(protocol => $self->protocol_class->new(api => 1), url => $self->url, %args);
+
+  Scalar::Util::weaken($self);
+  $conn->on(connect => sub { $self->emit(connection => $_[0]) });
+  $conn;
+}
 
 sub _dequeue {
   my $self = shift;
@@ -47,10 +51,7 @@ sub _dequeue {
   while (my $conn = shift @{$self->{queue} || []}) { return $conn if $conn->is_connected }
 
   # New connection
-  my $conn = Mojo::Redis::Connection->new(protocol => $self->protocol_class->new(api => 1), url => $self->url);
-  Scalar::Util::weaken($self);
-  $conn->on(connect => sub { $self->emit(connection => $_[0]) });
-  return $conn;
+  return $self->_connection;
 }
 
 sub _enqueue {

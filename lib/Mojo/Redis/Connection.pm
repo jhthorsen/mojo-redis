@@ -6,9 +6,9 @@ use Mojo::Promise;
 
 use constant DEBUG => $ENV{MOJO_REDIS_DEBUG};
 
-has loop     => sub { Mojo::IOLoop->singleton };
-has protocol => sub { Carp::confess('protocol is not set') };
-has url      => sub { Carp::confess('url is not set') };
+has loop     => sub { Carp::confess('loop is required in constructor') };
+has protocol => sub { Carp::confess('protocol is required in constructor') };
+has url      => sub { Carp::confess('url is required in constructor') };
 
 sub disconnect {
   my $self = shift;
@@ -46,24 +46,22 @@ sub _connect {
   return $self if $self->{id};    # Connecting
   Scalar::Util::weaken($self);
 
-  $self->protocol->on_message(
-    sub {
-      my ($protocol, $message) = @_;
-      my $h = shift @{$self->{waiting} || []};
+  $self->protocol->on_message(sub {
+    my ($protocol, $message) = @_;
+    my $h = shift @{$self->{waiting} || []};
 
-      if (ref $h eq 'CODE') {
-        $self->$h('', $message->{data});
-      }
-      elsif ($h) {
-        $h->resolve($message->{data});
-      }
-      else {
-        $self->emit(message => $message);
-      }
-
-      $self->_write;
+    if (ref $h eq 'CODE') {
+      $self->$h('', $message->{data});
     }
-  );
+    elsif ($h) {
+      $h->resolve($message->{data});
+    }
+    else {
+      $self->emit(message => $message);
+    }
+
+    $self->_write;
+  });
 
   my $url = $self->url;
   my $db  = $url->path->[0];
@@ -147,3 +145,85 @@ sub _write {
 }
 
 1;
+
+=encoding utf8
+
+=head1 NAME
+
+Mojo::Redis::Connection - Low level connection class for talking to Redis
+
+=head1 SYNOPSIS
+
+  use Mojo::Redis::Connection;
+
+  my $conn = Mojo::Redis::Connection->new(
+               loop     => Mojo::IOLoop->singleton,
+               protocol => Protocol::Redis::XS->new(api => 1),
+               url      => Mojo::URL->new("redis://localhost"),
+             );
+
+  $conn->write_p("GET some_key")->then(sub { print "some_key=$_[0]" })->wait;
+
+=head1 DESCRIPTION
+
+L<Mojo::Redis::Connection> is a low level driver for writing and reading data
+from a Redis server.
+
+You probably want to use L<Mojo::Redis> instead of this class.
+
+=head1 ATTRIBUTES
+
+=head2 loop
+
+  $loop = $self->loop;
+  $self = $self->loop(Mojo::IOLoop->new);
+
+Holds an instance of L<Mojo::IOLoop>.
+
+=head2 protocol
+
+  $protocol = $self->protocol;
+  $self = $self->protocol(Protocol::Redis::XS->new(api => 1));
+
+Holds a protocol object, such as L<Protocol::Redis> that is used to generate
+and parse Redis messages.
+
+=head2 url
+
+  $url = $self->url;
+  $self = $self->url(Protocol::Redis::XS->new(api => 1));
+
+=head1 METHODS
+
+=head2 disconnect
+
+  $self = $self->disconnect;
+
+Used to disconnect from the Redis server.
+
+=head2 is_connected
+
+  $bool = $self->is_connected;
+
+True if a connection to the Redis server is established.
+
+=head2 write
+
+  $self = $self->write($bytes);
+  $self = $self->write($bytes, sub { my ($self, @res) = @_; });
+
+Will write C<$bytes> to the Redis server and establish a connection if not
+already connected. The callback will receive the response from the Redis server
+after it is parsed by L</protocol>.
+
+=head2 write_p
+
+  $p = $self->write_p($bytes)->then(sub { my @res = @_ });
+
+Same as L</write>, but returns a L<Mojo::Promise>.
+
+=head1 SEE ALSO
+
+L<Mojo::Redis>
+
+=cut

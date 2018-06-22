@@ -1,20 +1,26 @@
 use Mojo::Base -strict;
 use Test::More;
-use Mojo::UserAgent;
-
+use Mojo::Util 'trim';
 use Mojo::Redis::Database;
 use Mojo::Redis::PubSub;
+use Mojo::UserAgent;
 
 plan skip_all => 'CHECK_METHOD_COVERAGE=1' unless $ENV{CHECK_METHOD_COVERAGE};
 
 my $methods = Mojo::UserAgent->new->get('https://redis.io/commands')->res->dom->find('[data-name]');
 my @classes = qw(Mojo::Redis::Database Mojo::Redis::PubSub);
-my %skip;
+my (%doc, %skip);
 
 $skip{$_} = 1 for qw(auth quit select);              # methods
 $skip{$_} = 1 for qw(cluster hyperloglog server);    # groups
 
-$methods = $methods->map(sub { [$_->{'data-group'}, $_->{'data-name'}] });
+$methods = $methods->map(sub {
+  $doc{$_->{'data-name'}} = [
+    trim($_->at('.summary')->text),
+    join(', ', map { $_ = trim($_); /^\w/ ? "\$$_" : $_ } grep {/\w/} split /[\n\r]+/, $_->at('.args')->text)
+  ];
+  return [$_->{'data-group'}, $_->{'data-name'}];
+});
 
 METHOD:
 for my $t (sort { "@$a" cmp "@$b" } @$methods) {
@@ -42,6 +48,34 @@ REDIS_CLASS:
     next METHOD;
   }
   ok 0, "not implemented: $method (@$t)";
+}
+
+if (open my $SRC, '<', $INC{'Redis/Database.pm'}) {
+  my (@source, %has_doc);
+
+  while (<$SRC>) {
+    $has_doc{$_} = 1 if /^=head2 (\w+)/;
+    push @source, $_;
+  }
+
+  for my $method (sort @Mojo::Redis::Database::BASIC_OPERATIONS) {
+    next if $has_doc{$method} or !$doc{$method};
+    my ($summary, $args) = @{$doc{$method}};
+    $summary .= '.' unless $summary =~ /\W$/;
+
+    print <<"HERE";
+
+=head2 $method
+
+  \@res     = \$self->$method($args);
+  \$self    = \$self->$method($args, sub { my (\$self, \@res) = \@_ });
+  \$promise = \$self->${method}_p($args);
+
+$summary
+
+See L<https://redis.io/commands/$method> for more information.
+HERE
+  }
 }
 
 done_testing;
