@@ -41,23 +41,31 @@ has connection => sub { Carp::confess('connection is required in constructor') }
 has redis      => sub { Carp::confess('redis is required in constructor') };
 
 for my $method (@BASIC_COMMANDS) {
-  my $op = uc $method;
+  my $op      = uc $method;
+  my $process = __PACKAGE__->can("_process_$method");
 
-  Mojo::Util::monkey_patch(__PACKAGE__, "${method}_p" => sub { shift->connection->write_p($op => @_) });
+  Mojo::Util::monkey_patch(__PACKAGE__,
+    "${method}_p" => $process
+    ? sub { shift->connection->write_p($op => @_)->then($process) }
+    : sub { shift->connection->write_p($op => @_) });
+
   Mojo::Util::monkey_patch(__PACKAGE__,
     $method => sub {
-      my $cb   = ref $_[-1] eq 'CODE' ? pop : undef;
+      my $cb = ref $_[-1] eq 'CODE' ? pop : undef;
       my $self = shift;
-      my $conn = $cb ? $self->connection : $self->redis->_blocking_connection;
-      my @res;
 
-      $conn->write($op, @_, $cb ? ($cb) : sub { shift->loop->stop; @res = @_ });
+      my $p = ($cb ? $self->connection : $self->redis->_blocking_connection)->write_p($op, @_);
+      $p = $p->then($process) if $process;
 
       # Non-blocking
-      return $self if $cb;
+      if ($cb) {
+        $p->then(sub { $self->$cb('', @_) })->catch(sub { $self->$cb(shift, undef) });
+        return $self;
+      }
 
       # Blocking
-      $conn->loop->start;
+      my @res;
+      $p->then(sub { @res = ('', @_) })->catch(sub { @res = @_ })->wait;
       die $res[0] if $res[0];
       return $res[1];
     }
@@ -65,17 +73,43 @@ for my $method (@BASIC_COMMANDS) {
 }
 
 for my $method (@BLOCKING_COMMANDS) {
-  my $op = uc $method;
+  my $op      = uc $method;
+  my $process = __PACKAGE__->can("_process_$method");
 
-  Mojo::Util::monkey_patch(__PACKAGE__, "${method}_p" => sub { shift->connection->write_p($op => @_) });
+  Mojo::Util::monkey_patch(__PACKAGE__,
+    "${method}_p" => $process
+    ? sub { shift->connection->write_p($op => @_)->then($process) }
+    : sub { shift->connection->write_p($op => @_) });
+
   Mojo::Util::monkey_patch(__PACKAGE__,
     $method => sub {
-      my $self = shift;
-      $self->connection->write(@_);
+      my ($self, $cb) = (shift, pop);
+      $self->connection->write_p(@_)->then(sub { $self->$cb('', $process ? $process->(@_) : @_) })
+        ->catch(sub { $self->$cb(shift, undef) });
       return $self;
     }
   );
 }
+
+sub _process_geohash           { +[@_] }
+sub _process_geopos            { +{lng => shift, lat => shift} }
+sub _process_georadius         { +[@_] }
+sub _process_georadiusbymember { +[@_] }
+sub _process_blpop             { reverse @_ }
+sub _process_brpop             { reverse @_ }
+sub _process_hgetall           { +{@_} }
+sub _process_hkeys             { +[@_] }
+sub _process_hmget             { +[@_] }
+sub _process_hvals             { +[@_] }
+sub _process_keys              { +[@_] }
+sub _process_mget              { +[@_] }
+sub _process_sdiff             { +[@_] }
+sub _process_smembers          { +[@_] }
+sub _process_sort              { +[@_] }
+sub _process_sunion            { +[@_] }
+sub _process_zrange            { +[@_] }
+sub _process_zrangebylex       { +[@_] }
+sub _process_zrangebyscore     { +[@_] }
 
 sub DESTROY {
   my $self = shift;
@@ -182,9 +216,9 @@ See L<https://redis.io/commands/bitpos> for more information.
 
 =head2 blpop
 
-  @res     = $self->blpop($key [key ...], $timeout);
-  $self    = $self->blpop($key [key ...], $timeout, sub { my ($self, @res) = @_ });
-  $promise = $self->blpop_p($key [key ...], $timeout);
+  ($val, $key) = $self->blpop($key [key ...], $timeout);
+  $self        = $self->blpop($key [key ...], $timeout, sub { my ($self, $val, $key) = @_ });
+  $promise     = $self->blpop_p($key [key ...], $timeout);
 
 Remove and get the first element in a list, or block until one is available.
 
@@ -192,9 +226,9 @@ See L<https://redis.io/commands/blpop> for more information.
 
 =head2 brpop
 
-  @res     = $self->brpop($key [key ...], $timeout);
-  $self    = $self->brpop($key [key ...], $timeout, sub { my ($self, @res) = @_ });
-  $promise = $self->brpop_p($key [key ...], $timeout);
+  ($val, $key) = $self->brpop($key [key ...], $timeout);
+  $self        = $self->brpop($key [key ...], $timeout, sub { my ($self, $val, $key) = @_ });
+  $promise     = $self->brpop_p($key [key ...], $timeout);
 
 Remove and get the last element in a list, or block until one is available.
 
@@ -502,9 +536,9 @@ See L<https://redis.io/commands/hmget> for more information.
 
 =head2 hmset
 
-  @res     = $self->hmset($key, $field value [field value ...]);
-  $self    = $self->hmset($key, $field value [field value ...], sub { my ($self, @res) = @_ });
-  $promise = $self->hmset_p($key, $field value [field value ...]);
+  @res     = $self->hmset($key, $field => $value [field value ...]);
+  $self    = $self->hmset($key, $field => $value [field value ...], sub { my ($self, @res) = @_ });
+  $promise = $self->hmset_p($key, $field => $value [field value ...]);
 
 Set multiple hash fields to multiple values.
 
