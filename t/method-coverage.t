@@ -11,8 +11,8 @@ my $methods = Mojo::UserAgent->new->get('https://redis.io/commands')->res->dom->
 my @classes = qw(Mojo::Redis::Database Mojo::Redis::PubSub);
 my (%doc, %skip);
 
-$skip{$_} = 1 for qw(auth quit select);              # methods
-$skip{$_} = 1 for qw(cluster hyperloglog server);    # groups
+$skip{method}{$_} = 1 for qw(auth quit migrate select swapdb wait);
+$skip{group}{$_}  = 1 for qw(cluster scripting server stream transactions);
 
 $methods = $methods->map(sub {
   $doc{$_->{'data-name'}} = [
@@ -27,19 +27,18 @@ for my $t (sort { "@$a" cmp "@$b" } @$methods) {
   my $method = $t->[1];
   $method =~ s!\s!_!g;
 
-  # Translate and/or skip methods
-  $method = 'listen'   if $method =~ /subscribe$/;
-  $method = 'unlisten' if $method =~ /unsubscribe$/;
-
-  if ($skip{$t->[0]}++) {
-    local $TODO = sprintf 'Add Mojo::Redis::%s', ucfirst $t->[1];
-    ok 0, "not implemented: $method (@$t)";
-    next METHOD;
-  }
-  if ($skip{$t->[1]} or $method eq 'pubsub') {
+  if ($skip{method}{$t->[1]}) {
     note "Skipping @$t";
     next METHOD;
   }
+  if ($skip{group}{$t->[0]}) {
+    local $TODO = sprintf 'Add Mojo::Redis::%s', ucfirst $t->[0];
+    ok 0, "group not implemented: $t->[0]" if $skip{group}{$t->[0]}++ == 1;
+    next METHOD;
+  }
+
+  $method = 'listen'   if $method =~ /subscribe$/;
+  $method = 'unlisten' if $method =~ /unsubscribe$/;
 
 REDIS_CLASS:
   for my $class (@classes) {
@@ -54,7 +53,7 @@ if (open my $SRC, '<', $INC{'Mojo/Redis/Database.pm'}) {
   my %has_doc;
   /^=head2 (\w+)/ and $has_doc{$1} = 1 for <$SRC>;
 
-  for my $method (sort @Mojo::Redis::Database::BASIC_OPERATIONS) {
+  for my $method (sort @Mojo::Redis::Database::BASIC_COMMANDS) {
     next if $has_doc{$method} or !$doc{$method};
     my ($summary, $args) = @{$doc{$method}};
     $summary .= '.' unless $summary =~ /\W$/;

@@ -1,32 +1,47 @@
 package Mojo::Redis::Database;
 use Mojo::Base 'Mojo::EventEmitter';
 
-our @BASIC_OPERATIONS = (
-  'append',           'echo',        'decr',             'decrby',   'del',      'exists',
-  'expire',           'expireat',    'get',              'getbit',   'getrange', 'getset',
-  'hdel',             'hexists',     'hget',             'hgetall',  'hincrby',  'hkeys',
-  'hlen',             'hmget',       'hmset',            'hset',     'hsetnx',   'hvals',
-  'incr',             'incrby',      'keys',             'lindex',   'linsert',  'llen',
-  'lpop',             'lpush',       'lpushx',           'lrange',   'lrem',     'lset',
-  'ltrim',            'mget',        'move',             'mset',     'msetnx',   'persist',
-  'ping',             'publish',     'randomkey',        'rename',   'renamenx', 'rpop',
-  'rpoplpush',        'rpush',       'rpushx',           'sadd',     'scard',    'sdiff',
-  'sdiffstore',       'set',         'setbit',           'setex',    'setnx',    'setrange',
-  'sinter',           'sinterstore', 'sismember',        'smembers', 'smove',    'sort',
-  'spop',             'srandmember', 'srem',             'strlen',   'sunion',   'sunionstore',
-  'ttl',              'type',        'zadd',             'zcard',    'zcount',   'zincrby',
-  'zinterstore',      'zrange',      'zrangebyscore',    'zrank',    'zrem',     'zremrangebyrank',
-  'zremrangebyscore', 'zrevrange',   'zrevrangebyscore', 'zrevrank', 'zscore',   'zunionstore'
+our @BASIC_COMMANDS = (
+  'append',         'bitcount',         'bitfield',          'bitop',
+  'bitpos',         'echo',             'decr',              'decrby',
+  'del',            'dump',             'exists',            'expire',
+  'expireat',       'geoadd',           'geohash',           'geopos',
+  'geodist',        'georadius',        'georadiusbymember', 'get',
+  'getbit',         'getrange',         'getset',            'hdel',
+  'hexists',        'hget',             'hgetall',           'hincrby',
+  'hincrbyfloat',   'hkeys',            'hlen',              'hmget',
+  'hmset',          'hset',             'hsetnx',            'hstrlen',
+  'hvals',          'incr',             'incrby',            'incrbyfloat',
+  'keys',           'lindex',           'linsert',           'llen',
+  'lpop',           'lpush',            'lpushx',            'lrange',
+  'lrem',           'lset',             'ltrim',             'mget',
+  'move',           'mset',             'msetnx',            'object',
+  'persist',        'pexpire',          'pexpireat',         'pttl',
+  'pfadd',          'pfcount',          'pfmerge',           'ping',
+  'psetex',         'publish',          'randomkey',         'rename',
+  'renamenx',       'rpop',             'rpoplpush',         'rpush',
+  'rpushx',         'restore',          'sadd',              'scard',
+  'sdiff',          'sdiffstore',       'set',               'setbit',
+  'setex',          'setnx',            'setrange',          'sinter',
+  'sinterstore',    'sismember',        'smembers',          'smove',
+  'sort',           'spop',             'srandmember',       'srem',
+  'strlen',         'sunion',           'sunionstore',       'touch',
+  'ttl',            'type',             'unlink',            'zadd',
+  'zcard',          'zcount',           'zincrby',           'zinterstore',
+  'zlexcount',      'zpopmax',          'zpopmin',           'zrange',
+  'zrangebylex',    'zrangebyscore',    'zrank',             'zrem',
+  'zremrangebylex', 'zremrangebyrank',  'zremrangebyscore',  'zrevrange',
+  'zrevrangebylex', 'zrevrangebyscore', 'zrevrank',          'zscore',
+  'zunionstore',
 );
 
 has connection => sub { Carp::confess('connection is required in constructor') };
 has redis      => sub { Carp::confess('redis is required in constructor') };
 
-for my $method (@BASIC_OPERATIONS) {
+for my $method (@BASIC_COMMANDS) {
   my $op = uc $method;
 
   Mojo::Util::monkey_patch(__PACKAGE__, "${method}_p" => sub { shift->connection->write_p($op => @_) });
-
   Mojo::Util::monkey_patch(__PACKAGE__,
     $method => sub {
       my $cb   = ref $_[-1] eq 'CODE' ? pop : undef;
@@ -110,6 +125,46 @@ Append a value to a key.
 
 See L<https://redis.io/commands/append> for more information.
 
+=head2 bitcount
+
+  @res     = $self->bitcount($key, [start end]);
+  $self    = $self->bitcount($key, [start end], sub { my ($self, @res) = @_ });
+  $promise = $self->bitcount_p($key, [start end]);
+
+Count set bits in a string.
+
+See L<https://redis.io/commands/bitcount> for more information.
+
+=head2 bitfield
+
+  @res     = $self->bitfield($key, [GET type offset], [SET type offset value], [INCRBY type offset increment], [OVERFLOW WRAP|SAT|FAIL]);
+  $self    = $self->bitfield($key, [GET type offset], [SET type offset value], [INCRBY type offset increment], [OVERFLOW WRAP|SAT|FAIL], sub { my ($self, @res) = @_ });
+  $promise = $self->bitfield_p($key, [GET type offset], [SET type offset value], [INCRBY typeoffset increment], [OVERFLOW WRAP|SAT|FAIL]);
+
+Perform arbitrary bitfield integer operations on strings.
+
+See L<https://redis.io/commands/bitfield> for more information.
+
+=head2 bitop
+
+  @res     = $self->bitop($operation, $destkey, $key [key ...]);
+  $self    = $self->bitop($operation, $destkey, $key [key ...], sub { my ($self, @res) = @_ });
+  $promise = $self->bitop_p($operation, $destkey, $key [key ...]);
+
+Perform bitwise operations between strings.
+
+See L<https://redis.io/commands/bitop> for more information.
+
+=head2 bitpos
+
+  @res     = $self->bitpos($key, $bit, [start], [end]);
+  $self    = $self->bitpos($key, $bit, [start], [end], sub { my ($self, @res) = @_ });
+  $promise = $self->bitpos_p($key, $bit, [start], [end]);
+
+Find first bit set or clear in a string.
+
+See L<https://redis.io/commands/bitpos> for more information.
+
 =head2 decr
 
   @res     = $self->decr($key);
@@ -139,6 +194,16 @@ See L<https://redis.io/commands/decrby> for more information.
 Delete a key.
 
 See L<https://redis.io/commands/del> for more information.
+
+=head2 dump
+
+  @res     = $self->dump($key);
+  $self    = $self->dump($key, sub { my ($self, @res) = @_ });
+  $promise = $self->dump_p($key);
+
+Return a serialized version of the value stored at the specified key.
+
+See L<https://redis.io/commands/dump> for more information.
 
 =head2 echo
 
@@ -179,6 +244,66 @@ See L<https://redis.io/commands/expire> for more information.
 Set the expiration for a key as a UNIX timestamp.
 
 See L<https://redis.io/commands/expireat> for more information.
+
+=head2 geoadd
+
+  @res     = $self->geoadd($key, $longitude latitude member [longitude latitude member ...]);
+  $self    = $self->geoadd($key, $longitude latitude member [longitude latitude member ...], sub { my ($self, @res) = @_ });
+  $promise = $self->geoadd_p($key, $longitude latitude member [longitude latitude member ...]);
+
+Add one or more geospatial items in the geospatial index represented using a sorted set.
+
+See L<https://redis.io/commands/geoadd> for more information.
+
+=head2 geodist
+
+  @res     = $self->geodist($key, $member1, $member2, [unit]);
+  $self    = $self->geodist($key, $member1, $member2, [unit], sub { my ($self, @res) = @_ });
+  $promise = $self->geodist_p($key, $member1, $member2, [unit]);
+
+Returns the distance between two members of a geospatial index.
+
+See L<https://redis.io/commands/geodist> for more information.
+
+=head2 geohash
+
+  @res     = $self->geohash($key, $member [member ...]);
+  $self    = $self->geohash($key, $member [member ...], sub { my ($self, @res) = @_ });
+  $promise = $self->geohash_p($key, $member [member ...]);
+
+Returns members of a geospatial index as standard geohash strings.
+
+See L<https://redis.io/commands/geohash> for more information.
+
+=head2 geopos
+
+  @res     = $self->geopos($key, $member [member ...]);
+  $self    = $self->geopos($key, $member [member ...], sub { my ($self, @res) = @_ });
+  $promise = $self->geopos_p($key, $member [member ...]);
+
+Returns longitude and latitude of members of a geospatial index.
+
+See L<https://redis.io/commands/geopos> for more information.
+
+=head2 georadius
+
+  @res     = $self->georadius($key, $longitude, $latitude, $radius, $m|km|ft|mi, [WITHCOORD],[WITHDIST], [WITHHASH], [COUNT count], [ASC|DESC], [STORE key], [STOREDIST key]);
+  $self    = $self->georadius($key, $longitude, $latitude, $radius, $m|km|ft|mi, [WITHCOORD],[WITHDIST], [WITHHASH], [COUNT count], [ASC|DESC], [STORE key], [STOREDIST key], sub { my ($self, @res) = @_ });
+  $promise = $self->georadius_p($key, $longitude, $latitude, $radius, $m|km|ft|mi, [WITHCOORD], [WITHDIST], [WITHHASH], [COUNT count], [ASC|DESC], [STORE key], [STOREDIST key]);
+
+Query a sorted set representing a geospatial index to fetch members matching a given maximum distance from a point.
+
+See L<https://redis.io/commands/georadius> for more information.
+
+=head2 georadiusbymember
+
+  @res     = $self->georadiusbymember($key, $member, $radius, $m|km|ft|mi, [WITHCOORD], [WITHDIST], [WITHHASH], [COUNT count], [ASC|DESC], [STORE key], [STOREDIST key]);
+  $self    = $self->georadiusbymember($key, $member, $radius, $m|km|ft|mi, [WITHCOORD], [WITHDIST], [WITHHASH], [COUNT count], [ASC|DESC], [STORE key], [STOREDIST key], sub { my ($self, @res) = @_ });
+  $promise = $self->georadiusbymember_p($key, $member, $radius, $m|km|ft|mi, [WITHCOORD], [WITHDIST], [WITHHASH], [COUNT count], [ASC|DESC], [STORE key], [STOREDIST key]);
+
+Query a sorted set representing a geospatial index to fetch members matching a given maximum distance from a member.
+
+See L<https://redis.io/commands/georadiusbymember> for more information.
 
 =head2 get
 
@@ -270,6 +395,16 @@ Increment the integer value of a hash field by the given number.
 
 See L<https://redis.io/commands/hincrby> for more information.
 
+=head2 hincrbyfloat
+
+  @res     = $self->hincrbyfloat($key, $field, $increment);
+  $self    = $self->hincrbyfloat($key, $field, $increment, sub { my ($self, @res) = @_ });
+  $promise = $self->hincrbyfloat_p($key, $field, $increment);
+
+Increment the float value of a hash field by the given amount.
+
+See L<https://redis.io/commands/hincrbyfloat> for more information.
+
 =head2 hkeys
 
   @res     = $self->hkeys($key);
@@ -330,6 +465,16 @@ Set the value of a hash field, only if the field does not exist.
 
 See L<https://redis.io/commands/hsetnx> for more information.
 
+=head2 hstrlen
+
+  @res     = $self->hstrlen($key, $field);
+  $self    = $self->hstrlen($key, $field, sub { my ($self, @res) = @_ });
+  $promise = $self->hstrlen_p($key, $field);
+
+Get the length of the value of a hash field.
+
+See L<https://redis.io/commands/hstrlen> for more information.
+
 =head2 hvals
 
   @res     = $self->hvals($key);
@@ -359,6 +504,16 @@ See L<https://redis.io/commands/incr> for more information.
 Increment the integer value of a key by the given amount.
 
 See L<https://redis.io/commands/incrby> for more information.
+
+=head2 incrbyfloat
+
+  @res     = $self->incrbyfloat($key, $increment);
+  $self    = $self->incrbyfloat($key, $increment, sub { my ($self, @res) = @_ });
+  $promise = $self->incrbyfloat_p($key, $increment);
+
+Increment the float value of a key by the given amount.
+
+See L<https://redis.io/commands/incrbyfloat> for more information.
 
 =head2 keys
 
@@ -510,6 +665,16 @@ Set multiple keys to multiple values, only if none of the keys exist.
 
 See L<https://redis.io/commands/msetnx> for more information.
 
+=head2 object
+
+  @res     = $self->object($subcommand, [arguments [arguments ...]]);
+  $self    = $self->object($subcommand, [arguments [arguments ...]], sub { my ($self, @res) =@_ });
+  $promise = $self->object_p($subcommand, [arguments [arguments ...]]);
+
+Inspect the internals of Redis objects.
+
+See L<https://redis.io/commands/object> for more information.
+
 =head2 persist
 
   @res     = $self->persist($key);
@@ -520,6 +685,56 @@ Remove the expiration from a key.
 
 See L<https://redis.io/commands/persist> for more information.
 
+=head2 pexpire
+
+  @res     = $self->pexpire($key, $milliseconds);
+  $self    = $self->pexpire($key, $milliseconds, sub { my ($self, @res) = @_ });
+  $promise = $self->pexpire_p($key, $milliseconds);
+
+Set a key's time to live in milliseconds.
+
+See L<https://redis.io/commands/pexpire> for more information.
+
+=head2 pexpireat
+
+  @res     = $self->pexpireat($key, $milliseconds-timestamp);
+  $self    = $self->pexpireat($key, $milliseconds-timestamp, sub { my ($self, @res) = @_ });
+  $promise = $self->pexpireat_p($key, $milliseconds-timestamp);
+
+Set the expiration for a key as a UNIX timestamp specified in milliseconds.
+
+See L<https://redis.io/commands/pexpireat> for more information.
+
+=head2 pfadd
+
+  @res     = $self->pfadd($key, $element [element ...]);
+  $self    = $self->pfadd($key, $element [element ...], sub { my ($self, @res) = @_ });
+  $promise = $self->pfadd_p($key, $element [element ...]);
+
+Adds the specified elements to the specified HyperLogLog.
+
+See L<https://redis.io/commands/pfadd> for more information.
+
+=head2 pfcount
+
+  @res     = $self->pfcount($key [key ...]);
+  $self    = $self->pfcount($key [key ...], sub { my ($self, @res) = @_ });
+  $promise = $self->pfcount_p($key [key ...]);
+
+Return the approximated cardinality of the set(s) observed by the HyperLogLog at key(s).
+
+See L<https://redis.io/commands/pfcount> for more information.
+
+=head2 pfmerge
+
+  @res     = $self->pfmerge($destkey, $sourcekey [sourcekey ...]);
+  $self    = $self->pfmerge($destkey, $sourcekey [sourcekey ...], sub { my ($self, @res) = @_});
+  $promise = $self->pfmerge_p($destkey, $sourcekey [sourcekey ...]);
+
+Merge N different HyperLogLogs into a single one.
+
+See L<https://redis.io/commands/pfmerge> for more information.
+
 =head2 ping
 
   @res     = $self->ping([message]);
@@ -529,6 +744,26 @@ See L<https://redis.io/commands/persist> for more information.
 Ping the server.
 
 See L<https://redis.io/commands/ping> for more information.
+
+=head2 psetex
+
+  @res     = $self->psetex($key, $milliseconds, $value);
+  $self    = $self->psetex($key, $milliseconds, $value, sub { my ($self, @res) = @_ });
+  $promise = $self->psetex_p($key, $milliseconds, $value);
+
+Set the value and expiration in milliseconds of a key.
+
+See L<https://redis.io/commands/psetex> for more information.
+
+=head2 pttl
+
+  @res     = $self->pttl($key);
+  $self    = $self->pttl($key, sub { my ($self, @res) = @_ });
+  $promise = $self->pttl_p($key);
+
+Get the time to live for a key in milliseconds.
+
+See L<https://redis.io/commands/pttl> for more information.
 
 =head2 publish
 
@@ -609,6 +844,16 @@ See L<https://redis.io/commands/rpush> for more information.
 Append a value to a list, only if the list exists.
 
 See L<https://redis.io/commands/rpushx> for more information.
+
+=head2 restore
+
+  @res     = $self->restore($key, $ttl, $serialized-value, [REPLACE]);
+  $self    = $self->restore($key, $ttl, $serialized-value, [REPLACE], sub { my ($self, @res) = @_ });
+  $promise = $self->restore_p($key, $ttl, $serialized-value, [REPLACE]);
+
+Create a key using the provided serialized value, previously obtained using DUMP.
+
+See L<https://redis.io/commands/restore> for more information.
 
 =head2 sadd
 
@@ -820,6 +1065,16 @@ Add multiple sets and store the resulting set in a key.
 
 See L<https://redis.io/commands/sunionstore> for more information.
 
+=head2 touch
+
+  @res     = $self->touch($key [key ...]);
+  $self    = $self->touch($key [key ...], sub { my ($self, @res) = @_ });
+  $promise = $self->touch_p($key [key ...]);
+
+Alters the last access time of a key(s). Returns the number of existing keys specified.
+
+See L<https://redis.io/commands/touch> for more information.
+
 =head2 ttl
 
   @res     = $self->ttl($key);
@@ -839,6 +1094,16 @@ See L<https://redis.io/commands/ttl> for more information.
 Determine the type stored at key.
 
 See L<https://redis.io/commands/type> for more information.
+
+=head2 unlink
+
+  @res     = $self->unlink($key [key ...]);
+  $self    = $self->unlink($key [key ...], sub { my ($self, @res) = @_ });
+  $promise = $self->unlink_p($key [key ...]);
+
+Delete a key asynchronously in another thread. Otherwise it is just as DEL, but non blocking.
+
+See L<https://redis.io/commands/unlink> for more information.
 
 =head2 zadd
 
@@ -890,6 +1155,36 @@ Intersect multiple sorted sets and store the resulting sorted set in a new key.
 
 See L<https://redis.io/commands/zinterstore> for more information.
 
+=head2 zlexcount
+
+  @res     = $self->zlexcount($key, $min, $max);
+  $self    = $self->zlexcount($key, $min, $max, sub { my ($self, @res) = @_ });
+  $promise = $self->zlexcount_p($key, $min, $max);
+
+Count the number of members in a sorted set between a given lexicographical range.
+
+See L<https://redis.io/commands/zlexcount> for more information.
+
+=head2 zpopmax
+
+  @res     = $self->zpopmax($key, [count]);
+  $self    = $self->zpopmax($key, [count], sub { my ($self, @res) = @_ });
+  $promise = $self->zpopmax_p($key, [count]);
+
+Remove and return members with the highest scores in a sorted set.
+
+See L<https://redis.io/commands/zpopmax> for more information.
+
+=head2 zpopmin
+
+  @res     = $self->zpopmin($key, [count]);
+  $self    = $self->zpopmin($key, [count], sub { my ($self, @res) = @_ });
+  $promise = $self->zpopmin_p($key, [count]);
+
+Remove and return members with the lowest scores in a sorted set.
+
+See L<https://redis.io/commands/zpopmin> for more information.
+
 =head2 zrange
 
   @res     = $self->zrange($key, $start, $stop, [WITHSCORES]);
@@ -899,6 +1194,16 @@ See L<https://redis.io/commands/zinterstore> for more information.
 Return a range of members in a sorted set, by index.
 
 See L<https://redis.io/commands/zrange> for more information.
+
+=head2 zrangebylex
+
+  @res     = $self->zrangebylex($key, $min, $max, [LIMIT offset count]);
+  $self    = $self->zrangebylex($key, $min, $max, [LIMIT offset count], sub { my ($self, @res) = @_ });
+  $promise = $self->zrangebylex_p($key, $min, $max, [LIMIT offset count]);
+
+Return a range of members in a sorted set, by lexicographical range.
+
+See L<https://redis.io/commands/zrangebylex> for more information.
 
 =head2 zrangebyscore
 
@@ -930,6 +1235,16 @@ Remove one or more members from a sorted set.
 
 See L<https://redis.io/commands/zrem> for more information.
 
+=head2 zremrangebylex
+
+  @res     = $self->zremrangebylex($key, $min, $max);
+  $self    = $self->zremrangebylex($key, $min, $max, sub { my ($self, @res) = @_ });
+  $promise = $self->zremrangebylex_p($key, $min, $max);
+
+Remove all members in a sorted set between the given lexicographical range.
+
+See L<https://redis.io/commands/zremrangebylex> for more information.
+
 =head2 zremrangebyrank
 
   @res     = $self->zremrangebyrank($key, $start, $stop);
@@ -959,6 +1274,16 @@ See L<https://redis.io/commands/zremrangebyscore> for more information.
 Return a range of members in a sorted set, by index, with scores ordered from high to low.
 
 See L<https://redis.io/commands/zrevrange> for more information.
+
+=head2 zrevrangebylex
+
+  @res     = $self->zrevrangebylex($key, $max, $min, [LIMIT offset count]);
+  $self    = $self->zrevrangebylex($key, $max, $min, [LIMIT offset count], sub { my ($self, @res) = @_ });
+  $promise = $self->zrevrangebylex_p($key, $max, $min, [LIMIT offset count]);
+
+Return a range of members in a sorted set, by lexicographical range, ordered from higher to lower strings.
+
+See L<https://redis.io/commands/zrevrangebylex> for more information.
 
 =head2 zrevrangebyscore
 
