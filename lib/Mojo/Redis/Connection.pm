@@ -6,7 +6,7 @@ use Mojo::Promise;
 
 use constant DEBUG => $ENV{MOJO_REDIS_DEBUG};
 
-has loop     => sub { Carp::confess('loop is required in constructor') };
+has ioloop   => sub { Carp::confess('ioloop is required in constructor') };
 has protocol => sub { Carp::confess('protocol is required in constructor') };
 has url      => sub { Carp::confess('url is required in constructor') };
 
@@ -18,26 +18,11 @@ sub disconnect {
 
 sub is_connected { shift->{stream} ? 1 : 0 }
 
-sub write {
-  my $cb = ref $_[-1] eq 'CODE' ? pop : undef;
-  my $self = shift;
-
-  push @{$self->{write}},
-    [$self->protocol->encode({type => '*', data => [map { +{type => '$', data => $_} } @_]}), $cb];
-
-  Scalar::Util::weaken($self);
-  $self->{stream} ? $self->loop->next_tick(sub { $self->_write }) : $self->_connect;
-  return $self;
-}
-
 sub write_p {
   my $self = shift;
-  my $p    = Mojo::Promise->new;
-
+  my $p = Mojo::Promise->new(ioloop => $self->ioloop);
   push @{$self->{write}}, [$self->protocol->encode({type => '*', data => [map { +{type => '$', data => $_} } @_]}), $p];
-
-  Scalar::Util::weaken($self);
-  $self->{stream} ? $self->loop->next_tick(sub { $self->_write }) : $self->_connect;
+  $self->{stream} ? $self->_write : $self->_connect;
   return $p;
 }
 
@@ -50,7 +35,7 @@ sub _connect {
 
   my $url = $self->url;
   my $db  = $url->path->[0];
-  $self->{id} = $self->loop->client(
+  $self->{id} = $self->ioloop->client(
     {address => $url->host, port => $url->port || 6379},
     sub {
       my ($loop, $err, $stream) = @_;
@@ -82,7 +67,7 @@ sub _connect {
   return $self;
 }
 
-sub _loop_is_singleton { shift->loop eq Mojo::IOLoop->singleton }
+sub _loop_is_singleton { shift->ioloop eq Mojo::IOLoop->singleton }
 
 sub _on_close_cb {
   my $self = shift;
@@ -126,26 +111,18 @@ sub _parse_message_cb {
       else                               { push @res,      $data }
     }
 
-    my $h = shift @{$self->{waiting} || []};
-    if (@err) {
-      return $self->$h($err[0], undef) if ref $h eq 'CODE';
-      return $h->reject(@err) if $h;
-      return $self->emit(error => @err);
-    }
-    else {
-      return $self->$h('', @res) if ref $h eq 'CODE';
-      return $h->resolve(@res) if $h;
-      return $self->emit(message => @res);
-    }
+    my $p = shift @{$self->{waiting} || []};
+    return $p ? $p->reject(@err) : $self->emit(error => @err) if @err;
+    return $p ? $p->resolve(@res) : $self->emit(message => @res);
   };
 }
 
 sub _write {
   my $self = shift;
-  my $loop = $self->loop;
+  my $loop = $self->ioloop;
 
   # Make sure connection has not been corrupted while event loop was stopped
-  if (!$self->loop->is_running and $self->{stream}->is_readable) {
+  if (!$loop->is_running and $self->{stream}->is_readable) {
     delete($self->{stream})->close;
     delete $self->{id};
     $self->_connect;
@@ -171,7 +148,7 @@ Mojo::Redis::Connection - Low level connection class for talking to Redis
   use Mojo::Redis::Connection;
 
   my $conn = Mojo::Redis::Connection->new(
-               loop     => Mojo::IOLoop->singleton,
+               ioloop   => Mojo::IOLoop->singleton,
                protocol => Protocol::Redis::XS->new(api => 1),
                url      => Mojo::URL->new("redis://localhost"),
              );
@@ -187,10 +164,10 @@ You probably want to use L<Mojo::Redis> instead of this class.
 
 =head1 ATTRIBUTES
 
-=head2 loop
+=head2 ioloop
 
-  $loop = $self->loop;
-  $self = $self->loop(Mojo::IOLoop->new);
+  $loop = $self->ioloop;
+  $self = $self->ioloop(Mojo::IOLoop->new);
 
 Holds an instance of L<Mojo::IOLoop>.
 
@@ -221,20 +198,12 @@ Used to disconnect from the Redis server.
 
 True if a connection to the Redis server is established.
 
-=head2 write
-
-  $self = $self->write($bytes);
-  $self = $self->write($bytes, sub { my ($self, @res) = @_; });
-
-Will write C<$bytes> to the Redis server and establish a connection if not
-already connected. The callback will receive the response from the Redis server
-after it is parsed by L</protocol>.
-
 =head2 write_p
 
-  $p = $self->write_p($bytes)->then(sub { my @res = @_ });
+  $promise = $self->write_p($bytes);
 
-Same as L</write>, but returns a L<Mojo::Promise>.
+Will write C<$bytes> to the Redis server and establish a connection if not
+already connected and returns a L<Mojo::Promise>.
 
 =head1 SEE ALSO
 

@@ -15,16 +15,14 @@ sub listen {
   my $op = $name =~ /\*/ ? 'PSUBSCRIBE' : 'SUBSCRIBE';
 
   Scalar::Util::weaken($self);
-  $self->connection->write($op => $name, sub { $self->_setup }) unless @{$self->{chans}{$name} ||= []};
+  $self->connection->write_p($op => $name)->then(sub { $self->_setup }) unless @{$self->{chans}{$name} ||= []};
   push @{$self->{chans}{$name}}, $cb;
 
   return $cb;
 }
 
 sub notify {
-  my $self = shift;
-  $self->_db->connection->write(PUBLISH => $_[0], $_[1]);
-  return $self;
+  shift->_db->connection->write_p(PUBLISH => @_);
 }
 
 sub unlisten {
@@ -33,7 +31,7 @@ sub unlisten {
   my $op = $name =~ /\*/ ? 'PUNSUBSCRIBE' : 'UNSUBSCRIBE';
 
   @$chan = $cb ? grep { $cb ne $_ } @$chan : ();
-  $self->connection->write($op => $name) and delete $self->{chans}{$name} unless @$chan;
+  $self->connection->write_p($op => $name) and delete $self->{chans}{$name} unless @$chan;
 
   return $self;
 }
@@ -113,7 +111,7 @@ can have. The returning code ref can be passed on to L</unlisten>.
 
 =head2 notify
 
-  $self = $self->notfy($channel => $message);
+  $self->notify($channel => $message);
 
 Send a plain string message to a channel.
 

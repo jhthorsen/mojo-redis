@@ -27,7 +27,7 @@ has pubsub => sub {
 has url => sub { Mojo::URL->new('redis://localhost:6379') };
 
 # TODO: Should this attribute be public?
-has _blocking_connection => sub { shift->_connection(loop => Mojo::IOLoop->new) };
+has _blocking_connection => sub { shift->_connection(ioloop => Mojo::IOLoop->new) };
 
 sub db { Mojo::Redis::Database->new(connection => $_[0]->_dequeue, redis => $_[0]); }
 sub new { @_ == 2 ? $_[0]->SUPER::new->url(Mojo::URL->new($_[1])) : $_[0]->SUPER::new }
@@ -35,7 +35,7 @@ sub new { @_ == 2 ? $_[0]->SUPER::new->url(Mojo::URL->new($_[1])) : $_[0]->SUPER
 sub _connection {
   my ($self, %args) = @_;
 
-  $args{loop} ||= Mojo::IOLoop->singleton;
+  $args{ioloop} ||= Mojo::IOLoop->singleton;
   my $conn = Mojo::Redis::Connection->new(protocol => $self->protocol_class->new(api => 1), url => $self->url, %args);
 
   Scalar::Util::weaken($self);
