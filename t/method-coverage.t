@@ -50,13 +50,9 @@ REDIS_CLASS:
   ok 0, "not implemented: $method (@$t)";
 }
 
-if (open my $SRC, '<', $INC{'Redis/Database.pm'}) {
-  my (@source, %has_doc);
-
-  while (<$SRC>) {
-    $has_doc{$_} = 1 if /^=head2 (\w+)/;
-    push @source, $_;
-  }
+if (open my $SRC, '<', $INC{'Mojo/Redis/Database.pm'}) {
+  my %has_doc;
+  /^=head2 (\w+)/ and $has_doc{$1} = 1 for <$SRC>;
 
   for my $method (sort @Mojo::Redis::Database::BASIC_OPERATIONS) {
     next if $has_doc{$method} or !$doc{$method};
