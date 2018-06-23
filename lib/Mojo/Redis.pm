@@ -8,6 +8,8 @@ use Mojo::Redis::PubSub;
 
 our $VERSION = '3.00';
 
+$ENV{MOJO_REDIS_URL} ||= 'redis://localhost:6379';
+
 has max_connections => 5;
 
 has protocol_class => do {
@@ -24,13 +26,20 @@ has pubsub => sub {
   return $pubsub;
 };
 
-has url => sub { Mojo::URL->new('redis://localhost:6379') };
+has url => sub { Mojo::URL->new($ENV{MOJO_REDIS_URL}) };
 
 # TODO: Should this attribute be public?
 has _blocking_connection => sub { shift->_connection(ioloop => Mojo::IOLoop->new) };
 
-sub db { Mojo::Redis::Database->new(connection => $_[0]->_dequeue, redis => $_[0]); }
-sub new { @_ == 2 ? $_[0]->SUPER::new->url(Mojo::URL->new($_[1])) : $_[0]->SUPER::new }
+sub db {
+  return Mojo::Redis::Database->new(connection => $_[0]->_dequeue, redis => $_[0]);
+}
+
+sub new {
+  my $class = shift;
+  return $class->SUPER::new(url => Mojo::URL->new(shift), @_) if @_ % 2 and ref $_[0] ne 'HASH';
+  return $class->SUPER::new(@_);
+}
 
 sub _connection {
   my ($self, %args) = @_;
