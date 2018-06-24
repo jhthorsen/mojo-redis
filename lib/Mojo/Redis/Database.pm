@@ -40,16 +40,23 @@ our @BLOCKING_COMMANDS = ('blpop', 'brpop', 'brpoplpush', 'bzpopmax', 'bzpopmin'
 has connection => sub { shift->redis->_dequeue };
 has redis      => sub { Carp::confess('redis is required in constructor') };
 
-for my $method (@BASIC_COMMANDS) {
-  my $op      = uc $method;
-  my $process = __PACKAGE__->can("_process_$method");
+__PACKAGE__->_add_bnp_method($_) for @BASIC_COMMANDS;
+__PACKAGE__->_add_np_method($_)  for @BLOCKING_COMMANDS;
 
-  Mojo::Util::monkey_patch(__PACKAGE__,
+# Add "blocking", "non-blocking" and "promise" method
+sub _add_bnp_method {
+  my ($class, $method) = @_;
+  my $caller  = caller;
+  my $op      = uc $method;
+  my $process = $caller->can("_process_$method");
+
+  Mojo::Util::monkey_patch($caller,
     "${method}_p" => $process
     ? sub { shift->connection->write_p($op => @_)->then($process) }
     : sub { shift->connection->write_p($op => @_) });
 
-  Mojo::Util::monkey_patch(__PACKAGE__,
+  Mojo::Util::monkey_patch(
+    $caller,
     $method => sub {
       my $cb = ref $_[-1] eq 'CODE' ? pop : undef;
       my $self = shift;
@@ -72,16 +79,20 @@ for my $method (@BASIC_COMMANDS) {
   );
 }
 
-for my $method (@BLOCKING_COMMANDS) {
+# Add "non-blocking" and "promise" method
+sub _add_np_method {
+  my ($class, $method) = @_;
+  my $caller  = caller;
   my $op      = uc $method;
-  my $process = __PACKAGE__->can("_process_$method");
+  my $process = $caller->can("_process_$method");
 
-  Mojo::Util::monkey_patch(__PACKAGE__,
+  Mojo::Util::monkey_patch($caller,
     "${method}_p" => $process
     ? sub { shift->connection->write_p($op => @_)->then($process) }
     : sub { shift->connection->write_p($op => @_) });
 
-  Mojo::Util::monkey_patch(__PACKAGE__,
+  Mojo::Util::monkey_patch(
+    $caller,
     $method => sub {
       my ($self, $cb) = (shift, pop);
       $self->connection->write_p(@_)->then(sub { $self->$cb('', $process ? $process->(@_) : @_) })
