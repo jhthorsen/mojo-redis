@@ -21,9 +21,16 @@ sub is_connected { shift->{stream} ? 1 : 0 }
 sub write_p {
   my $self = shift;
   my $p = Mojo::Promise->new(ioloop => $self->ioloop);
-  push @{$self->{write}}, [$self->protocol->encode({type => '*', data => [map { +{type => '$', data => $_} } @_]}), $p];
+  $self->write_q(@_, $p);
   $self->{stream} ? $self->_write : $self->_connect;
   return $p;
+}
+
+sub write_q {
+  my $p    = pop;
+  my $self = shift;
+  push @{$self->{write}}, [$self->protocol->encode({type => '*', data => [map { +{type => '$', data => $_} } @_]}), $p];
+  return $self;
 }
 
 sub _connect {
@@ -122,7 +129,7 @@ sub _write {
   my $loop = $self->ioloop;
   my $op   = shift @{$self->{write}} or return;
   do { local $_ = $op->[0]; s!\r\n!\\r\\n!g; warn "[$self->{id}] <<< ($_)\n" } if DEBUG;
-  push @{$self->{waiting}}, $op->[1] || sub { shift->emit(error => $_[1]) if $_[1] };
+  push @{$self->{waiting}}, $op->[1];
   $self->{stream}->write($op->[0]);
 }
 
@@ -191,10 +198,21 @@ True if a connection to the Redis server is established.
 
 =head2 write_p
 
-  $promise = $self->write_p($bytes);
+  $promise = $self->write_p($command => @args);
 
-Will write C<$bytes> to the Redis server and establish a connection if not
-already connected and returns a L<Mojo::Promise>.
+Will write a command to the Redis server and establish a connection if not
+already connected and returns a L<Mojo::Promise>. The arguments will be
+passed on to L</write_q>.
+
+=head2 write_q
+
+  $self = $self->write_q(@command => @args, Mojo::Promise->new);
+  $self = $self->write_q(@command => @args, undef);
+
+Will enqueue a Redis command and either resolve/reject the L<Mojo::Promise>
+or emit a L</error> or L</message> event when the Redis server responds.
+
+This method is EXPERIMENTAL and currently meant for internal use.
 
 =head1 SEE ALSO
 

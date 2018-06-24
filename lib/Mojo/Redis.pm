@@ -6,6 +6,7 @@ use Mojo::Redis::Connection;
 use Mojo::Redis::Cursor;
 use Mojo::Redis::Database;
 use Mojo::Redis::PubSub;
+use Mojo::Redis::Transaction;
 
 our $VERSION = '3.00';
 
@@ -32,21 +33,17 @@ has url => sub { Mojo::URL->new($ENV{MOJO_REDIS_URL}) };
 # TODO: Should this attribute be public?
 has _blocking_connection => sub { shift->_connection(ioloop => Mojo::IOLoop->new) };
 
-sub cursor {
-  my $self = shift;
-  return Mojo::Redis::Cursor->new(command => [@_ ? @_ : (scan => 0)], redis => $self);
-}
+sub cursor { Mojo::Redis::Cursor->new(redis => shift, command => [@_ ? @_ : (scan => 0)]) }
 
-sub db {
-  my $self = shift;
-  return Mojo::Redis::Database->new(redis => $self);
-}
+sub db { Mojo::Redis::Database->new(redis => shift) }
 
 sub new {
   my $class = shift;
   return $class->SUPER::new(url => Mojo::URL->new(shift), @_) if @_ % 2 and ref $_[0] ne 'HASH';
   return $class->SUPER::new(@_);
 }
+
+sub txn { Mojo::Redis::Transaction->new(redis => shift) }
 
 sub _connection {
   my ($self, %args) = @_;
@@ -165,6 +162,12 @@ L<Mojo::Redis::Cursor/new>. for possible commands.
 
 Object constructor. Can coerce a string into a L<Mojo::URL> and set L</url>
 if present.
+
+=head2 txn
+
+  $db = $self->txn;
+
+Returns an instance of L<Mojo::Redis::Transaction>.
 
 =head1 AUTHOR
 
