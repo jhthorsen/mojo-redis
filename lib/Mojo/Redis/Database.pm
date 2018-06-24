@@ -40,7 +40,12 @@ our @BLOCKING_COMMANDS = ('blpop', 'brpop', 'brpoplpush', 'bzpopmax', 'bzpopmin'
 has connection => sub { shift->redis->_dequeue };
 has redis      => sub { Carp::confess('redis is required in constructor') };
 
-for my $method (@BASIC_COMMANDS) {
+__PACKAGE__->_add_bnp_method($_) for @BASIC_COMMANDS;
+__PACKAGE__->_add_np_method($_)  for @BLOCKING_COMMANDS;
+
+# Add "blocking", "non-blocking" and "promise" method
+sub _add_bnp_method {
+  my ($class, $method) = @_;
   my $op      = uc $method;
   my $process = __PACKAGE__->can("_process_$method");
 
@@ -72,7 +77,9 @@ for my $method (@BASIC_COMMANDS) {
   );
 }
 
-for my $method (@BLOCKING_COMMANDS) {
+# Add "non-blocking" and "promise" method
+sub _add_np_method {
+  my ($class, $method) = @_;
   my $op      = uc $method;
   my $process = __PACKAGE__->can("_process_$method");
 
