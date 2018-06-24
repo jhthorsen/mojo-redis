@@ -6,3 +6,4 @@ Revision history for perl distribution Mojo-Redis
  - Add Mojo::Redis::Cursor
  - Add Mojo::Redis::Database
  - Add Mojo::Redis::PubSub
+ - Add Mojo::Redis::Transaction
