@@ -13,32 +13,32 @@ my $pubsub = $redis->pubsub;
 my (@messages, @res);
 memory_cycle_ok($redis, 'cycle ok for Mojo::Redis::PubSub');
 
-is ref($pubsub->listen(rtest1 => \&gather)), 'CODE', 'listen';
-$pubsub->listen(rtest2 => \&gather);
+is ref($pubsub->listen("rtest:$$:1" => \&gather)), 'CODE', 'listen';
+$pubsub->listen("rtest:$$:2" => \&gather);
 diag 'Waiting for subscriptions to be set up...';
 Mojo::IOLoop->timer(0.15 => sub { Mojo::IOLoop->stop });
 Mojo::IOLoop->start;
 memory_cycle_ok($redis, 'cycle ok after listen');
 
-$pubsub->notify(rtest1 => 'message one');
-$db->publish_p(rtest2 => 'message two');
+$pubsub->notify("rtest:$$:1" => 'message one');
+$db->publish_p("rtest:$$:2" => 'message two');
 memory_cycle_ok($redis, 'cycle ok after notify');
 
 Mojo::IOLoop->start;
 is_deeply [sort @messages], ['message one', 'message two'], 'got messages' or diag join ", ", @messages;
 
 $pubsub->channels_p('rtest*')->then(sub { @res = @_ })->wait;
-is_deeply $res[0], [qw(rtest1 rtest2)], 'channels_p';
+is_deeply [sort @{$res[0]}], ["rtest:$$:1", "rtest:$$:2"], 'channels_p';
 
-$pubsub->numsub_p('rtest1')->then(sub { @res = @_ })->wait;
-is_deeply $res[0], {rtest1 => 1}, 'numsub_p';
+$pubsub->numsub_p("rtest:$$:1")->then(sub { @res = @_ })->wait;
+is_deeply $res[0], {"rtest:$$:1" => 1}, 'numsub_p';
 
 $pubsub->numpat_p->then(sub { @res = @_ })->wait;
 is_deeply $res[0], 0, 'numpat_p';
 
-is $pubsub->unlisten('rtest1'), $pubsub, 'unlisten';
+is $pubsub->unlisten("rtest:$$:1"), $pubsub, 'unlisten';
 memory_cycle_ok($pubsub, 'cycle ok after unlisten');
-$db->publish_p(rtest1 => 'nobody is listening to this');
+$db->publish_p("rtest:$$:1" => 'nobody is listening to this');
 
 diag 'Making sure the last message is not received';
 Mojo::IOLoop->timer(0.15 => sub { Mojo::IOLoop->stop });
