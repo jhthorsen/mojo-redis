@@ -1,6 +1,7 @@
 Revision history for perl distribution Mojo-Redis
 
 3.01 Not Released
+ - Add Mojo::Redis::Cache
  - Add examples/chat.pl
 
 3.00 2018-06-28T10:11:24+0900

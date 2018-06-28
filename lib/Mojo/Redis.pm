@@ -3,6 +3,7 @@ use Mojo::Base 'Mojo::EventEmitter';
 
 use Mojo::URL;
 use Mojo::Redis::Connection;
+use Mojo::Redis::Cache;
 use Mojo::Redis::Cursor;
 use Mojo::Redis::Database;
 use Mojo::Redis::PubSub;
@@ -32,6 +33,8 @@ has url => sub { Mojo::URL->new($ENV{MOJO_REDIS_URL}) };
 
 # TODO: Should this attribute be public?
 has _blocking_connection => sub { shift->_connection(ioloop => Mojo::IOLoop->new) };
+
+sub cache { Mojo::Redis::Cache->new(redis => shift, @_) }
 
 sub cursor { Mojo::Redis::Cursor->new(redis => shift, command => [@_ ? @_ : (scan => 0)]) }
 
@@ -151,6 +154,12 @@ Holds an instance of L<Mojo::URL> that describes how to connect to the Redis ser
   $db = $self->db;
 
 Returns an instance of L<Mojo::Redis::Database>.
+
+=head2 cache
+
+  $cache = $self->cache(%attrs);
+
+Returns an instance of L<Mojo::Redis::Cache>.
 
 =head2 cursor
 

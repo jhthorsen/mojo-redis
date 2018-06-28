@@ -1,5 +1,5 @@
 package Mojo::Redis::Database;
-use Mojo::Base 'Mojo::EventEmitter';
+use Mojo::Base -base;
 
 our @BASIC_COMMANDS = (
   'append',         'bitcount',         'bitfield',          'bitop',
