@@ -1,6 +1,6 @@
 Revision history for perl distribution Mojo-Redis
 
-3.00 Not Released
+3.00 2018-06-28T10:11:24+0900
  - Started on a new version to replace Mojo::Redis2 and the old Mojo::Redis
  - Mojo::Redis as EXPERIMENTAL
  - Add connection pool
