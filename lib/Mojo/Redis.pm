@@ -106,6 +106,12 @@ This module is in no way compatible with the 1.xx version of L<Mojo::Redis>
 and this version also tries to fix a lot of the confusing methods in
 L<Mojo::Redis2> related to pubsub.
 
+This module is currently EXPERIMENTAL, and bad design decisions will be fixed
+without warning. Please report at
+L<https://github.com/jhthorsen/mojo-redis/issues> if you find this module
+useful, annoying or if you simply find bugs. Feedback can also be sent to
+C<jhthorsen@cpan.org>.
+
 =head1 ATTRIBUTES
 
 =head2 max_connections
