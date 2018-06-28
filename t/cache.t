@@ -38,9 +38,12 @@ for (1 .. 2) {
 
 is $n, 2, 'compute only called twice';
 
+$cache->compute_p('some:die:key', sub { die 'oops!' })->catch(sub { $res = shift })->then(sub { $res = shift })->wait;
+like $res, qr{oops!}, 'failed to cache';
+
 cleanup();
 done_testing;
 
 sub cleanup {
-  $redis->db->del(map {"$0:$_"} 'some:key', 'some:other:key');
+  $redis->db->del(map {"$0:$_"} 'some:key', 'some:die:key', 'some:other:key');
 }

@@ -14,48 +14,33 @@ has serialize      => sub { \&Storable::freeze };
 sub compute_p {
   my $compute = pop;
   my $self    = shift;
-  my $key     = $self->_key(shift);
+  my $key     = join ':', $self->namespace, shift;
+  my $conn    = $self->connection;
   my @args    = @_;
-  my $p       = Mojo::Promise->new;
 
-  $self->connection->write_p(GET => $key)->then(sub {
-    return $_[0] ? $p->resolve($self->deserialize->($_[0])->[0]) : $self->_compute_p($p, $key, @args, $compute);
-  })->catch(sub {
-    return $p->resolve($self->$compute);
-  })->catch(sub {
-    return $p->reject(@_);
+  # Data is stored as a serialized array-ref in Redis, so no need to check for defined
+  return $conn->write_p(GET => $key)->then(sub {
+    return $_[0] ? $self->deserialize->($_[0])->[0] : $self->_compute_p($conn, $key, @args, $compute);
   });
-
-  return $p;
 }
 
 sub _compute_p {
   my $compute = pop;
-  my ($self, $p, $key) = (shift, shift, shift);
-  my $expire = $self->_expire(shift);
+  my ($self, $conn, $key) = (shift, shift, shift);
+  my $expire = 1000 * (@_ ? shift : $self->default_expire);
 
   my $set = sub {
     my $res = shift;
-    $self->connection->write_p(SET => $key => $self->serialize->([$res]))->then(sub {
-      $self->connection->write_p(PEXPIRE => $key => $expire);
+    return $conn->write_p(SET => $key => $self->serialize->([$res]))->then(sub {
+      return $conn->write_p(PEXPIRE => $key => $expire);
     })->then(sub {
-      $p->resolve($res);
-    })->catch(sub {
-      $p->reject(shift);
+      return $res;
     });
   };
 
-  eval {
-    my $res = $self->$compute;
-    return blessed $res ? $res->then(sub { $set->(@_) }, sub { $p->reject(@_) }) : $set->($res);
-    1;
-  } or do {
-    return $p->reject($@);
-  };
+  my $res = $compute->();
+  return blessed $res ? $res->then(sub { $set->(@_) }) : $set->($res);
 }
-
-sub _expire { defined $_[1] ? $_[1] * 1000 : $_[0]->default_expire }
-sub _key { join ':', $_[0]->namespace, $_[1] }
 
 1;
 
