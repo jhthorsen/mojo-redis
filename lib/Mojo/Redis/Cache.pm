@@ -1,6 +1,7 @@
 package Mojo::Redis::Cache;
 use Mojo::Base -base;
 
+use Mojo::JSON;
 use Scalar::Util 'blessed';
 use Storable ();
 
@@ -15,19 +16,33 @@ sub compute_p {
   my $compute = pop;
   my $self    = shift;
   my $key     = join ':', $self->namespace, shift;
+  my $expire  = shift || $self->default_expire;
   my $conn    = $self->connection;
-  my @args    = @_;
 
   # Data is stored as a serialized array-ref in Redis, so no need to check for defined
   return $conn->write_p(GET => $key)->then(sub {
-    return $_[0] ? $self->deserialize->($_[0])->[0] : $self->_compute_p($conn, $key, @args, $compute);
+    return $_[0] ? $self->deserialize->($_[0])->[0] : $self->_compute_p($conn, $key, $expire, $compute);
+  });
+}
+
+sub memoize_p {
+  my ($self, $obj, $method) = (shift, shift, shift);
+  my $args = ref $_[0] eq 'ARRAY' ? shift : [];
+  my $expire = shift || $self->default_expire;
+  my $key = join ':', $self->namespace, '@M' => (ref($obj) || $obj), $method, Mojo::JSON::encode_json($args);
+  my $conn = $self->connection;
+
+  return $conn->write_p(GET => $key)->then(sub {
+    return $_[0]
+      ? $self->deserialize->($_[0])->[0]
+      : $self->_compute_p($conn, $key, $expire, sub { $obj->$method(@$args) });
   });
 }
 
 sub _compute_p {
   my $compute = pop;
-  my ($self, $conn, $key) = (shift, shift, shift);
-  my $expire = 1000 * (@_ ? shift : $self->default_expire);
+  my ($self, $conn, $key, $expire) = @_;
+  my $expire = 1000 * shift;
 
   my $set = sub {
     my $res = shift;
@@ -57,14 +72,30 @@ Mojo::Redis::Cache - Simple cache interface using Redis
   my $redis = Mojo::Redis->new;
   my $cache = $redis->cache;
 
+  # Cache and expire the data after 60.7 seconds
   $cache->compute_p("some:key", 60.7, sub {
     my $p = Mojo::Promise->new;
     Mojo::IOLoop->timer(0.1 => sub { $p->resolve("some data") });
     return $p;
+  })->then(sub {
+    my $some_key = shift;
   });
 
+  # Cache and expire the data after default_expire() seconds
   $cache->compute_p("some:key", sub {
     return {some => "data"};
+  })->then(sub {
+    my $some_key = shift;
+  });
+
+  # Call $obj->get_some_slow_data() and cache the return value
+  $cache->memoize_p($obj, "get_some_slow_data")->then(sub {
+    my $data = shift;
+  });
+
+  # Call $obj->get_some_data_by_id({id => 42}) and cache the return value
+  $cache->memoize_p($obj, "get_some_data_by_id", [{id => 42}])->then(sub {
+    my $data = shift;
   });
 
 =head1 DESCRIPTION
@@ -125,8 +156,21 @@ Holds a callback used to serialize before storing the data in Redis.
 
 This method will get/set data in the Redis cache. C<$key> will be prefixed by
 L</namespace> resulting in "namespace:some-key". C<$expire> is the number of
-seconds before the cache should be expire, and the callback is used to
-calculate a new value for the cache.
+seconds before the cache should expire, and will default to L</default_expire> unless
+passed in. The last argument is a callback used to calculate cached value.
+
+=head2 memoize_p
+
+  $promise = $self->memoize_p($obj, $method_name, \@args, $expire);
+  $promise = $self->memoize_p($class, $method_name, \@args, $expire);
+
+This method can be used to memoize the return value from a given C<$method_name>
+called on an object or class. The key in the redis cache will become:
+
+  join ":", $self->namespace, "@M", ref($obj), $method_name, serialize(\@args);
+
+C<$expire> is the number of seconds before the cache should expire, and will
+default to L</default_expire> unless passed in.
 
 =head1 SEE ALSO
 

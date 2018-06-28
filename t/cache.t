@@ -34,9 +34,21 @@ for (1 .. 2) {
   )->then(sub { $res = shift })->wait;
 
   is_deeply $res, {some => 'data'}, 'computed some:other:key';
+
+  $cache->memoize_p(main => 'cache_me', [42], 5)->then(sub { $res = shift })->wait;
+  is_deeply $res, 42, 'memoize cache_me with 42';
+
+  $cache->memoize_p(main => 'cache_me')->then(sub { $res = shift })->wait;
+  is_deeply $res, 'default value', 'memoize cache_me with default';
+
+  $cache->memoize_p(main => 'cache_me', 30)->then(sub { $res = shift })->wait;
+  is_deeply $res, 'default value', 'memoize cache_me with default';
+
+  $cache->memoize_p(main => 'cache_me', [{foo => 42}])->then(sub { $res = shift })->wait;
+  is_deeply $res, {foo => 42}, 'memoize cache_me with hash';
 }
 
-is $n, 2, 'compute only called twice';
+is $n, 5, 'compute only called once per key';
 
 $cache->compute_p('some:die:key', sub { die 'oops!' })->catch(sub { $res = shift })->then(sub { $res = shift })->wait;
 like $res, qr{oops!}, 'failed to cache';
@@ -44,6 +56,14 @@ like $res, qr{oops!}, 'failed to cache';
 cleanup();
 done_testing;
 
+sub cache_me {
+  $n++;
+  return $_[1] || 'default value';
+}
+
 sub cleanup {
-  $redis->db->del(map {"$0:$_"} 'some:key', 'some:die:key', 'some:other:key');
+  $redis->db->del(
+    map {"$0:$_"} 'some:key',
+    'some:die:key', 'some:other:key', '@M:main:cache_me:[]', '@M:main:cache_me:[42]', '@M:main:cache_me:[{"foo":42}]',
+  );
 }
