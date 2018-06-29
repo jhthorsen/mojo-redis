@@ -9,6 +9,7 @@ has connection  => sub { shift->redis->_dequeue };
 has deserialize => sub { \&Storable::thaw };
 has default_expire => 600;
 has namespace      => 'cache:mojo:redis';
+has refresh        => 0;
 has redis          => sub { Carp::confess('redis is required in constructor') };
 has serialize      => sub { \&Storable::freeze };
 
@@ -20,7 +21,7 @@ sub compute_p {
   my $conn    = $self->connection;
 
   # Data is stored as a serialized array-ref in Redis, so no need to check for defined
-  return (delete $self->{refresh} ? Mojo::Promise->new->resolve : $conn->write_p(GET => $key))->then(sub {
+  return ($self->{refresh} ? Mojo::Promise->new->resolve : $conn->write_p(GET => $key))->then(sub {
     return $_[0] ? $self->deserialize->($_[0])->[0] : $self->_compute_p($conn, $key, $expire, $compute);
   });
 }
@@ -32,16 +33,11 @@ sub memoize_p {
   my $key = join ':', $self->namespace, '@M' => (ref($obj) || $obj), $method, Mojo::JSON::encode_json($args);
   my $conn = $self->connection;
 
-  return (delete $self->{refresh} ? Mojo::Promise->new->resolve : $conn->write_p(GET => $key))->then(sub {
+  return ($self->{refresh} ? Mojo::Promise->new->resolve : $conn->write_p(GET => $key))->then(sub {
     return $_[0]
       ? $self->deserialize->($_[0])->[0]
       : $self->_compute_p($conn, $key, $expire, sub { $obj->$method(@$args) });
   });
-}
-
-sub refresh {
-  $_[0]->{refresh} = 1;
-  $_[0];
 }
 
 sub _compute_p {
@@ -143,6 +139,13 @@ Prefix for the cache key.
 
 Holds a L<Mojo::Redis> object used to create the connections to talk with Redis.
 
+=head2 refresh
+
+  $bool = $self->refresh;
+  $self = $self->refresh(1);
+
+Will force the cache to be computed again if set to a true value.
+
 =head2 serialize
 
   $cb   = $self->serialize;
@@ -174,12 +177,6 @@ called on an object or class. The key in the redis cache will become:
 
 C<$expire> is the number of seconds before the cache should expire, and will
 default to L</default_expire> unless passed in.
-
-=head2 refresh
-
-  $self = $self->refresh;
-
-Will force the next call to L</compute_p> or L</memoize_p> to be refreshed.
 
 =head1 SEE ALSO
 
