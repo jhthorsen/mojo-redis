@@ -13,6 +13,7 @@ our $VERSION = '3.01';
 
 $ENV{MOJO_REDIS_URL} ||= 'redis://localhost:6379';
 
+has encoding        => 'UTF-8';
 has max_connections => 5;
 
 has protocol_class => do {
@@ -52,7 +53,12 @@ sub _connection {
   my ($self, %args) = @_;
 
   $args{ioloop} ||= Mojo::IOLoop->singleton;
-  my $conn = Mojo::Redis::Connection->new(protocol => $self->protocol_class->new(api => 1), url => $self->url, %args);
+  my $conn = Mojo::Redis::Connection->new(
+    encoding => $self->encoding,
+    protocol => $self->protocol_class->new(api => 1),
+    url      => $self->url,
+    %args
+  );
 
   Scalar::Util::weaken($self);
   $conn->on(connect => sub { $self->emit(connection => $_[0]) });
@@ -64,7 +70,7 @@ sub _dequeue {
   delete @$self{qw(pid queue)} unless ($self->{pid} //= $$) eq $$;    # Fork-safety
 
   # Exsting connection
-  while (my $conn = shift @{$self->{queue} || []}) { return $conn if $conn->is_connected }
+  while (my $conn = shift @{$self->{queue} || []}) { return $conn->encoding($self->encoding) if $conn->is_connected }
 
   # New connection
   return $self->_connection;
@@ -124,6 +130,18 @@ C<jhthorsen@cpan.org>.
 Emitted when L<Mojo::Redis::Connection> connects to the Redis.
 
 =head1 ATTRIBUTES
+
+=head2 encoding
+
+  $str  = $self->encoding;
+  $self = $self->encoding("UTF-8");
+
+The value of this attribute will be passed on to
+L<Mojo::Redis::Connection/encoding> when a new connection is created. This
+means that updating this attribute will not change any connection that is
+in use.
+
+Default value is "UTF-8".
 
 =head2 max_connections
 

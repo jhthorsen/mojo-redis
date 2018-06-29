@@ -3,6 +3,7 @@ Revision history for perl distribution Mojo-Redis
 3.02 Not Released
  - Add Mojo::Redis::Cache->memomize_p()
  - Add examples/twitter.pl
+ - Add UTF-8 encoding as default and allow encoding to be changed #1
  - Add documentation for events #2
  - Add support for connecting to unix socket #12
  - Add support for offline cache #15

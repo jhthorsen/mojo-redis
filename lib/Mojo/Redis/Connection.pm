@@ -7,6 +7,7 @@ use Mojo::Promise;
 
 use constant DEBUG => $ENV{MOJO_REDIS_DEBUG};
 
+has encoding => sub { Carp::confess('encoding is required in constructor') };
 has ioloop   => sub { Carp::confess('ioloop is required in constructor') };
 has protocol => sub { Carp::confess('protocol is required in constructor') };
 has url      => sub { Carp::confess('url is required in constructor') };
@@ -30,15 +31,22 @@ sub write_p {
 sub write_q {
   my $p    = pop;
   my $self = shift;
-  push @{$self->{write}}, [$self->protocol->encode({type => '*', data => [map { +{type => '$', data => $_} } @_]}), $p];
+  push @{$self->{write}}, [$self->_encode(@_), $p];
   return $self;
+}
+
+sub _encode {
+  my $self     = shift;
+  my $encoding = $self->encoding;
+  return $self->protocol->encode({
+    type => '*', data => [map { +{type => '$', data => $encoding ? Mojo::Util::encode($encoding, $_) : $_} } @_]
+  });
 }
 
 sub _connect {
   my $self = shift;
   return $self if $self->{id};    # Connecting
 
-  Scalar::Util::weaken($self);
   $self->protocol->on_message($self->_parse_message_cb);
   my $url  = $self->url;
   my $db   = $url->path->[0];
@@ -51,17 +59,12 @@ sub _connect {
     $args{port} = $url->port || 6379;
   }
 
+  Scalar::Util::weaken($self);
   $self->{id} = $self->ioloop->client(
     \%args,
     sub {
+      return unless $self;
       my ($loop, $err, $stream) = @_;
-
-      unless ($self) {
-        delete $self->{$_} for qw(id stream);
-        $stream->close;
-        return;
-      }
-
       my $close_cb = $self->_on_close_cb;
       return $self->$close_cb($err) if $err;
 
@@ -70,18 +73,19 @@ sub _connect {
       $stream->on(error => $close_cb);
       $stream->on(read  => $self->_on_read_cb);
 
-      unshift @{$self->{write}}, ["SELECT $db"] if length $db;
-      unshift @{$self->{write}}, ["AUTH @{[$url->password]}"] if length $url->password;
-
+      unshift @{$self->{write}}, [$self->_encode(SELECT => $db)]            if length $db;
+      unshift @{$self->{write}}, [$self->_encode(AUTH   => $url->password)] if length $url->password;
       $self->{stream} = $stream;
       $self->emit('connect');
       $self->_write;
     }
   );
 
-  warn "[$self->{id}] CONNECTING $url (blocking=@{[$self->_loop_is_singleton ? 0 : 1]})\n" if DEBUG;
+  warn "[@{[$self->_id]}] CONNECTING $url (blocking=@{[$self->_loop_is_singleton ? 0 : 1]})\n" if DEBUG;
   return $self;
 }
+
+sub _id { $_[0]->{id} || '0' }
 
 sub _loop_is_singleton { shift->ioloop eq Mojo::IOLoop->singleton }
 
@@ -94,7 +98,7 @@ sub _on_close_cb {
     my ($stream, $err) = @_;
     delete $self->{$_} for qw(id stream);
     $self->emit(error => $err) if $err;
-    warn qq([$self->{id}] @{[$err ? "ERROR $err" : "CLOSED"]}\n) if DEBUG;
+    warn qq([@{[$self->_id]}] @{[$err ? "ERROR $err" : "CLOSED"]}\n) if DEBUG;
   };
 }
 
@@ -103,8 +107,9 @@ sub _on_read_cb {
 
   Scalar::Util::weaken($self);
   return sub {
+    return unless $self;
     my ($stream, $chunk) = @_;
-    do { local $_ = $chunk; s!\r\n!\\r\\n!g; warn "[$self->{id}] >>> ($_)\n" } if DEBUG;
+    do { local $_ = $chunk; s!\r\n!\\r\\n!g; warn "[@{[$self->_id]}] >>> ($_)\n" } if DEBUG;
     $self->protocol->parse($chunk);
   };
 }
@@ -115,6 +120,7 @@ sub _parse_message_cb {
   Scalar::Util::weaken($self);
   return sub {
     my ($protocol, @messages) = @_;
+    my $encoding = $self->encoding;
     my (@res, @err);
 
     $self->_write;
@@ -124,7 +130,7 @@ sub _parse_message_cb {
       if    ($type eq '-') { push @err, $data }
       elsif ($type eq ':') { push @res, 0 + $data }
       elsif ($type eq '*' and ref $data) { push @messages, @$data }
-      else                               { push @res,      $data }
+      else                               { push @res,      $encoding ? Mojo::Util::decode($encoding, $data) : $data }
     }
 
     my $p = shift @{$self->{waiting} || []};
@@ -135,9 +141,9 @@ sub _parse_message_cb {
 
 sub _write {
   my $self = shift;
-  my $loop = $self->ioloop;
   my $op   = shift @{$self->{write}} or return;
-  do { local $_ = $op->[0]; s!\r\n!\\r\\n!g; warn "[$self->{id}] <<< ($_)\n" } if DEBUG;
+  my $loop = $self->ioloop;
+  do { local $_ = $op->[0]; s!\r\n!\\r\\n!g; warn "[@{[$self->_id]}] <<< ($_)\n" } if DEBUG;
   push @{$self->{waiting}}, $op->[1];
   $self->{stream}->write($op->[0]);
 }
@@ -193,6 +199,15 @@ Emitted if L</write_q> is not passed a L<Mojo::Promise> as the last argument,
 or if the Redis server emits a message that is not handled.
 
 =head1 ATTRIBUTES
+
+=head2 encoding
+
+  $str  = $self->encoding;
+  $self = $self->encoding("UTF-8");
+
+Holds the character encoding to use for data from/to Redis. Set to C<undef>
+to disable encoding/decoding data. Without an encoding set, Redis expects and
+returns bytes. See also L<Mojo::Redis/encoding>.
 
 =head2 ioloop
 

@@ -17,6 +17,7 @@ my $err;
 $db->connection->once(connect => sub { $err = $_[1]; Mojo::IOLoop->stop });
 $db->connection->_connect;
 Mojo::IOLoop->start;
-is_deeply \@write, [['AUTH s3cret'], ['SELECT 12']], 'write queue';
+is_deeply \@write, [["*2\r\n\$4\r\nAUTH\r\n\$6\r\ns3cret\r\n"], ["*2\r\n\$6\r\nSELECT\r\n\$2\r\n12\r\n"],],
+  'write queue';
 
 done_testing;

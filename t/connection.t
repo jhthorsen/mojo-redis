@@ -2,7 +2,8 @@ use Mojo::Base -strict;
 use Test::More;
 use Mojo::Redis;
 
-plan skip_all => 'TEST_ONLINE=redis://localhost' unless $ENV{TEST_ONLINE};
+plan skip_all => 'TEST_ONLINE=redis://localhost/8'      unless $ENV{TEST_ONLINE};
+plan skip_all => 'Need a database index in TEST_ONLINE' unless $ENV{TEST_ONLINE} =~ m!/\d+\b!;
 
 my $redis = Mojo::Redis->new($ENV{TEST_ONLINE});
 
@@ -59,10 +60,40 @@ isnt $db->connection, $conn, 'new connection when disconnected';
 
 is $redis->{connections}++, 7, 'connections emitted';
 
+# Encoding
+my $str = 'I ♥ Mojolicious!';
+$conn = $db->connection;
+
+is $redis->encoding, 'UTF-8', 'default redis encoding';
+is $conn->encoding,  'UTF-8', 'encoding passed on to connection';
+$conn->write_p(qw(set t:redis:encoding), $str)->wait;
+$conn->write_p(qw(get t:redis:encoding))->then(sub { @res = @_ })->wait;
+is_deeply \@res, [$str], 'unicode encoding';
+
+$conn->encoding(undef);
+$conn->write_p(qw(set t:redis:encoding), Mojo::Util::encode('UTF-8', $str))->wait;
+$conn->encoding('UTF-8');
+$conn->write_p(qw(get t:redis:encoding))->then(sub { @res = @_ })->wait;
+is $res[0], $str, 'no encoding';
+
+# Make sure encoding is reset
+$db = $redis->db;
+$db->connection->encoding('whatever');
+undef $db;
+$db = $redis->db;
+is $db->connection->encoding, 'UTF-8', 'connection encoding is reset';
+
+# Cleanup
+$conn->write_p(qw(del t:redis:encoding))->wait;
+
+$redis->encoding(undef);
+is $redis->db->connection->encoding, undef, 'Encoding changed for new connections';
+
 # Fork-safety
 $conn = $db->connection;
 undef $db;
 $redis->{pid} = -1;
 isnt $redis->db->connection, $conn, 'new fork gets a new connecion';
+undef $conn;
 
 done_testing;
