@@ -59,6 +59,15 @@ isnt $db->connection, $conn, 'new connection when disconnected';
 
 is $redis->{connections}++, 7, 'connections emitted';
 
+# Encoding
+my $str = 'I ♥ Mojolicious!';
+$conn = $db->connection;
+is $conn->encoding, 'UTF-8', 'default encoding';
+$conn->write_p(qw(set t:redis:encoding), $str)->wait;
+$conn->write_p(qw(get t:redis:encoding))->then(sub { @res = @_ })->wait;
+$conn->write_p(qw(del t:redis:encoding))->wait;
+is_deeply \@res, [$str], 'unicode encoding';
+
 # Fork-safety
 $conn = $db->connection;
 undef $db;
