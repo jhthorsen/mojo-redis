@@ -115,6 +115,14 @@ L<https://github.com/jhthorsen/mojo-redis/issues> if you find this module
 useful, annoying or if you simply find bugs. Feedback can also be sent to
 C<jhthorsen@cpan.org>.
 
+=head1 EVENTS
+
+=head2 connection
+
+  $cb = $self->on(connection => sub { my ($self, $connection) = @_; });
+
+Emitted when L<Mojo::Redis::Connection> connects to the Redis.
+
 =head1 ATTRIBUTES
 
 =head2 max_connections

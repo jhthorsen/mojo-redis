@@ -46,7 +46,7 @@ Mojo::IOLoop->start;
 is_deeply [sort @messages], ['message one', 'message two'], 'got messages' or diag join ", ", @messages;
 
 my $conn = $pubsub->connection;
-is @{$conn->subscribers('message')}, 1, 'only one message subscriber';
+is @{$conn->subscribers('response')}, 1, 'only one message subscriber';
 
 undef $pubsub;
 undef $redis->{pubsub};

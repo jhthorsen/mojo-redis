@@ -120,7 +120,7 @@ sub _parse_message_cb {
 
     my $p = shift @{$self->{waiting} || []};
     return $p ? $p->reject(@err) : $self->emit(error => @err) if @err;
-    return $p ? $p->resolve(@res) : $self->emit(message => @res);
+    return $p ? $p->resolve(@res) : $self->emit(response => @res);
   };
 }
 
@@ -159,6 +159,29 @@ L<Mojo::Redis::Connection> is a low level driver for writing and reading data
 from a Redis server.
 
 You probably want to use L<Mojo::Redis> instead of this class.
+
+=head1 EVENTS
+
+=head2 connect
+
+  $cb = $self->on(connect => sub { my ($self) = @_; });
+
+Emitted right after a connection is established to the Redis server, but
+after the AUTH and SELECT commands are queued.
+
+=head2 error
+
+  $cb = $self->on(error => sub { my ($self, $error) = @_; });
+
+Emitted if there's a connection error or the Redis server emits an error, and
+there's not a promise to handle the message.
+
+=head2 response
+
+  $cb = $self->on(response => sub { my ($self, $res) = @_; });
+
+Emitted if L</write_q> is not passed a L<Mojo::Promise> as the last argument,
+or if the Redis server emits a message that is not handled.
 
 =head1 ATTRIBUTES
 
