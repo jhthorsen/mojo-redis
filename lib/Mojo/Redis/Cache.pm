@@ -40,14 +40,12 @@ sub memoize_p {
 }
 
 sub _compute_p {
-  my $compute = pop;
-  my ($self, $conn, $key, $expire) = @_;
-  my $expire = 1000 * shift;
+  my ($self, $conn, $key, $expire, $compute) = @_;
 
   my $set = sub {
     my $res = shift;
     return $conn->write_p(SET => $key => $self->serialize->([$res]))->then(sub {
-      return $conn->write_p(PEXPIRE => $key => $expire);
+      return $conn->write_p(PEXPIRE => $key => 1000 * $expire);
     })->then(sub {
       return $res;
     });
