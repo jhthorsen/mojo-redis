@@ -50,6 +50,9 @@ for (1 .. 2) {
 
 is $n, 5, 'compute only called once per key';
 
+$cache->refresh->memoize_p(main => 'cache_me', [{foo => 42}])->then(sub { $res = shift })->wait;
+is $n, 6, 'compute called after refresh()';
+
 $cache->compute_p('some:die:key', sub { die 'oops!' })->catch(sub { $res = shift })->then(sub { $res = shift })->wait;
 like $res, qr{oops!}, 'failed to cache';
 
