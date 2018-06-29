@@ -7,6 +7,7 @@ use Mojo::Promise;
 
 use constant DEBUG => $ENV{MOJO_REDIS_DEBUG};
 
+has encoding => 'UTF-8';
 has ioloop   => sub { Carp::confess('ioloop is required in constructor') };
 has protocol => sub { Carp::confess('protocol is required in constructor') };
 has url      => sub { Carp::confess('url is required in constructor') };
@@ -115,6 +116,7 @@ sub _parse_message_cb {
   Scalar::Util::weaken($self);
   return sub {
     my ($protocol, @messages) = @_;
+    my $encoding = $self->encoding;
     my (@res, @err);
 
     $self->_write;
@@ -124,7 +126,7 @@ sub _parse_message_cb {
       if    ($type eq '-') { push @err, $data }
       elsif ($type eq ':') { push @res, 0 + $data }
       elsif ($type eq '*' and ref $data) { push @messages, @$data }
-      else                               { push @res,      $data }
+      else                               { push @res,      $encoding ? Mojo::Util::decode($encoding, $data) : $data }
     }
 
     my $p = shift @{$self->{waiting} || []};
@@ -134,9 +136,11 @@ sub _parse_message_cb {
 }
 
 sub _write {
-  my $self = shift;
-  my $loop = $self->ioloop;
-  my $op   = shift @{$self->{write}} or return;
+  my $self     = shift;
+  my $loop     = $self->ioloop;
+  my $op       = shift @{$self->{write}} or return;
+  my $encoding = $self->encoding;
+  $op->[0] = Mojo::Util::encode($encoding, $op->[0]) if $encoding;
   do { local $_ = $op->[0]; s!\r\n!\\r\\n!g; warn "[$self->{id}] <<< ($_)\n" } if DEBUG;
   push @{$self->{waiting}}, $op->[1];
   $self->{stream}->write($op->[0]);
@@ -193,6 +197,15 @@ Emitted if L</write_q> is not passed a L<Mojo::Promise> as the last argument,
 or if the Redis server emits a message that is not handled.
 
 =head1 ATTRIBUTES
+
+=head2 encoding
+
+  $str  = $self->encoding;
+  $self = $self->encoding("UTF-8");
+
+Holds the character encoding to use for data from/to Redis. Default is
+C<UTF-8>. Set to C<undef> to disable encoding/decoding data. Without an
+encoding set, Redis expects and returns bytes.
 
 =head2 ioloop
 
