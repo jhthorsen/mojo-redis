@@ -1,6 +1,7 @@
 package Mojo::Redis::Connection;
 use Mojo::Base 'Mojo::EventEmitter';
 
+use File::Spec::Functions 'file_name_is_absolute';
 use Mojo::IOLoop;
 use Mojo::Promise;
 
@@ -36,14 +37,22 @@ sub write_q {
 sub _connect {
   my $self = shift;
   return $self if $self->{id};    # Connecting
+
   Scalar::Util::weaken($self);
-
   $self->protocol->on_message($self->_parse_message_cb);
+  my $url  = $self->url;
+  my $db   = $url->path->[0];
+  my %args = (address => $url->host || 'localhost');
 
-  my $url = $self->url;
-  my $db  = $url->path->[0];
+  if (file_name_is_absolute $args{address}) {
+    $args{path} = delete $args{address};
+  }
+  else {
+    $args{port} = $url->port || 6379;
+  }
+
   $self->{id} = $self->ioloop->client(
-    {address => $url->host, port => $url->port || 6379},
+    \%args,
     sub {
       my ($loop, $err, $stream) = @_;
 
@@ -67,7 +76,7 @@ sub _connect {
       $self->{stream} = $stream;
       $self->emit('connect');
       $self->_write;
-    },
+    }
   );
 
   warn "[$self->{id}] CONNECTING $url (blocking=@{[$self->_loop_is_singleton ? 0 : 1]})\n" if DEBUG;
