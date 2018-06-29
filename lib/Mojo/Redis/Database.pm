@@ -113,6 +113,7 @@ sub _process_hkeys             { +[@_] }
 sub _process_hmget             { +[@_] }
 sub _process_hvals             { +[@_] }
 sub _process_keys              { +[@_] }
+sub _process_lrange            { +[@_] }
 sub _process_mget              { +[@_] }
 sub _process_sdiff             { +[@_] }
 sub _process_smembers          { +[@_] }

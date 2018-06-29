@@ -2,6 +2,7 @@ Revision history for perl distribution Mojo-Redis
 
 3.02 Not Released
  - Add Mojo::Redis::Cache->memomize_p()
+ - Add examples/twitter.pl
 
 3.01 2018-06-28T15:22:47+0900
  - Add Mojo::Redis::Cache
