@@ -204,15 +204,16 @@ Holds an instance of L<Mojo::IOLoop>.
 =head2 protocol
 
   $protocol = $self->protocol;
-  $self = $self->protocol(Protocol::Redis::XS->new(api => 1));
+  $self     = $self->protocol(Protocol::Redis::XS->new(api => 1));
 
 Holds a protocol object, such as L<Protocol::Redis> that is used to generate
 and parse Redis messages.
 
 =head2 url
 
-  $url = $self->url;
-  $self = $self->url(Protocol::Redis::XS->new(api => 1));
+  $url  = $self->url;
+  $self = $self->url(Mojo::URL->new->host("/tmp/redis.sock")->path("/5"));
+  $self = $self->url("redis://localhost:6379/1");
 
 =head1 METHODS
 

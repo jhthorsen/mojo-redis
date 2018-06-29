@@ -180,6 +180,7 @@ L<Mojo::Redis::Cursor/new>. for possible commands.
 =head2 new
 
   $self = Mojo::Redis->new("redis://localhost:6379/1");
+  $self = Mojo::Redis->new(Mojo::URL->new->host("/tmp/redis.sock"));
   $self = Mojo::Redis->new(\%attrs);
   $self = Mojo::Redis->new(%attrs);
 
