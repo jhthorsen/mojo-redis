@@ -5,6 +5,7 @@ Revision history for perl distribution Mojo-Redis
  - Add examples/twitter.pl
  - Add documentation for events #2
  - Add support for connecting to unix socket #12
+ - Add support for offline cache #15
  - Add support for refreshing cache #16
 
 3.01 2018-06-28T15:22:47+0900

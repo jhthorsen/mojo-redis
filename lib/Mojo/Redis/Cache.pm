@@ -5,7 +5,9 @@ use Mojo::JSON;
 use Scalar::Util 'blessed';
 use Storable ();
 
-has connection  => sub { shift->redis->_dequeue };
+use constant OFFLINE => $ENV{MOJO_REDIS_CACHE_OFFLINE};
+
+has connection => sub { OFFLINE ? shift->_offline_connection : shift->redis->_dequeue };
 has deserialize => sub { \&Storable::thaw };
 has default_expire => 600;
 has namespace      => 'cache:mojo:redis';
@@ -45,15 +47,40 @@ sub _compute_p {
 
   my $set = sub {
     my $res = shift;
-    return $conn->write_p(SET => $key => $self->serialize->([$res]))->then(sub {
-      return $conn->write_p(PEXPIRE => $key => 1000 * $expire);
-    })->then(sub {
-      return $res;
-    });
+    $conn->write_p(SET => $key => $self->serialize->([$res]), PX => 1000 * $expire)->then(sub {$res});
   };
 
   my $res = $compute->();
   return blessed $res ? $res->then(sub { $set->(@_) }) : $set->($res);
+}
+
+sub _offline_connection {
+  state $c = eval <<'HERE' or die $@;
+package Mojo::Redis::Connection::Offline;
+use Mojo::Base 'Mojo::Redis::Connection';
+our $STORE = {}; # Meant for internal use only
+
+sub write_p {
+  my ($conn, $op, $key) = (shift, shift, shift);
+
+  if ($op eq 'SET') {
+    $STORE->{$conn->url}{$key} = [$_[0], defined $_[2] ? $_[2] + _time() * 1000 : undef];
+    return Mojo::Promise->new->resolve('OK');
+  }
+  else {
+    my $val     = $STORE->{$conn->url}{$key} || [];
+    my $expired = $val->[1] && $val->[1] < _time() * 1000;
+    delete $STORE->{$conn->url}{$key} if $expired;
+    return Mojo::Promise->new->resolve($expired ? undef : $val->[0]);
+  }
+}
+
+sub _time { time }
+
+'Mojo::Redis::Connection::Offline';
+HERE
+  my $redis = shift->redis;
+  return $c->new(protocol => $redis->protocol_class->new(api => 1), url => $redis->url);
 }
 
 1;
@@ -101,6 +128,13 @@ Mojo::Redis::Cache - Simple cache interface using Redis
 
 L<Mojo::Redis::Cache> provides a simple interface for caching data in the Redis
 database.
+
+=head1 ENVIRONMENT VARIABLES
+
+=head2 MOJO_REDIS_CACHE_OFFLINE
+
+Set C<MOJO_REDIS_CACHE_OFFLINE> to 1 if you want to use this cache without a
+real Redis backend. This can be useful in unit tests.
 
 =head1 ATTRIBUTES
 
