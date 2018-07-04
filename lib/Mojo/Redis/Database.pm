@@ -40,68 +40,96 @@ our @BLOCKING_COMMANDS = ('blpop', 'brpop', 'brpoplpush', 'bzpopmax', 'bzpopmin'
 has connection => sub { shift->redis->_dequeue };
 has redis      => sub { Carp::confess('redis is required in constructor') };
 
-__PACKAGE__->_add_bnp_method($_) for @BASIC_COMMANDS;
-__PACKAGE__->_add_np_method($_)  for @BLOCKING_COMMANDS;
+__PACKAGE__->_add_method(bnb => $_) for @BASIC_COMMANDS;
+__PACKAGE__->_add_method(p => "${_}_p" => uc $_) for @BASIC_COMMANDS;
+__PACKAGE__->_add_method(nb => $_) for @BLOCKING_COMMANDS;
+__PACKAGE__->_add_method(p => "${_}_p" => uc $_) for @BLOCKING_COMMANDS;
+__PACKAGE__->_add_method(bnb => qw(_exec EXEC));
+__PACKAGE__->_add_method(bnb => qw(_discard DISCARD));
+__PACKAGE__->_add_method(bnb => qw(_multi MULTI));
+__PACKAGE__->_add_method(bnb => $_) for qw(unwatch watch);
+__PACKAGE__->_add_method(p   => "${_}_p" => uc $_) for qw(unwatch watch);
 
-# Add "blocking", "non-blocking" and "promise" method
-sub _add_bnp_method {
-  my ($class, $method) = @_;
-  my $caller  = caller;
-  my $op      = uc $method;
-  my $process = $caller->can("_process_$method");
+sub exec { delete $_[0]->{txn}; shift->_exec(@_) }
 
-  Mojo::Util::monkey_patch($caller,
-    "${method}_p" => $process
-    ? sub { shift->connection->write_p($op => @_)->then($process) }
-    : sub { shift->connection->write_p($op => @_) });
-
-  Mojo::Util::monkey_patch(
-    $caller,
-    $method => sub {
-      my $cb = ref $_[-1] eq 'CODE' ? pop : undef;
-      my $self = shift;
-
-      my $p = ($cb ? $self->connection : $self->redis->_blocking_connection)->write_p($op, @_);
-      $p = $p->then($process) if $process;
-
-      # Non-blocking
-      if ($cb) {
-        $p->then(sub { $self->$cb('', @_) })->catch(sub { $self->$cb(shift, undef) });
-        return $self;
-      }
-
-      # Blocking
-      my @res;
-      $p->then(sub { @res = ('', @_) })->catch(sub { @res = @_ })->wait;
-      die $res[0] if $res[0];
-      return $res[1];
-    }
-  );
+sub exec_p {
+  my $self = shift;
+  delete $self->{txn};
+  return $self->connection->write_p('EXEC');
 }
 
-# Add "non-blocking" and "promise" method
-sub _add_np_method {
-  my ($class, $method) = @_;
-  my $caller  = caller;
-  my $op      = uc $method;
-  my $process = $caller->can("_process_$method");
+sub discard { delete $_[0]->{txn}; shift->_discard(@_) }
 
-  Mojo::Util::monkey_patch($caller,
-    "${method}_p" => $process
-    ? sub { shift->connection->write_p($op => @_)->then($process) }
-    : sub { shift->connection->write_p($op => @_) });
+sub discard_p {
+  my $self = shift;
+  delete $self->{txn};
+  return $self->connection->write_p('DISCARD');
+}
 
-  Mojo::Util::monkey_patch(
-    $caller,
-    $method => sub {
-      my ($self, $cb) = (shift, pop);
-      $self->connection->write_p(@_)->then(sub { $self->$cb('', $process ? $process->(@_) : @_) })
-        ->catch(sub { $self->$cb(shift, undef) });
+sub multi {
+  $_[0]->{txn} = ref $_[-1] eq 'CODE' ? 'default' : 'blocking';
+  return shift->_multi(@_);
+}
+
+sub multi_p {
+  my $self = shift;
+  $self->{txn} = 'default';
+  return $self->connection->write_p('MULTI');
+}
+
+sub _add_method {
+  my ($class, $type, $method, $op) = @_;
+  my $caller = caller;
+
+  $op ||= uc $method;
+  Mojo::Util::monkey_patch($caller, $method,
+    $class->can("_generate_${type}_method")->($class, $op, $caller->can(lc "_process_$op")));
+}
+
+sub _generate_bnb_method {
+  my ($class, $op, $process) = @_;
+
+  return sub {
+    my $cb = ref $_[-1] eq 'CODE' ? pop : undef;
+    my $self = shift;
+
+    my $p = ($cb ? $self->connection : $self->redis->_blocking_connection)->write_p($op, @_);
+    $p = $p->then($process) if $process;
+
+    # Non-blocking
+    if ($cb) {
+      $p->then(sub { $self->$cb('', @_) })->catch(sub { $self->$cb(shift, undef) });
       return $self;
     }
-  );
+
+    # Blocking
+    my @res;
+    $p->then(sub { @res = ('', @_) })->catch(sub { @res = @_ })->wait;
+    die $res[0] if $res[0];
+    return $res[1];
+  };
 }
 
+sub _generate_nb_method {
+  my ($class, $op, $process) = @_;
+
+  return sub {
+    my ($self, $cb) = (shift, pop);
+    $self->connection->write_p(@_)->then(sub { $self->$cb('', $process ? $process->(@_) : @_) })
+      ->catch(sub { $self->$cb(shift, undef) });
+    return $self;
+  };
+}
+
+sub _generate_p_method {
+  my ($class, $op, $process) = @_;
+
+  return $process
+    ? sub { shift->connection->write_p($op => @_)->then($process) }
+    : sub { shift->connection->write_p($op => @_) };
+}
+
+sub _process_exec              { +[@_] }
 sub _process_geohash           { +[@_] }
 sub _process_geopos            { +{lng => shift, lat => shift} }
 sub _process_georadius         { +[@_] }
@@ -125,8 +153,13 @@ sub _process_zrangebyscore     { +[@_] }
 
 sub DESTROY {
   my $self = shift;
-  return unless (my $redis = $self->redis) && (my $conn = $self->connection);
-  $redis->_enqueue($conn);
+
+  if (my $txn = delete $self->{txn}) {
+    $self->redis->_blocking_connection->write_p('DISCARD')->wait if $txn eq 'blocking';
+  }
+  elsif (my $redis = $self->redis and my $conn = $self->connection) {
+    $redis->_enqueue($conn);
+  }
 }
 
 1;
@@ -306,6 +339,20 @@ Delete a key.
 
 See L<https://redis.io/commands/del> for more information.
 
+=head2 discard
+
+See L</discard_p>.
+
+=head2 discard_p
+
+  @res     = $self->discard;
+  $self    = $self->discard(sub { my ($self, @res) = @_ });
+  $promise = $self->discard_p;
+
+Discard all commands issued after MULTI.
+
+See L<https://redis.io/commands/discard> for more information.
+
 =head2 dump
 
   @res     = $self->dump($key);
@@ -325,6 +372,20 @@ See L<https://redis.io/commands/dump> for more information.
 Echo the given string.
 
 See L<https://redis.io/commands/echo> for more information.
+
+=head2 exec
+
+See L</exec_p>.
+
+=head2 exec_p
+
+  @res     = $self->exec;
+  $self    = $self->exec(sub { my ($self, @res) = @_ });
+  $promise = $self->exec_p;
+
+Execute all commands issued after L</multi>.
+
+See L<https://redis.io/commands/exec> for more information.
 
 =head2 exists
 
@@ -776,6 +837,18 @@ Set multiple keys to multiple values, only if none of the keys exist.
 
 See L<https://redis.io/commands/msetnx> for more information.
 
+=head2 multi
+
+  @res     = $self->multi;
+  $self    = $self->multi(sub { my ($self, @res) = @_ });
+  $promise = $self->multi_p;
+
+Mark the start of a transaction block. Commands issued after L</multi> will
+automatically be discarded if C<$self> goes out of scope. Need to call
+L</exec> to commit the queued commands to Redis.
+
+See L<https://redis.io/commands/multi> for more information.
+
 =head2 object
 
   @res     = $self->object($subcommand, [arguments [arguments ...]]);
@@ -888,9 +961,9 @@ See L<https://redis.io/commands/publish> for more information.
 
 =head2 randomkey
 
-  @res     = $self->randomkey();
-  $self    = $self->randomkey(, sub { my ($self, @res) = @_ });
-  $promise = $self->randomkey_p();
+  @res     = $self->randomkey;
+  $self    = $self->randomkey(sub { my ($self, @res) = @_ });
+  $promise = $self->randomkey_p;
 
 Return a random key from the keyspace.
 
@@ -1215,6 +1288,26 @@ See L<https://redis.io/commands/type> for more information.
 Delete a key asynchronously in another thread. Otherwise it is just as DEL, but non blocking.
 
 See L<https://redis.io/commands/unlink> for more information.
+
+=head2 unwatch
+
+  @res     = $self->unwatch();
+  $self    = $self->unwatch(, sub { my ($self, @res) = @_ });
+  $promise = $self->unwatch_p();
+
+Forget about all watched keys.
+
+See L<https://redis.io/commands/unwatch> for more information.
+
+=head2 watch
+
+  @res     = $self->watch($key [key ...]);
+  $self    = $self->watch($key [key ...], sub { my ($self, @res) = @_ });
+  $promise = $self->watch_p($key [key ...]);
+
+Watch the given keys to determine execution of the MULTI/EXEC block.
+
+See L<https://redis.io/commands/watch> for more information.
 
 =head2 zadd
 
