@@ -859,6 +859,10 @@ See L<https://redis.io/commands/msetnx> for more information.
 
 =head2 multi
 
+See L</multi_p>.
+
+=head2 multi_p
+
   @res     = $self->multi;
   $self    = $self->multi(sub { my ($self, @res) = @_ });
   $promise = $self->multi_p;
