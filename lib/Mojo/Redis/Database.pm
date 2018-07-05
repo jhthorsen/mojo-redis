@@ -2,37 +2,37 @@ package Mojo::Redis::Database;
 use Mojo::Base -base;
 
 our @BASIC_COMMANDS = (
-  'append',         'bitcount',         'bitfield',          'bitop',
-  'bitpos',         'echo',             'decr',              'decrby',
-  'del',            'dump',             'exists',            'expire',
-  'expireat',       'geoadd',           'geohash',           'geopos',
-  'geodist',        'georadius',        'georadiusbymember', 'get',
-  'getbit',         'getrange',         'getset',            'hdel',
-  'hexists',        'hget',             'hgetall',           'hincrby',
-  'hincrbyfloat',   'hkeys',            'hlen',              'hmget',
-  'hmset',          'hset',             'hsetnx',            'hstrlen',
-  'hvals',          'incr',             'incrby',            'incrbyfloat',
-  'keys',           'lindex',           'linsert',           'llen',
-  'lpop',           'lpush',            'lpushx',            'lrange',
-  'lrem',           'lset',             'ltrim',             'mget',
-  'move',           'mset',             'msetnx',            'object',
-  'persist',        'pexpire',          'pexpireat',         'pttl',
-  'pfadd',          'pfcount',          'pfmerge',           'ping',
-  'psetex',         'publish',          'randomkey',         'rename',
-  'renamenx',       'rpop',             'rpoplpush',         'rpush',
-  'rpushx',         'restore',          'sadd',              'scard',
-  'sdiff',          'sdiffstore',       'set',               'setbit',
-  'setex',          'setnx',            'setrange',          'sinter',
-  'sinterstore',    'sismember',        'smembers',          'smove',
-  'sort',           'spop',             'srandmember',       'srem',
-  'strlen',         'sunion',           'sunionstore',       'touch',
-  'ttl',            'type',             'unlink',            'zadd',
-  'zcard',          'zcount',           'zincrby',           'zinterstore',
-  'zlexcount',      'zpopmax',          'zpopmin',           'zrange',
-  'zrangebylex',    'zrangebyscore',    'zrank',             'zrem',
-  'zremrangebylex', 'zremrangebyrank',  'zremrangebyscore',  'zrevrange',
-  'zrevrangebylex', 'zrevrangebyscore', 'zrevrank',          'zscore',
-  'zunionstore',
+  'append',            'bitcount',         'bitfield',     'bitop',
+  'bitpos',            'echo',             'eval',         'evalsha',
+  'decr',              'decrby',           'del',          'dump',
+  'exists',            'expire',           'expireat',     'geoadd',
+  'geohash',           'geopos',           'geodist',      'georadius',
+  'georadiusbymember', 'get',              'getbit',       'getrange',
+  'getset',            'hdel',             'hexists',      'hget',
+  'hgetall',           'hincrby',          'hincrbyfloat', 'hkeys',
+  'hlen',              'hmget',            'hmset',        'hset',
+  'hsetnx',            'hstrlen',          'hvals',        'incr',
+  'incrby',            'incrbyfloat',      'keys',         'lindex',
+  'linsert',           'llen',             'lpop',         'lpush',
+  'lpushx',            'lrange',           'lrem',         'lset',
+  'ltrim',             'mget',             'move',         'mset',
+  'msetnx',            'object',           'persist',      'pexpire',
+  'pexpireat',         'pttl',             'pfadd',        'pfcount',
+  'pfmerge',           'ping',             'psetex',       'publish',
+  'randomkey',         'rename',           'renamenx',     'rpop',
+  'rpoplpush',         'rpush',            'rpushx',       'restore',
+  'sadd',              'scard',            'script',       'sdiff',
+  'sdiffstore',        'set',              'setbit',       'setex',
+  'setnx',             'setrange',         'sinter',       'sinterstore',
+  'sismember',         'smembers',         'smove',        'sort',
+  'spop',              'srandmember',      'srem',         'strlen',
+  'sunion',            'sunionstore',      'touch',        'ttl',
+  'type',              'unlink',           'zadd',         'zcard',
+  'zcount',            'zincrby',          'zinterstore',  'zlexcount',
+  'zpopmax',           'zpopmin',          'zrange',       'zrangebylex',
+  'zrangebyscore',     'zrank',            'zrem',         'zremrangebylex',
+  'zremrangebyrank',   'zremrangebyscore', 'zrevrange',    'zrevrangebylex',
+  'zrevrangebyscore',  'zrevrank',         'zscore',       'zunionstore',
 );
 
 our @BLOCKING_COMMANDS = ('blpop', 'brpop', 'brpoplpush', 'bzpopmax', 'bzpopmin');
@@ -372,6 +372,26 @@ See L<https://redis.io/commands/dump> for more information.
 Echo the given string.
 
 See L<https://redis.io/commands/echo> for more information.
+
+=head2 eval
+
+  @res     = $self->eval($script, $numkeys, $key [key ...], $arg [arg ...]);
+  $self    = $self->eval($script, $numkeys, $key [key ...], $arg [arg ...], sub { my ($self, @res) = @_ });
+  $promise = $self->eval_p($script, $numkeys, $key [key ...], $arg [arg ...]);
+
+Execute a Lua script server side.
+
+See L<https://redis.io/commands/eval> for more information.
+
+=head2 evalsha
+
+  @res     = $self->evalsha($sha1, $numkeys, $key [key ...], $arg [arg ...]);
+  $self    = $self->evalsha($sha1, $numkeys, $key [key ...], $arg [arg ...], sub { my ($self, @res) = @_ });
+  $promise = $self->evalsha_p($sha1, $numkeys, $key [key ...], $arg [arg ...]);
+
+Execute a Lua script server side.
+
+See L<https://redis.io/commands/evalsha> for more information.
 
 =head2 exec
 
@@ -1058,6 +1078,20 @@ See L<https://redis.io/commands/sadd> for more information.
 Get the number of members in a set.
 
 See L<https://redis.io/commands/scard> for more information.
+
+=head2 script
+
+  @res     = $self->script($sub_command, @args);
+  $self    = $self->script($sub_command, @args, sub { my ($self, @res) = @_ });
+  $promise = $self->script_p($sub_command, @args);
+
+Execute a script command.
+
+See L<https://redis.io/commands/script-debug>,
+L<https://redis.io/commands/script-exists>,
+L<https://redis.io/commands/script-flush>,
+L<https://redis.io/commands/script-kill> or
+L<https://redis.io/commands/script-load> for more information.
 
 =head2 sdiff
 

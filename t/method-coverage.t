@@ -13,7 +13,7 @@ my @classes = qw(Mojo::Redis::Database Mojo::Redis::PubSub);
 my (%doc, %skip);
 
 $skip{method}{$_} = 1 for qw(auth hscan quit migrate pubsub scan select sscan swapdb wait zscan);
-$skip{group}{$_}  = 1 for qw(cluster scripting server stream);
+$skip{group}{$_}  = 1 for qw(cluster server stream);
 
 $methods = $methods->map(sub {
   $doc{$_->{'data-name'}} = [
@@ -40,6 +40,7 @@ for my $t (sort { "@$a" cmp "@$b" } @$methods) {
 
   $method = 'listen'   if $method =~ /subscribe$/;
   $method = 'unlisten' if $method =~ /unsubscribe$/;
+  $method = 'script'   if $method =~ /^script_/;
 
 REDIS_CLASS:
   for my $class (@classes) {

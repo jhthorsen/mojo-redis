@@ -2,6 +2,7 @@ Revision history for perl distribution Mojo-Redis
 
 3.03 Not Released
  - Cannot have a custom class for transactions #14
+ - Add eval(), evalsha() and script() #8
 
 3.02 2018-07-01T18:24:37+0900
  - Add Mojo::Redis::Cache->memomize_p()
