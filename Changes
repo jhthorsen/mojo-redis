@@ -1,5 +1,8 @@
 Revision history for perl distribution Mojo-Redis
 
+3.04 Not Released
+ - Documented how pipelining works #7
+
 3.03 2018-07-05T11:45:01+0800
  - Add eval(), evalsha() and script() #8
  - Cannot have a custom class for transactions #14
