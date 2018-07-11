@@ -46,15 +46,13 @@ our @BLOCKING_COMMANDS = ('blpop', 'brpop', 'brpoplpush', 'bzpopmax', 'bzpopmin'
 has connection => sub { shift->redis->_dequeue };
 has redis      => sub { Carp::confess('redis is required in constructor') };
 
-__PACKAGE__->_add_method(bnb => $_) for @BASIC_COMMANDS;
-__PACKAGE__->_add_method(p => "${_}_p" => uc $_) for @BASIC_COMMANDS;
-__PACKAGE__->_add_method(nb => $_) for @BLOCKING_COMMANDS;
-__PACKAGE__->_add_method(p => "${_}_p" => uc $_) for @BLOCKING_COMMANDS;
-__PACKAGE__->_add_method(bnb => qw(_exec EXEC));
-__PACKAGE__->_add_method(bnb => qw(_discard DISCARD));
-__PACKAGE__->_add_method(bnb => qw(_multi MULTI));
-__PACKAGE__->_add_method(bnb => $_) for qw(unwatch watch);
-__PACKAGE__->_add_method(p   => "${_}_p" => uc $_) for qw(unwatch watch);
+__PACKAGE__->_add_method('bnb,p' => $_) for @BASIC_COMMANDS;
+__PACKAGE__->_add_method('nb,p'  => $_) for @BLOCKING_COMMANDS;
+__PACKAGE__->_add_method('bnb'   => qw(_exec EXEC));
+__PACKAGE__->_add_method('bnb'   => qw(_discard DISCARD));
+__PACKAGE__->_add_method('bnb'   => qw(_multi MULTI));
+__PACKAGE__->_add_method('bnb,p' => qw(info_structured info));
+__PACKAGE__->_add_method('bnb,p' => $_) for qw(unwatch watch);
 
 sub exec { delete $_[0]->{txn}; shift->_exec(@_) }
 
@@ -84,12 +82,19 @@ sub multi_p {
 }
 
 sub _add_method {
-  my ($class, $type, $method, $op) = @_;
-  my $caller = caller;
+  my ($class, $types, $method, $op) = @_;
+  my $caller  = caller;
+  my $process = $caller->can(lc "_process_$method");
 
   $op ||= uc $method;
-  Mojo::Util::monkey_patch($caller, $method,
-    $class->can("_generate_${type}_method")->($class, $op, $caller->can(lc "_process_$op")));
+
+  for my $type (split /,/, $types) {
+    Mojo::Util::monkey_patch(
+      $caller,
+      $type eq 'p' ? "${method}_p" : $method,
+      $class->can("_generate_${type}_method")->($class, $op, $process)
+    );
+  }
 }
 
 sub _generate_bnb_method {
@@ -149,21 +154,39 @@ sub _process_hgetall           { shift; +{@_} }
 sub _process_hkeys             { shift; +[@_] }
 sub _process_hmget             { shift; +[@_] }
 sub _process_hvals             { shift; +[@_] }
-sub _process_keys              { shift; +[@_] }
-sub _process_lrange            { shift; +[@_] }
-sub _process_mget              { shift; +[@_] }
-sub _process_sdiff             { shift; +[@_] }
-sub _process_smembers          { shift; +[@_] }
-sub _process_sort              { shift; +[@_] }
-sub _process_sunion            { shift; +[@_] }
-sub _process_xrange            { shift; +[@_] }
-sub _process_xread             { shift; +[@_] }
-sub _process_xreadgroup        { shift; +[@_] }
-sub _process_xrevrange         { shift; +[@_] }
-sub _process_xpending          { shift; +[@_] }
-sub _process_zrange            { shift; +[@_] }
-sub _process_zrangebylex       { shift; +[@_] }
-sub _process_zrangebyscore     { shift; +[@_] }
+
+sub _process_info_structured {
+  my $self    = shift;
+  my $section = {};
+  my %res;
+
+  for (split /\r\n/, $_[0]) {
+    if (/^\#\s+(\S+)/) {
+      $section = $res{lc $1} = {};
+    }
+    elsif (/(\S+):(\S+)/) {
+      $section->{$1} = $2;
+    }
+  }
+
+  return keys %res == 1 ? $section : \%res;
+}
+
+sub _process_keys          { shift; +[@_] }
+sub _process_lrange        { shift; +[@_] }
+sub _process_mget          { shift; +[@_] }
+sub _process_sdiff         { shift; +[@_] }
+sub _process_smembers      { shift; +[@_] }
+sub _process_sort          { shift; +[@_] }
+sub _process_sunion        { shift; +[@_] }
+sub _process_xrange        { shift; +[@_] }
+sub _process_xread         { shift; +[@_] }
+sub _process_xreadgroup    { shift; +[@_] }
+sub _process_xrevrange     { shift; +[@_] }
+sub _process_xpending      { shift; +[@_] }
+sub _process_zrange        { shift; +[@_] }
+sub _process_zrangebylex   { shift; +[@_] }
+sub _process_zrangebyscore { shift; +[@_] }
 
 sub DESTROY {
   my $self = shift;
@@ -791,13 +814,19 @@ See L<https://redis.io/commands/hvals> for more information.
 
 =head2 info
 
-  @res     = $self->info([section]);
-  $self    = $self->info([section], sub { my ($self, @res) = @_ });
-  $promise = $self->info_p([section]);
+  @res     = $self->info($section);
+  $self    = $self->info($section, sub { my ($self, @res) = @_ });
+  $promise = $self->info_p($section);
 
-Get information and statistics about the server.
+Get information and statistics about the server. See also L</info_structured>.
 
 See L<https://redis.io/commands/info> for more information.
+
+=head2 info_structured
+
+Same as L</info>, but the result is a hash-ref where the keys are the different
+sections, with key/values in a sub hash. Will only be key/values if <$section>
+is specified.
 
 =head2 incr
 

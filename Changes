@@ -2,6 +2,7 @@ Revision history for perl distribution Mojo-Redis
 
 3.05 Not Released
  - Fix holding $db in memory when issuing commands and returning promises
+ - Add info_structured() method to Mojo::Redis::Database
 
 3.04 2018-07-11T09:24:09+0800
  - Add server commands #4

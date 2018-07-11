@@ -40,6 +40,11 @@ is_deeply $res, {a => 11, b => 22}, 'hgetall_p';
 $res = $db->hkeys($0);
 is_deeply $res, [qw(a b)], 'hkeys';
 
+ok $db->info_structured('memory')->{maxmemory_human}, 'got info_structured';
+$db->info_structured_p->then(sub { $res = shift })->wait;
+ok $res->{clients}{connected_clients}, 'got info_structured for all sections, clients';
+ok $res->{memory}{maxmemory_human},    'got info_structured for all sections, memory';
+
 done_testing;
 
 sub gather_cb {
