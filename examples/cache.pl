@@ -10,7 +10,7 @@ helper cache => sub {
   return $c->stash->{'redis.cache'} ||= $c->redis->cache->refresh($c->param('_refresh'));
 };
 
-helper compute_get_stats => sub {
+helper get_redis_stats_p => sub {
   my ($c, $section) = @_;
   return $c->redis->db->info_structured_p($section ? ($section) : ());
 };
@@ -18,7 +18,7 @@ helper compute_get_stats => sub {
 get '/stats' => sub {
   my $c = shift->render_later;
 
-  $c->cache->memoize_p($c, compute_get_stats => [$c->param('section')])->then(sub {
+  $c->cache->memoize_p($c, get_redis_stats_p => [$c->param('section')])->then(sub {
     $c->render(json => shift);
   })->catch(sub {
     $c->reply_exception(shift);
