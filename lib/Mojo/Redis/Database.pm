@@ -100,7 +100,7 @@ sub _generate_bnb_method {
     my $self = shift;
 
     my $p = ($cb ? $self->connection : $self->redis->_blocking_connection)->write_p($op, @_);
-    $p = $p->then($process) if $process;
+    $p = $p->then(sub { $self->$process(@_) }) if $process;
 
     # Non-blocking
     if ($cb) {
@@ -121,7 +121,7 @@ sub _generate_nb_method {
 
   return sub {
     my ($self, $cb) = (shift, pop);
-    $self->connection->write_p(@_)->then(sub { $self->$cb('', $process ? $process->(@_) : @_) })
+    $self->connection->write_p(@_)->then(sub { $self->$cb('', $process ? $self->$process(@_) : @_) })
       ->catch(sub { $self->$cb(shift, undef) });
     return $self;
   };
@@ -130,37 +130,40 @@ sub _generate_nb_method {
 sub _generate_p_method {
   my ($class, $op, $process) = @_;
 
-  return $process
-    ? sub { shift->connection->write_p($op => @_)->then($process) }
-    : sub { shift->connection->write_p($op => @_) };
+  return sub {
+    my $self = shift;
+    $self->connection->write_p($op => @_)->then(sub {
+      return $process ? $self->$process(@_) : @_;
+    });
+  };
 }
 
-sub _process_exec              { +[@_] }
-sub _process_geohash           { +[@_] }
-sub _process_geopos            { +{lng => shift, lat => shift} }
-sub _process_georadius         { +[@_] }
-sub _process_georadiusbymember { +[@_] }
-sub _process_blpop             { reverse @_ }
-sub _process_brpop             { reverse @_ }
-sub _process_hgetall           { +{@_} }
-sub _process_hkeys             { +[@_] }
-sub _process_hmget             { +[@_] }
-sub _process_hvals             { +[@_] }
-sub _process_keys              { +[@_] }
-sub _process_lrange            { +[@_] }
-sub _process_mget              { +[@_] }
-sub _process_sdiff             { +[@_] }
-sub _process_smembers          { +[@_] }
-sub _process_sort              { +[@_] }
-sub _process_sunion            { +[@_] }
-sub _process_xrange            { +[@_] }
-sub _process_xread             { +[@_] }
-sub _process_xreadgroup        { +[@_] }
-sub _process_xrevrange         { +[@_] }
-sub _process_xpending          { +[@_] }
-sub _process_zrange            { +[@_] }
-sub _process_zrangebylex       { +[@_] }
-sub _process_zrangebyscore     { +[@_] }
+sub _process_exec              { shift; +[@_] }
+sub _process_geohash           { shift; +[@_] }
+sub _process_geopos            { shift; +{lng => shift, lat => shift} }
+sub _process_georadius         { shift; +[@_] }
+sub _process_georadiusbymember { shift; +[@_] }
+sub _process_blpop             { shift; reverse @_ }
+sub _process_brpop             { shift; reverse @_ }
+sub _process_hgetall           { shift; +{@_} }
+sub _process_hkeys             { shift; +[@_] }
+sub _process_hmget             { shift; +[@_] }
+sub _process_hvals             { shift; +[@_] }
+sub _process_keys              { shift; +[@_] }
+sub _process_lrange            { shift; +[@_] }
+sub _process_mget              { shift; +[@_] }
+sub _process_sdiff             { shift; +[@_] }
+sub _process_smembers          { shift; +[@_] }
+sub _process_sort              { shift; +[@_] }
+sub _process_sunion            { shift; +[@_] }
+sub _process_xrange            { shift; +[@_] }
+sub _process_xread             { shift; +[@_] }
+sub _process_xreadgroup        { shift; +[@_] }
+sub _process_xrevrange         { shift; +[@_] }
+sub _process_xpending          { shift; +[@_] }
+sub _process_zrange            { shift; +[@_] }
+sub _process_zrangebylex       { shift; +[@_] }
+sub _process_zrangebyscore     { shift; +[@_] }
 
 sub DESTROY {
   my $self = shift;
