@@ -2,42 +2,43 @@ package Mojo::Redis::Database;
 use Mojo::Base -base;
 
 our @BASIC_COMMANDS = (
-  'append',         'bgrewriteaof',      'bgsave',           'bitcount',
-  'bitfield',       'bitop',             'bitpos',           'client',
-  'config',         'command',           'dbsize',           'debug',
-  'decr',           'decrby',            'del',              'dump',
-  'echo',           'eval',              'evalsha',          'exists',
-  'expire',         'expireat',          'flushall',         'flushdb',
-  'geoadd',         'geohash',           'geopos',           'geodist',
-  'georadius',      'georadiusbymember', 'get',              'getbit',
-  'getrange',       'getset',            'hdel',             'hexists',
-  'hget',           'hgetall',           'hincrby',          'hincrbyfloat',
-  'hkeys',          'hlen',              'hmget',            'hmset',
-  'hset',           'hsetnx',            'hstrlen',          'hvals',
-  'info',           'incr',              'incrby',           'incrbyfloat',
-  'keys',           'lastsave',          'lindex',           'linsert',
-  'llen',           'lpop',              'lpush',            'lpushx',
-  'lrange',         'lrem',              'lset',             'ltrim',
-  'memory',         'mget',              'move',             'mset',
-  'msetnx',         'object',            'persist',          'pexpire',
-  'pexpireat',      'pttl',              'pfadd',            'pfcount',
-  'pfmerge',        'ping',              'psetex',           'publish',
-  'randomkey',      'rename',            'renamenx',         'role',
-  'rpop',           'rpoplpush',         'rpush',            'rpushx',
-  'restore',        'sadd',              'save',             'scard',
-  'script',         'sdiff',             'sdiffstore',       'set',
-  'setbit',         'setex',             'setnx',            'setrange',
-  'sinter',         'sinterstore',       'sismember',        'slaveof',
-  'slowlog',        'smembers',          'smove',            'sort',
-  'spop',           'srandmember',       'srem',             'strlen',
-  'sunion',         'sunionstore',       'time',             'touch',
-  'ttl',            'type',              'unlink',           'zadd',
-  'zcard',          'zcount',            'zincrby',          'zinterstore',
-  'zlexcount',      'zpopmax',           'zpopmin',          'zrange',
-  'zrangebylex',    'zrangebyscore',     'zrank',            'zrem',
-  'zremrangebylex', 'zremrangebyrank',   'zremrangebyscore', 'zrevrange',
-  'zrevrangebylex', 'zrevrangebyscore',  'zrevrank',         'zscore',
-  'zunionstore',
+  'append',           'bgrewriteaof',      'bgsave',      'bitcount',
+  'bitfield',         'bitop',             'bitpos',      'client',
+  'config',           'command',           'dbsize',      'debug',
+  'decr',             'decrby',            'del',         'dump',
+  'echo',             'eval',              'evalsha',     'exists',
+  'expire',           'expireat',          'flushall',    'flushdb',
+  'geoadd',           'geohash',           'geopos',      'geodist',
+  'georadius',        'georadiusbymember', 'get',         'getbit',
+  'getrange',         'getset',            'hdel',        'hexists',
+  'hget',             'hgetall',           'hincrby',     'hincrbyfloat',
+  'hkeys',            'hlen',              'hmget',       'hmset',
+  'hset',             'hsetnx',            'hstrlen',     'hvals',
+  'info',             'incr',              'incrby',      'incrbyfloat',
+  'keys',             'lastsave',          'lindex',      'linsert',
+  'llen',             'lpop',              'lpush',       'lpushx',
+  'lrange',           'lrem',              'lset',        'ltrim',
+  'memory',           'mget',              'move',        'mset',
+  'msetnx',           'object',            'persist',     'pexpire',
+  'pexpireat',        'pttl',              'pfadd',       'pfcount',
+  'pfmerge',          'ping',              'psetex',      'publish',
+  'randomkey',        'rename',            'renamenx',    'role',
+  'rpop',             'rpoplpush',         'rpush',       'rpushx',
+  'restore',          'sadd',              'save',        'scard',
+  'script',           'sdiff',             'sdiffstore',  'set',
+  'setbit',           'setex',             'setnx',       'setrange',
+  'sinter',           'sinterstore',       'sismember',   'slaveof',
+  'slowlog',          'smembers',          'smove',       'sort',
+  'spop',             'srandmember',       'srem',        'strlen',
+  'sunion',           'sunionstore',       'time',        'touch',
+  'ttl',              'type',              'unlink',      'xadd',
+  'xrange',           'xrevrange',         'xlen',        'xread',
+  'xreadgroup',       'xpending',          'zadd',        'zcard',
+  'zcount',           'zincrby',           'zinterstore', 'zlexcount',
+  'zpopmax',          'zpopmin',           'zrange',      'zrangebylex',
+  'zrangebyscore',    'zrank',             'zrem',        'zremrangebylex',
+  'zremrangebyrank',  'zremrangebyscore',  'zrevrange',   'zrevrangebylex',
+  'zrevrangebyscore', 'zrevrank',          'zscore',      'zunionstore',
 );
 
 our @BLOCKING_COMMANDS = ('blpop', 'brpop', 'brpoplpush', 'bzpopmax', 'bzpopmin');
@@ -152,6 +153,11 @@ sub _process_sdiff             { +[@_] }
 sub _process_smembers          { +[@_] }
 sub _process_sort              { +[@_] }
 sub _process_sunion            { +[@_] }
+sub _process_xrange            { +[@_] }
+sub _process_xread             { +[@_] }
+sub _process_xreadgroup        { +[@_] }
+sub _process_xrevrange         { +[@_] }
+sub _process_xpending          { +[@_] }
 sub _process_zrange            { +[@_] }
 sub _process_zrangebylex       { +[@_] }
 sub _process_zrangebyscore     { +[@_] }
@@ -1519,6 +1525,76 @@ See L<https://redis.io/commands/unwatch> for more information.
 Watch the given keys to determine execution of the MULTI/EXEC block.
 
 See L<https://redis.io/commands/watch> for more information.
+
+=head2 xadd
+
+  @res     = $self->xadd($key, $ID, $field string [field string ...]);
+  $self    = $self->xadd($key, $ID, $field string [field string ...], sub { my ($self, @res) = @_ });
+  $promise = $self->xadd_p($key, $ID, $field string [field string ...]);
+
+Appends a new entry to a stream.
+
+See L<https://redis.io/commands/xadd> for more information.
+
+=head2 xlen
+
+  @res     = $self->xlen($key);
+  $self    = $self->xlen($key, sub { my ($self, @res) = @_ });
+  $promise = $self->xlen_p($key);
+
+Return the number of entires in a stream.
+
+See L<https://redis.io/commands/xlen> for more information.
+
+=head2 xpending
+
+  @res     = $self->xpending($key, $group, [start end count], [consumer]);
+  $self    = $self->xpending($key, $group, [start end count], [consumer], sub { my ($self, @res) = @_ });
+  $promise = $self->xpending_p($key, $group, [start end count], [consumer]);
+
+Return information and entries from a stream consumer group pending entries list, that are messages fetched but never acknowledged.
+
+See L<https://redis.io/commands/xpending> for more information.
+
+=head2 xrange
+
+  @res     = $self->xrange($key, $start, $end, [COUNT count]);
+  $self    = $self->xrange($key, $start, $end, [COUNT count], sub { my ($self, @res) = @_ });
+  $promise = $self->xrange_p($key, $start, $end, [COUNT count]);
+
+Return a range of elements in a stream, with IDs matching the specified IDs interval.
+
+See L<https://redis.io/commands/xrange> for more information.
+
+=head2 xread
+
+  @res     = $self->xread([COUNT count], [BLOCK milliseconds], $STREAMS, $key [key ...], $ID [ID ...]);
+  $self    = $self->xread([COUNT count], [BLOCK milliseconds], $STREAMS, $key [key ...], $ID [ID ...], sub { my ($self, @res) = @_ });
+  $promise = $self->xread_p([COUNT count], [BLOCK milliseconds], $STREAMS, $key [key ...], $ID [ID ...]);
+
+Return never seen elements in multiple streams, with IDs greater than the ones reported by the caller for each stream. Can block.
+
+See L<https://redis.io/commands/xread> for more information.
+
+=head2 xreadgroup
+
+  @res     = $self->xreadgroup($GROUP group consumer, [COUNT count], [BLOCK milliseconds], $STREAMS, $key [key ...], $ID [ID ...]);
+  $self    = $self->xreadgroup($GROUP group consumer, [COUNT count], [BLOCK milliseconds], $STREAMS, $key [key ...], $ID [ID ...], sub { my ($self, @res) = @_ });
+  $promise = $self->xreadgroup_p($GROUP group consumer, [COUNT count], [BLOCK milliseconds], $STREAMS, $key [key ...], $ID [ID ...]);
+
+Return new entries from a stream using a consumer group, or access the history of the pending entries for a given consumer. Can block.
+
+See L<https://redis.io/commands/xreadgroup> for more information.
+
+=head2 xrevrange
+
+  @res     = $self->xrevrange($key, $end, $start, [COUNT count]);
+  $self    = $self->xrevrange($key, $end, $start, [COUNT count], sub { my ($self, @res) = @_ });
+  $promise = $self->xrevrange_p($key, $end, $start, [COUNT count]);
+
+Return a range of elements in a stream, with IDs matching the specified IDs interval, in reverse order (from greater to smaller IDs) compared to XRANGE.
+
+See L<https://redis.io/commands/xrevrange> for more information.
 
 =head2 zadd
 

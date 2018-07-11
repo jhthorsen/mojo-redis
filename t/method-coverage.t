@@ -13,7 +13,7 @@ my @classes = qw(Mojo::Redis::Database Mojo::Redis::PubSub);
 my (%doc, %skip);
 
 $skip{method}{$_} = 1 for qw(auth hscan quit monitor migrate pubsub scan select shutdown sscan sync swapdb wait zscan);
-$skip{group}{$_}  = 1 for qw(cluster stream);
+$skip{group}{$_}  = 1 for qw(cluster);
 
 $methods = $methods->map(sub {
   $doc{$_->{'data-name'}} = [
