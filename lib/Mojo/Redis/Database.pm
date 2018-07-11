@@ -2,37 +2,42 @@ package Mojo::Redis::Database;
 use Mojo::Base -base;
 
 our @BASIC_COMMANDS = (
-  'append',            'bitcount',         'bitfield',     'bitop',
-  'bitpos',            'echo',             'eval',         'evalsha',
-  'decr',              'decrby',           'del',          'dump',
-  'exists',            'expire',           'expireat',     'geoadd',
-  'geohash',           'geopos',           'geodist',      'georadius',
-  'georadiusbymember', 'get',              'getbit',       'getrange',
-  'getset',            'hdel',             'hexists',      'hget',
-  'hgetall',           'hincrby',          'hincrbyfloat', 'hkeys',
-  'hlen',              'hmget',            'hmset',        'hset',
-  'hsetnx',            'hstrlen',          'hvals',        'incr',
-  'incrby',            'incrbyfloat',      'keys',         'lindex',
-  'linsert',           'llen',             'lpop',         'lpush',
-  'lpushx',            'lrange',           'lrem',         'lset',
-  'ltrim',             'mget',             'move',         'mset',
-  'msetnx',            'object',           'persist',      'pexpire',
-  'pexpireat',         'pttl',             'pfadd',        'pfcount',
-  'pfmerge',           'ping',             'psetex',       'publish',
-  'randomkey',         'rename',           'renamenx',     'rpop',
-  'rpoplpush',         'rpush',            'rpushx',       'restore',
-  'sadd',              'scard',            'script',       'sdiff',
-  'sdiffstore',        'set',              'setbit',       'setex',
-  'setnx',             'setrange',         'sinter',       'sinterstore',
-  'sismember',         'smembers',         'smove',        'sort',
-  'spop',              'srandmember',      'srem',         'strlen',
-  'sunion',            'sunionstore',      'touch',        'ttl',
-  'type',              'unlink',           'zadd',         'zcard',
-  'zcount',            'zincrby',          'zinterstore',  'zlexcount',
-  'zpopmax',           'zpopmin',          'zrange',       'zrangebylex',
-  'zrangebyscore',     'zrank',            'zrem',         'zremrangebylex',
-  'zremrangebyrank',   'zremrangebyscore', 'zrevrange',    'zrevrangebylex',
-  'zrevrangebyscore',  'zrevrank',         'zscore',       'zunionstore',
+  'append',         'bgrewriteaof',      'bgsave',           'bitcount',
+  'bitfield',       'bitop',             'bitpos',           'client',
+  'config',         'command',           'dbsize',           'debug',
+  'decr',           'decrby',            'del',              'dump',
+  'echo',           'eval',              'evalsha',          'exists',
+  'expire',         'expireat',          'flushall',         'flushdb',
+  'geoadd',         'geohash',           'geopos',           'geodist',
+  'georadius',      'georadiusbymember', 'get',              'getbit',
+  'getrange',       'getset',            'hdel',             'hexists',
+  'hget',           'hgetall',           'hincrby',          'hincrbyfloat',
+  'hkeys',          'hlen',              'hmget',            'hmset',
+  'hset',           'hsetnx',            'hstrlen',          'hvals',
+  'info',           'incr',              'incrby',           'incrbyfloat',
+  'keys',           'lastsave',          'lindex',           'linsert',
+  'llen',           'lpop',              'lpush',            'lpushx',
+  'lrange',         'lrem',              'lset',             'ltrim',
+  'memory',         'mget',              'move',             'mset',
+  'msetnx',         'object',            'persist',          'pexpire',
+  'pexpireat',      'pttl',              'pfadd',            'pfcount',
+  'pfmerge',        'ping',              'psetex',           'publish',
+  'randomkey',      'rename',            'renamenx',         'role',
+  'rpop',           'rpoplpush',         'rpush',            'rpushx',
+  'restore',        'sadd',              'save',             'scard',
+  'script',         'sdiff',             'sdiffstore',       'set',
+  'setbit',         'setex',             'setnx',            'setrange',
+  'sinter',         'sinterstore',       'sismember',        'slaveof',
+  'slowlog',        'smembers',          'smove',            'sort',
+  'spop',           'srandmember',       'srem',             'strlen',
+  'sunion',         'sunionstore',       'time',             'touch',
+  'ttl',            'type',              'unlink',           'zadd',
+  'zcard',          'zcount',            'zincrby',          'zinterstore',
+  'zlexcount',      'zpopmax',           'zpopmin',          'zrange',
+  'zrangebylex',    'zrangebyscore',     'zrank',            'zrem',
+  'zremrangebylex', 'zremrangebyrank',   'zremrangebyscore', 'zrevrange',
+  'zrevrangebylex', 'zrevrangebyscore',  'zrevrank',         'zscore',
+  'zunionstore',
 );
 
 our @BLOCKING_COMMANDS = ('blpop', 'brpop', 'brpoplpush', 'bzpopmax', 'bzpopmin');
@@ -219,6 +224,26 @@ Append a value to a key.
 
 See L<https://redis.io/commands/append> for more information.
 
+=head2 bgrewriteaof
+
+  @res     = $self->bgrewriteaof;
+  $self    = $self->bgrewriteaof(sub { my ($self, @res) = @_ });
+  $promise = $self->bgrewriteaof_p;
+
+Asynchronously rewrite the append-only file.
+
+See L<https://redis.io/commands/bgrewriteaof> for more information.
+
+=head2 bgsave
+
+  @res     = $self->bgsave;
+  $self    = $self->bgsave(sub { my ($self, @res) = @_ });
+  $promise = $self->bgsave_p;
+
+Asynchronously save the dataset to disk.
+
+See L<https://redis.io/commands/bgsave> for more information.
+
 =head2 bitcount
 
   @res     = $self->bitcount($key, [start end]);
@@ -308,6 +333,64 @@ See L<https://redis.io/commands/bzpopmax> for more information.
 Remove and return the member with the lowest score from one or more sorted sets, or block until one is available.
 
 See L<https://redis.io/commands/bzpopmin> for more information.
+
+=head2 client
+
+  @res     = $self->command(@args);
+  $self    = $self->command(@args, sub { my ($self, @res) = @_ });
+  $promise = $self->command_p(@args);
+
+Run a "CLIENT" command on the server. C<@args> can be:
+
+=over 2
+
+=item * KILL [ip:port] [ID client-id] [TYPE normal|master|slave|pubsub] [ADDR ip:port] [SKIPME yes/no]
+
+=item * LIST
+
+=item * GETNAME
+
+=item * PAUSE timeout
+
+=item * REPLY [ON|OFF|SKIP]
+
+=item * SETNAME connection-name
+
+=back
+
+See L<https://redis.io/commands#server> for more information.
+
+=head2 command
+
+  @res     = $self->command(@args);
+  $self    = $self->command(@args, sub { my ($self, @res) = @_ });
+  $promise = $self->command_p(@args);
+
+Get array of Redis command details.
+
+=over 2
+
+=item * empty list
+
+=item * COUNT
+
+=item * GETKEYS
+
+=item * INFO command-name [command-name]
+
+=back
+
+See L<https://redis.io/commands/command> for more information.
+
+=head2 dbsize
+
+  @res     = $self->dbsize;
+  $self    = $self->dbsize(sub { my ($self, @res) = @_ });
+  $promise = $self->dbsize_p;
+
+Return the number of keys in the selected database.
+
+See L<https://redis.io/commands/dbsize> for more information.
 
 =head2 decr
 
@@ -436,6 +519,26 @@ See L<https://redis.io/commands/expire> for more information.
 Set the expiration for a key as a UNIX timestamp.
 
 See L<https://redis.io/commands/expireat> for more information.
+
+=head2 flushall
+
+  @res     = $self->flushall([ASYNC]);
+  $self    = $self->flushall([ASYNC], sub { my ($self, @res) = @_ });
+  $promise = $self->flushall_p([ASYNC]);
+
+Remove all keys from all databases.
+
+See L<https://redis.io/commands/flushall> for more information.
+
+=head2 flushdb
+
+  @res     = $self->flushdb([ASYNC]);
+  $self    = $self->flushdb([ASYNC], sub { my ($self, @res) = @_ });
+  $promise = $self->flushdb_p([ASYNC]);
+
+Remove all keys from the current database.
+
+See L<https://redis.io/commands/flushdb> for more information.
 
 =head2 geoadd
 
@@ -677,6 +780,16 @@ Get all the values in a hash.
 
 See L<https://redis.io/commands/hvals> for more information.
 
+=head2 info
+
+  @res     = $self->info([section]);
+  $self    = $self->info([section], sub { my ($self, @res) = @_ });
+  $promise = $self->info_p([section]);
+
+Get information and statistics about the server.
+
+See L<https://redis.io/commands/info> for more information.
+
 =head2 incr
 
   @res     = $self->incr($key);
@@ -716,6 +829,16 @@ See L<https://redis.io/commands/incrbyfloat> for more information.
 Find all keys matching the given pattern.
 
 See L<https://redis.io/commands/keys> for more information.
+
+=head2 lastsave
+
+  @res     = $self->lastsave;
+  $self    = $self->lastsave(sub { my ($self, @res) = @_ });
+  $promise = $self->lastsave_p;
+
+Get the UNIX time stamp of the last successful save to disk.
+
+See L<https://redis.io/commands/lastsave> for more information.
 
 =head2 lindex
 
@@ -1013,6 +1136,16 @@ Rename a key, only if the new key does not exist.
 
 See L<https://redis.io/commands/renamenx> for more information.
 
+=head2 role
+
+  @res     = $self->role;
+  $self    = $self->role(sub { my ($self, @res) = @_ });
+  $promise = $self->role_p;
+
+Return the role of the instance in the context of replication.
+
+See L<https://redis.io/commands/role> for more information.
+
 =head2 rpop
 
   @res     = $self->rpop($key);
@@ -1072,6 +1205,16 @@ See L<https://redis.io/commands/restore> for more information.
 Add one or more members to a set.
 
 See L<https://redis.io/commands/sadd> for more information.
+
+=head2 save
+
+  @res     = $self->save;
+  $self    = $self->save(sub { my ($self, @res) = @_ });
+  $promise = $self->save_p;
+
+Synchronously save the dataset to disk.
+
+See L<https://redis.io/commands/save> for more information.
 
 =head2 scard
 
@@ -1197,6 +1340,26 @@ Determine if a given value is a member of a set.
 
 See L<https://redis.io/commands/sismember> for more information.
 
+=head2 slaveof
+
+  @res     = $self->slaveof($host, $port);
+  $self    = $self->slaveof($host, $port, sub { my ($self, @res) = @_ });
+  $promise = $self->slaveof_p($host, $port);
+
+Make the server a slave of another instance, or promote it as master.
+
+See L<https://redis.io/commands/slaveof> for more information.
+
+=head2 slowlog
+
+  @res     = $self->slowlog($subcommand, [argument]);
+  $self    = $self->slowlog($subcommand, [argument], sub { my ($self, @res) = @_ });
+  $promise = $self->slowlog_p($subcommand, [argument]);
+
+Manages the Redis slow queries log.
+
+See L<https://redis.io/commands/slowlog> for more information.
+
 =head2 smembers
 
   @res     = $self->smembers($key);
@@ -1287,6 +1450,16 @@ Add multiple sets and store the resulting set in a key.
 
 See L<https://redis.io/commands/sunionstore> for more information.
 
+=head2 time
+
+  @res     = $self->time;
+  $self    = $self->time(sub { my ($self, @res) = @_ });
+  $promise = $self->time_p;
+
+Return the current server time.
+
+See L<https://redis.io/commands/time> for more information.
+
 =head2 touch
 
   @res     = $self->touch($key [key ...]);
@@ -1329,9 +1502,9 @@ See L<https://redis.io/commands/unlink> for more information.
 
 =head2 unwatch
 
-  @res     = $self->unwatch();
-  $self    = $self->unwatch(, sub { my ($self, @res) = @_ });
-  $promise = $self->unwatch_p();
+  @res     = $self->unwatch;
+  $self    = $self->unwatch(sub { my ($self, @res) = @_ });
+  $promise = $self->unwatch_p;
 
 Forget about all watched keys.
 
