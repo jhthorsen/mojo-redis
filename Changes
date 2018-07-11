@@ -1,6 +1,6 @@
 Revision history for perl distribution Mojo-Redis
 
-3.04 Not Released
+3.04 2018-07-11T09:24:09+0800
  - Add server commands #4
  - Add stream commands #6
  - Add support for keyspace notifications #10
