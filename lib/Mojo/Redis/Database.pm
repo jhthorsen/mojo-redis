@@ -223,6 +223,9 @@ Mojo::Redis::Database - Execute basic redis commands
   # Promises
   $db->get_p("foo")->then(sub { my ($res) = @_; say "foo=$res" });
 
+See L<https://github.com/jhthorsen/mojo-redis/blob/master/examples/twitter.pl>
+for example L<Mojolicious> application.
+
 =head1 DESCRIPTION
 
 L<Mojo::Redis::Database> has methods for sending and receiving structured

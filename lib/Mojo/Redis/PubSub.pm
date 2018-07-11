@@ -102,6 +102,9 @@ Mojo::Redis::PubSub - Publish and subscribe to Redis messages
 
   $pubsub->notify("user:batboy:messages", "How are you doing?");
 
+See L<https://github.com/jhthorsen/mojo-redis/blob/master/examples/chat.pl>
+for example L<Mojolicious> application.
+
 =head1 DESCRIPTION
 
 L<Mojo::Redis::PubSub> is an implementation of the Redis Publish/Subscribe

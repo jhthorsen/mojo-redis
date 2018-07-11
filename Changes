@@ -2,6 +2,7 @@ Revision history for perl distribution Mojo-Redis
 
 3.06 Not Released
  - Fix processing exec() result
+ - Improved example applications and add references from the POD
 
 3.05 2018-07-11T10:24:59+0800
  - Fix holding $db in memory when issuing commands and returning promises
