@@ -143,7 +143,7 @@ sub _generate_p_method {
   };
 }
 
-sub _process_exec              { shift; +[@_] }
+sub _process__exec             { shift; +[@_] }
 sub _process_geohash           { shift; +[@_] }
 sub _process_geopos            { shift; +{lng => shift, lat => shift} }
 sub _process_georadius         { shift; +[@_] }
