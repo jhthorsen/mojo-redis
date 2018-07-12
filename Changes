@@ -1,7 +1,9 @@
 Revision history for perl distribution Mojo-Redis
 
-3.07 Not Released
+3.07 2018-07-12T09:59:05+0800
  - Add support for sending custom commands #18
+ - Fix documentation issues
+ - Will not enqueue connections if url() has changed
 
 3.06 2018-07-11T11:00:01+0800
  - Fix processing exec() result
