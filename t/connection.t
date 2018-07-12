@@ -100,7 +100,7 @@ $redis->{pid} = $$;
 note 'New connection, because URL changed';
 $db = $redis->db;
 $db->get_p($0)->wait;    # Make sure we are connected
-$redis->url($redis->url->clone->path(''));
+$redis->url->host($ENV{TEST_ONLINE} =~ /localhost/ ? '127.0.0.1' : 'localhost');
 $db = undef;
 is @{$redis->{queue}}, 0, 'database was not enqued';
 

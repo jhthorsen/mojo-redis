@@ -51,7 +51,7 @@ sub _connection {
   my $conn = Mojo::Redis::Connection->new(
     encoding => $self->encoding,
     protocol => $self->protocol_class->new(api => 1),
-    url      => $self->url,
+    url      => $self->url->clone,
     %args
   );
 
