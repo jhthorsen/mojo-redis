@@ -74,7 +74,7 @@ sub _dequeue {
 sub _enqueue {
   my ($self, $conn) = @_;
   my $queue = $self->{queue} ||= [];
-  push @$queue, $conn if $conn->is_connected;
+  push @$queue, $conn if $conn->is_connected and $conn->url eq $self->url;
   shift @$queue while @$queue > $self->max_connections;
 }
 

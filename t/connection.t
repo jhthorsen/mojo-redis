@@ -89,11 +89,19 @@ $conn->write_p(qw(del t:redis:encoding))->wait;
 $redis->encoding(undef);
 is $redis->db->connection->encoding, undef, 'Encoding changed for new connections';
 
-# Fork-safety
+note 'Fork-safety';
 $conn = $db->connection;
 undef $db;
 $redis->{pid} = -1;
 isnt $redis->db->connection, $conn, 'new fork gets a new connecion';
 undef $conn;
+$redis->{pid} = $$;
+
+note 'New connection, because URL changed';
+$db = $redis->db;
+$db->get_p($0)->wait;    # Make sure we are connected
+$redis->url($redis->url->clone->path(''));
+$db = undef;
+is @{$redis->{queue}}, 0, 'database was not enqued';
 
 done_testing;
