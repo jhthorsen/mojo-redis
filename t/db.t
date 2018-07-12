@@ -37,6 +37,10 @@ $db->hmset_p($0, a => 11, b => 22);
 $db->hgetall_p($0)->then(sub { $res = shift })->wait;
 is_deeply $res, {a => 11, b => 22}, 'hgetall_p';
 
+# Custom command
+$db->call_p(HGETALL => $0)->then(sub { $res = [@_] })->wait;
+is_deeply [$db->call(HGETALL => $0)], $res, 'call_p() == call()';
+
 $res = $db->hkeys($0);
 is_deeply $res, [qw(a b)], 'hkeys';
 

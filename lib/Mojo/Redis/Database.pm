@@ -54,6 +54,29 @@ __PACKAGE__->_add_method('bnb'   => qw(_multi MULTI));
 __PACKAGE__->_add_method('bnb,p' => qw(info_structured info));
 __PACKAGE__->_add_method('bnb,p' => $_) for qw(unwatch watch);
 
+sub call {
+  my $cb   = ref $_[-1] eq 'CODE' ? pop : undef;
+  my $self = shift;
+  my $p    = ($cb ? $self->connection : $self->redis->_blocking_connection)->write_p(@_);
+
+  # Non-blocking
+  if ($cb) {
+    $p->then(sub { $self->$cb('', @_) })->catch(sub { $self->$cb(shift, undef) });
+    return $self;
+  }
+
+  # Blocking
+  my ($err, @res);
+  $p->then(sub { @res = @_ })->catch(sub { $err = shift })->wait;
+  die $err if $err;
+  return @res;
+}
+
+sub call_p {
+  my $self = shift;
+  return $self->connection->write_p(@_)->then(sub { $self = undef; @_ });
+}
+
 sub exec { delete $_[0]->{txn}; shift->_exec(@_) }
 
 sub exec_p {
@@ -368,6 +391,20 @@ See L<https://redis.io/commands/bzpopmax> for more information.
 Remove and return the member with the lowest score from one or more sorted sets, or block until one is available.
 
 See L<https://redis.io/commands/bzpopmin> for more information.
+
+=head2 call
+
+  @res  = $self->call($command => @args);
+  $self = $self->call($command => @args, sub { my ($self, $err, @res) = @_; });
+
+Same as L</call_p>, but either blocks or passes the result into a callback.
+
+=head2 call_p
+
+  $promise = $self->call_p($command => @args);
+  $promise = $self->call_p(GET => "some:key");
+
+Used to send a custom command to the Redis server.
 
 =head2 client
 

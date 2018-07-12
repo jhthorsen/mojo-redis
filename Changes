@@ -1,5 +1,8 @@
 Revision history for perl distribution Mojo-Redis
 
+3.07 Not Released
+ - Add support for sending custom commands #18
+
 3.06 2018-07-11T11:00:01+0800
  - Fix processing exec() result
  - Improved example applications and add references from the POD
