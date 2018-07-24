@@ -130,7 +130,7 @@ sub _parse_message_cb {
       if    ($type eq '-') { push @err, $data }
       elsif ($type eq ':') { push @res, 0 + $data }
       elsif ($type eq '*' and ref $data) { push @messages, @$data }
-      else                               { push @res,      $encoding ? Mojo::Util::decode($encoding, $data) : $data }
+      else { push @res, $encoding && defined $data ? Mojo::Util::decode($encoding, $data) : $data }
     }
 
     my $p = shift @{$self->{waiting} || []};
