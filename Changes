@@ -1,6 +1,7 @@
 Revision history for perl distribution Mojo-Redis
 
 3.08 Not Released
+ - Add benchmark test #3
  - Fix geopos return value
  - Fix return values in documentation
 
