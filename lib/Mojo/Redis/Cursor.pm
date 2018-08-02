@@ -128,7 +128,7 @@ sub _process_zscan    { $_[1] }
 
 sub DESTROY {
   my $self = shift;
-  return unless (my $redis = $self->redis) && (my $conn = $self->connection);
+  return unless (my $redis = $self->{redis}) && (my $conn = $self->{connection});
   $redis->_enqueue($conn);
 }
 

@@ -194,7 +194,7 @@ sub DESTROY {
   if (my $txn = delete $self->{txn}) {
     $self->redis->_blocking_connection->write_p('DISCARD')->wait if $txn eq 'blocking';
   }
-  elsif (my $redis = $self->redis and my $conn = $self->connection) {
+  elsif (my $redis = $self->{redis} and my $conn = $self->{connection}) {
     $redis->_enqueue($conn);
   }
 }
