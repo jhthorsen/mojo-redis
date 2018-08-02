@@ -137,10 +137,10 @@ sub _generate_bnb_method {
     }
 
     # Blocking
-    my @res;
-    $p->then(sub { @res = ('', @_) })->catch(sub { @res = @_ })->wait;
-    die $res[0] if $res[0];
-    return $res[1];
+    my ($err, $res);
+    $p->then(sub { $res = shift })->catch(sub { $err = shift })->wait;
+    die $err if defined $err;
+    return $res;
   };
 }
 
@@ -166,17 +166,10 @@ sub _generate_p_method {
   };
 }
 
-sub _process__exec             { shift; +[@_] }
-sub _process_geohash           { shift; +[@_] }
-sub _process_geopos            { shift; +{lng => shift, lat => shift} }
-sub _process_georadius         { shift; +[@_] }
-sub _process_georadiusbymember { shift; +[@_] }
-sub _process_blpop             { shift; reverse @_ }
-sub _process_brpop             { shift; reverse @_ }
-sub _process_hgetall           { shift; +{@_} }
-sub _process_hkeys             { shift; +[@_] }
-sub _process_hmget             { shift; +[@_] }
-sub _process_hvals             { shift; +[@_] }
+sub _process_geopos { [map { ref $_ ? +{lng => $_->[0], lat => $_->[1]} : undef } @{$_[1]}] }
+sub _process_blpop  { reverse @{$_[1]} }
+sub _process_brpop  { reverse @{$_[1]} }
+sub _process_hgetall { +{@{$_[1]}} }
 
 sub _process_info_structured {
   my $self    = shift;
@@ -194,22 +187,6 @@ sub _process_info_structured {
 
   return keys %res == 1 ? $section : \%res;
 }
-
-sub _process_keys          { shift; +[@_] }
-sub _process_lrange        { shift; +[@_] }
-sub _process_mget          { shift; +[@_] }
-sub _process_sdiff         { shift; +[@_] }
-sub _process_smembers      { shift; +[@_] }
-sub _process_sort          { shift; +[@_] }
-sub _process_sunion        { shift; +[@_] }
-sub _process_xrange        { shift; +[@_] }
-sub _process_xread         { shift; +[@_] }
-sub _process_xreadgroup    { shift; +[@_] }
-sub _process_xrevrange     { shift; +[@_] }
-sub _process_xpending      { shift; +[@_] }
-sub _process_zrange        { shift; +[@_] }
-sub _process_zrangebylex   { shift; +[@_] }
-sub _process_zrangebyscore { shift; +[@_] }
 
 sub DESTROY {
   my $self = shift;
@@ -639,11 +616,13 @@ See L<https://redis.io/commands/geohash> for more information.
 
 =head2 geopos
 
-  $res     = $self->geopos($key, $member [member ...]);
-  $self    = $self->geopos($key, $member [member ...], sub { my ($self, $err, $res) = @_ });
-  $promise = $self->geopos_p($key, $member [member ...]);
+  $array_ref = $self->geopos($key, $member [member ...]);
+  $self      = $self->geopos($key, $member [member ...], sub { my ($self, $err, $array_ref) = @_ });
+  $promise   = $self->geopos_p($key, $member [member ...]);
 
-Returns longitude and latitude of members of a geospatial index.
+Returns longitude and latitude of members of a geospatial index:
+
+  [{lat => $num, lng => $num}, ...]
 
 See L<https://redis.io/commands/geopos> for more information.
 
