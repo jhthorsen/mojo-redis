@@ -1,6 +1,6 @@
 Revision history for perl distribution Mojo-Redis
 
-3.08 Not Released
+3.08 2018-08-02T15:37:32+0800
  - Add benchmark test #3
  - Fix cache() need to use Protocol::Redis because of binary data
  - Fix GEOPOS return value
