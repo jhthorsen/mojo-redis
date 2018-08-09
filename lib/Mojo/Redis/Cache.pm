@@ -182,10 +182,10 @@ Prefix for the cache key.
 
 =head2 redis
 
-  $conn = $self->connection;
-  $self = $self->connection(Mojo::Redis::Connection->new);
+  $conn = $self->redis;
+  $self = $self->redis(Mojo::Redis->new);
 
-Holds a L<Mojo::Redis> object used to create the connections to talk with Redis.
+Holds a L<Mojo::Redis> object used to create the connection to talk with Redis.
 
 =head2 refresh
 
