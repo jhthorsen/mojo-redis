@@ -12,7 +12,7 @@ my $got = 0;
 Mojo::IOLoop->delay(
   sub {
     my ($delay) = @_;
-    $redis->get(foo => $delay->begin) for (0..2);
+    $redis->get(foo => $delay->begin) for (0 .. 2);
   },
   sub {
     (my $delay, $err, $res) = @_;
