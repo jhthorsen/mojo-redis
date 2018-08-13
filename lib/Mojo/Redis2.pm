@@ -433,16 +433,12 @@ the same Redis server. It will also re-use the same connection when you
   get '/' => sub {
     my $c = shift;
 
-    $c->delay(
-      sub {
-        my ($delay) = @_;
-        $c->redis->get('some:message', $delay->begin);
-      },
-      sub {
-        my ($delay, $err, $message) = @_;
-        $c->render(json => { error => $err, message => $message });
-      },
-    );
+    my $tx = $c->render_later->tx;
+    $c->redis->get('some:message', sub {
+      my ($redis, $err, $message) = @_;
+      $c->render(json => { error => $err, message => $message });
+      undef $tx;
+    });
   };
 
   app->start;
