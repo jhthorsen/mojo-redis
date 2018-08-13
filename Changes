@@ -1,5 +1,5 @@
 Revision history for perl distribution Mojo-Redis2
-0.32
+0.32 2018-08-13T17:25:51-04:00
  - Fix bug where not all outstanding callbacks would be processed in case of an error. #42
    - Contributor: Ben Wilber
  - Fix test failure from using removed delay helper in example and test. #45
