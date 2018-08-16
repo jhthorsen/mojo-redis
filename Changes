@@ -1,5 +1,8 @@
 Revision history for perl distribution Mojo-Redis2
 
+0.33 2018-08-16T23:59:54+0200
+ - Fix invalid Makefile.PL
+
 0.33 2018-08-16T23:49:55+0200
  - Mention Mojo::Redis as an alternative #23
 
