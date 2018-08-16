@@ -1,4 +1,8 @@
 Revision history for perl distribution Mojo-Redis2
+
+0.33 Not Released
+ - Mention Mojo::Redis as an alternative #23
+
 0.32 2018-08-13T17:25:51-04:00
  - Fix bug where not all outstanding callbacks would be processed in case of an error. #42
    - Contributor: Ben Wilber
