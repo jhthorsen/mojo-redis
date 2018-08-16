@@ -1,5 +1,9 @@
 Revision history for perl distribution Mojo-Redis
 
+3.10 2018-08-16T23:41:10+0200
+ - Add cluster commands #5
+ - Add basic support for sentinel #13
+
 3.09 2018-08-09T15:32:24+0200
  - Improved documentation for Cache
 
