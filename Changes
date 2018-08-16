@@ -1,6 +1,6 @@
 Revision history for perl distribution Mojo-Redis2
 
-0.33 Not Released
+0.33 2018-08-16T23:49:55+0200
  - Mention Mojo::Redis as an alternative #23
 
 0.32 2018-08-13T17:25:51-04:00
