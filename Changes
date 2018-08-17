@@ -1,5 +1,8 @@
 Revision history for perl distribution Mojo-Redis
 
+3.12 Not Released
+ - Add support for negative cache expire for serving stale data
+
 3.11 2018-08-17T00:01:33+0200
  - Fix invalid Makefile.PL
 
