@@ -1,6 +1,6 @@
 Revision history for perl distribution Mojo-Redis2
 
-0.35 Not Released
+0.35 2018-09-07T21:30:47+0200
  - Replaced the module with Mojo::Redis
 
 0.34 2018-08-17T00:00:48+0200
