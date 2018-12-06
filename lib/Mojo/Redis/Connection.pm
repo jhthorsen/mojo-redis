@@ -14,6 +14,11 @@ has ioloop   => sub { Carp::confess('ioloop is required in constructor') };
 has protocol => sub { Carp::confess('protocol is required in constructor') };
 has url      => sub { Carp::confess('url is required in constructor') };
 
+sub DESTROY {
+  my $self = shift;
+  $self->disconnect if defined $self->{pid} and $self->{pid} == $$;
+}
+
 sub disconnect {
   my $self = shift;
   $self->{stream}->close if $self->{stream};
@@ -71,6 +76,7 @@ sub _connect {
       unshift @{$self->{write}}, [$self->_encode(SELECT => $url->path->[0])] if length $url->path->[0];
       unshift @{$self->{write}}, [$self->_encode(AUTH   => $url->password)]  if length $url->password;
       $self->{stream} = $stream;
+      $self->{pid} = $$;
       $self->emit('connect');
       $self->_write;
     }
