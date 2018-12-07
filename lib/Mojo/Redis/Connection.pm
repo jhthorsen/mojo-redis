@@ -75,8 +75,8 @@ sub _connect {
 
       unshift @{$self->{write}}, [$self->_encode(SELECT => $url->path->[0])] if length $url->path->[0];
       unshift @{$self->{write}}, [$self->_encode(AUTH   => $url->password)]  if length $url->password;
+      $self->{pid}    = $$;
       $self->{stream} = $stream;
-      $self->{pid} = $$;
       $self->emit('connect');
       $self->_write;
     }
@@ -151,7 +151,8 @@ sub _on_close_cb {
     return unless $self;
     my ($stream, $err) = @_;
     delete $self->{$_} for qw(id stream);
-    $self->emit(error => $err) if $err;
+    $self->emit(error => $err) if @_ == 2;
+    $self->emit('close') if @_ == 1;
     warn qq([@{[$self->_id]}] @{[$err ? "ERROR $err" : "CLOSED"]}\n) if DEBUG;
   };
 }
@@ -250,6 +251,12 @@ from a Redis server.
 You probably want to use L<Mojo::Redis> instead of this class.
 
 =head1 EVENTS
+
+=head2 close
+
+  $cb = $self->on(close => sub { my ($self) = @_; });
+
+Emitted when the connection to the redis server gets closed.
 
 =head2 connect
 

@@ -108,9 +108,10 @@ is @{$redis->{queue}}, 0, 'database was not enqued';
 
 # Connection closes when ref is lost
 $db = $redis->db;
-$db->get_p($0)->wait;    # Make sure we are connected
+$db->get_p($0)->wait;
+ok $db->connection->is_connected, 'connected';
 my $closed;
-$db->connection->{stream}->on(close => sub { $closed++ });
+$db->connection->on(close => sub { $closed++ });
 $redis->max_connections(0);
 undef $db;
 ok $closed, 'connection was closed on destruction';
