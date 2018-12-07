@@ -106,4 +106,14 @@ $redis->url->host($ENV{TEST_ONLINE} =~ /localhost/ ? '127.0.0.1' : 'localhost');
 $db = undef;
 is @{$redis->{queue}}, 0, 'database was not enqued';
 
+# Connection closes when ref is lost
+$db = $redis->db;
+$db->get_p($0)->wait;
+ok $db->connection->is_connected, 'connected';
+my $closed;
+$db->connection->on(close => sub { $closed++ });
+$redis->max_connections(0);
+undef $db;
+ok $closed, 'connection was closed on destruction';
+
 done_testing;
