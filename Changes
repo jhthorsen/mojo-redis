@@ -1,8 +1,9 @@
 Revision history for perl distribution Mojo-Redis
 
 3.13 Not Released
- - Fix connection.t when using a remote server
- - Fix cursor.t to use TEST_ONLINE
+ - Fix rejecting promises when connection is lost #24
+ - Fix connection.t when using a remote server #25
+ - Fix cursor.t to use TEST_ONLINE #26 #27
    Contributor: Alexander Karelas
 
 3.12 2018-12-07T12:04:19+0900
