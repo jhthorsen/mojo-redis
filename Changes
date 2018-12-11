@@ -1,5 +1,10 @@
 Revision history for perl distribution Mojo-Redis
 
+3.13 Not Released
+ - Fix connection.t when using a remote server
+ - Fix cursor.t to use TEST_ONLINE
+   Contributor: Alexander Karelas
+
 3.12 2018-12-07T12:04:19+0900
  - Add support for negative cache expire for serving stale data
  - Add destructor to Connection object to clean up connections
