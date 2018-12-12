@@ -31,25 +31,6 @@ has pubsub => sub {
 
 has url => sub { Mojo::URL->new($ENV{MOJO_REDIS_URL}) };
 
-# TODO: Should this attribute be public?
-sub _blocking_connection {
-  my $self = shift;
-
-  delete @$self{qw(blocking_connection pid queue)} unless ($self->{pid} //= $$) eq $$;    # Fork-safety
-
-  if (@_) {
-    $self->{blocking_connection} = shift;
-    return $self;
-  }
-
-  # Existing connection
-  return $self->{blocking_connection}->encoding($self->encoding)
-    if $self->{blocking_connection} and $self->{blocking_connection}->is_connected;
-
-  # New connection
-  return $self->{blocking_connection} = $self->_connection(ioloop => Mojo::IOLoop->new);
-}
-
 sub cache { Mojo::Redis::Cache->new(redis => shift, @_) }
 sub cursor { Mojo::Redis::Cursor->new(redis => shift, command => [@_ ? @_ : (scan => 0)]) }
 sub db { Mojo::Redis::Database->new(redis => shift) }
@@ -76,9 +57,19 @@ sub _connection {
   $conn;
 }
 
+sub _blocking_connection {
+  my $self = shift->_fork_safety;
+
+  # Existing connection
+  return $self->{blocking_connection}->encoding($self->encoding)
+    if $self->{blocking_connection} and $self->{blocking_connection}->is_connected;
+
+  # New connection
+  return $self->{blocking_connection} = $self->_connection(ioloop => Mojo::IOLoop->new);
+}
+
 sub _dequeue {
-  my $self = shift;
-  delete @$self{qw(blocking_connection pid queue)} unless ($self->{pid} //= $$) eq $$;    # Fork-safety
+  my $self = shift->_fork_safety;
 
   # Exsting connection
   while (my $conn = shift @{$self->{queue} || []}) { return $conn->encoding($self->encoding) if $conn->is_connected }
@@ -92,6 +83,12 @@ sub _enqueue {
   my $queue = $self->{queue} ||= [];
   push @$queue, $conn if $conn->is_connected and $conn->url eq $self->url;
   shift @$queue while @$queue > $self->max_connections;
+}
+
+sub _fork_safety {
+  my $self = shift;
+  delete @$self{qw(blocking_connection pid queue)} unless ($self->{pid} //= $$) eq $$;    # Fork-safety
+  $self;
 }
 
 1;
