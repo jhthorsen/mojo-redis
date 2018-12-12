@@ -1,5 +1,9 @@
 Revision history for perl distribution Mojo-Redis
 
+3.14 Not Released
+ - Fix fork-safity for the blocking connection #28
+ - Fix connection-lost.t in other languages, closes #29
+
 3.13 2018-12-11T14:44:45+0900
  - Fix rejecting promises when connection is lost #24
  - Fix connection.t when using a remote server #25
