@@ -58,7 +58,7 @@ __PACKAGE__->_add_method('bnb,p' => $_) for qw(unwatch watch);
 sub call {
   my $cb   = ref $_[-1] eq 'CODE' ? pop : undef;
   my $self = shift;
-  my $p    = ($cb ? $self->connection : $self->redis->_blocking_connection)->write_p(@_);
+  my $p    = $self->_connection($cb)->write_p(@_);
 
   # Non-blocking
   if ($cb) {
@@ -75,7 +75,7 @@ sub call {
 
 sub call_p {
   my $self = shift;
-  return $self->connection->write_p(@_)->then(sub { $self = undef; @_ });
+  return $self->_connection(1)->write_p(@_)->then(sub { $self = undef; @_ });
 }
 
 sub exec { delete $_[0]->{txn}; shift->_exec(@_) }
@@ -83,7 +83,7 @@ sub exec { delete $_[0]->{txn}; shift->_exec(@_) }
 sub exec_p {
   my $self = shift;
   delete $self->{txn};
-  return $self->connection->write_p('EXEC');
+  return $self->_connection(1)->write_p('EXEC');
 }
 
 sub discard { delete $_[0]->{txn}; shift->_discard(@_) }
@@ -91,7 +91,7 @@ sub discard { delete $_[0]->{txn}; shift->_discard(@_) }
 sub discard_p {
   my $self = shift;
   delete $self->{txn};
-  return $self->connection->write_p('DISCARD');
+  return $self->_connection(1)->write_p('DISCARD');
 }
 
 sub multi {
@@ -102,7 +102,7 @@ sub multi {
 sub multi_p {
   my $self = shift;
   $self->{txn} = 'default';
-  return $self->connection->write_p('MULTI');
+  return $self->_connection(1)->write_p('MULTI');
 }
 
 sub _add_method {
@@ -121,6 +121,12 @@ sub _add_method {
   }
 }
 
+sub _connection {
+  my ($self, $non_blocking) = @_;
+  $self->connection($self->redis->_blocking_connection) if !$non_blocking and !$self->{connection};
+  return $self->connection;
+}
+
 sub _generate_bnb_method {
   my ($class, $op, $process) = @_;
 
@@ -128,7 +134,7 @@ sub _generate_bnb_method {
     my $cb = ref $_[-1] eq 'CODE' ? pop : undef;
     my $self = shift;
 
-    my $p = ($cb ? $self->connection : $self->redis->_blocking_connection)->write_p($op, @_);
+    my $p = $self->_connection($cb)->write_p($op, @_);
     $p = $p->then(sub { $self->$process(@_) }) if $process;
 
     # Non-blocking
@@ -150,7 +156,7 @@ sub _generate_nb_method {
 
   return sub {
     my ($self, $cb) = (shift, pop);
-    $self->connection->write_p(@_)->then(sub { $self->$cb('', $process ? $self->$process(@_) : @_) })
+    $self->_connection(1)->write_p(@_)->then(sub { $self->$cb('', $process ? $self->$process(@_) : @_) })
       ->catch(sub { $self->$cb(shift, undef) });
     return $self;
   };
@@ -161,7 +167,7 @@ sub _generate_p_method {
 
   return sub {
     my $self = shift;
-    $self->connection->write_p($op => @_)->then(sub {
+    $self->_connection(1)->write_p($op => @_)->then(sub {
       return $process ? $self->$process(@_) : @_;
     });
   };
@@ -193,7 +199,7 @@ sub DESTROY {
   my $self = shift;
 
   if (my $txn = delete $self->{txn}) {
-    $self->redis->_blocking_connection->write_p('DISCARD')->wait if $txn eq 'blocking';
+    $self->_connection(0)->write_p('DISCARD')->wait if $txn eq 'blocking';
   }
   elsif (my $redis = $self->{redis} and my $conn = $self->{connection}) {
     $redis->_enqueue($conn);
