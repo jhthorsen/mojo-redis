@@ -1,6 +1,7 @@
 use Mojo::Base -strict;
 use Test::More;
 use Mojo::Redis;
+use Errno qw(ECONNREFUSED ENOTCONN);
 
 # Dummy server
 my $port      = Mojo::IOLoop::Server->generate_port;
@@ -24,7 +25,7 @@ $err = '';
 get_p($db)->wait;
 is $err, 'Premature connection close', 'server closed stream';
 
-my $err_re = join '|', map { local $! = $_; "$!" } 57, 61;
+my $err_re = join '|', map { local $! = $_; quotemeta "$!" } ECONNREFUSED, ENOTCONN;
 $err = '';
 Mojo::IOLoop->remove($server_id);
 get_p($db)->wait;
