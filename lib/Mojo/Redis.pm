@@ -8,7 +8,7 @@ use Mojo::Redis::Cursor;
 use Mojo::Redis::Database;
 use Mojo::Redis::PubSub;
 
-our $VERSION = '3.15';
+our $VERSION = '3.16';
 
 $ENV{MOJO_REDIS_URL} ||= 'redis://localhost:6379';
 
