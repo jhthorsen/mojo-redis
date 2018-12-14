@@ -61,11 +61,11 @@ sub _blocking_connection {
   my $self = shift->_fork_safety;
 
   # Existing connection
-  return $self->{blocking_connection}->encoding($self->encoding)
-    if $self->{blocking_connection} and $self->{blocking_connection}->is_connected;
+  my $conn = $self->{blocking_connection};
+  return $conn->encoding($self->encoding) if $conn and $conn->is_connected;
 
   # New connection
-  return $self->{blocking_connection} = $self->_connection(ioloop => Mojo::IOLoop->new);
+  return $self->{blocking_connection} = $self->_connection(ioloop => $conn ? $conn->ioloop : Mojo::IOLoop->new);
 }
 
 sub _dequeue {
@@ -81,7 +81,7 @@ sub _dequeue {
 sub _enqueue {
   my ($self, $conn) = @_;
   my $queue = $self->{queue} ||= [];
-  push @$queue, $conn if $conn->is_connected and $conn->url eq $self->url;
+  push @$queue, $conn if $conn->is_connected and $conn->url eq $self->url and $conn->ioloop eq Mojo::IOLoop->singleton;
   shift @$queue while @$queue > $self->max_connections;
 }
 

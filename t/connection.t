@@ -124,4 +124,10 @@ note 'Changed host to ' . $redis->url->host;
 $db = undef;
 is @{$redis->{queue}}, 0, 'database was not enqued' or diag $err;
 
+note 'Blocking connection';
+$db = $redis->db;
+isnt $db->connection(1)->ioloop, Mojo::IOLoop->singleton, 'blocking connection';
+isnt $db->connection(1)->ioloop, $db->connection(0)->ioloop,
+  'blocking connection does not share non-blocking connection ioloop';
+
 done_testing;
