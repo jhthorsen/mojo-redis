@@ -44,8 +44,7 @@ our @BASIC_COMMANDS = (
 
 our @BLOCKING_COMMANDS = ('blpop', 'brpop', 'brpoplpush', 'bzpopmax', 'bzpopmin');
 
-has connection => sub { shift->redis->_dequeue };
-has redis      => sub { Carp::confess('redis is required in constructor') };
+has redis => sub { Carp::confess('redis is required in constructor') };
 
 __PACKAGE__->_add_method('bnb,p' => $_) for @BASIC_COMMANDS;
 __PACKAGE__->_add_method('nb,p'  => $_) for @BLOCKING_COMMANDS;
@@ -58,7 +57,7 @@ __PACKAGE__->_add_method('bnb,p' => $_) for qw(unwatch watch);
 sub call {
   my $cb   = ref $_[-1] eq 'CODE' ? pop : undef;
   my $self = shift;
-  my $p    = $self->_connection($cb)->write_p(@_);
+  my $p    = $self->connection($cb ? 0 : 1)->write_p(@_);
 
   # Non-blocking
   if ($cb) {
@@ -75,7 +74,7 @@ sub call {
 
 sub call_p {
   my $self = shift;
-  return $self->_connection(1)->write_p(@_)->then(sub { $self = undef; @_ });
+  return $self->connection->write_p(@_)->then(sub { $self = undef; @_ });
 }
 
 sub exec { delete $_[0]->{txn}; shift->_exec(@_) }
@@ -83,7 +82,7 @@ sub exec { delete $_[0]->{txn}; shift->_exec(@_) }
 sub exec_p {
   my $self = shift;
   delete $self->{txn};
-  return $self->_connection(1)->write_p('EXEC');
+  return $self->connection->write_p('EXEC');
 }
 
 sub discard { delete $_[0]->{txn}; shift->_discard(@_) }
@@ -91,7 +90,7 @@ sub discard { delete $_[0]->{txn}; shift->_discard(@_) }
 sub discard_p {
   my $self = shift;
   delete $self->{txn};
-  return $self->_connection(1)->write_p('DISCARD');
+  return $self->connection->write_p('DISCARD');
 }
 
 sub multi {
@@ -102,7 +101,7 @@ sub multi {
 sub multi_p {
   my $self = shift;
   $self->{txn} = 'default';
-  return $self->_connection(1)->write_p('MULTI');
+  return $self->connection->write_p('MULTI');
 }
 
 sub _add_method {
@@ -121,10 +120,14 @@ sub _add_method {
   }
 }
 
-sub _connection {
-  my ($self, $non_blocking) = @_;
-  $self->connection($self->redis->_blocking_connection) if !$non_blocking and !$self->{connection};
-  return $self->connection;
+sub connection {
+  my $self = shift;
+
+  # Back compat: $self->connection(Mojo::Redis::Connection->new);
+  $self->{_conn_dequeue} = shift if UNIVERSAL::isa($_[0], 'Mojo::Redis::Connection');
+
+  my $method = $_[0] ? '_blocking_connection' : '_dequeue';
+  return $self->{"_conn$method"} ||= $self->redis->$method;
 }
 
 sub _generate_bnb_method {
@@ -134,7 +137,7 @@ sub _generate_bnb_method {
     my $cb = ref $_[-1] eq 'CODE' ? pop : undef;
     my $self = shift;
 
-    my $p = $self->_connection($cb)->write_p($op, @_);
+    my $p = $self->connection($cb ? 0 : 1)->write_p($op, @_);
     $p = $p->then(sub { $self->$process(@_) }) if $process;
 
     # Non-blocking
@@ -156,7 +159,7 @@ sub _generate_nb_method {
 
   return sub {
     my ($self, $cb) = (shift, pop);
-    $self->_connection(1)->write_p(@_)->then(sub { $self->$cb('', $process ? $self->$process(@_) : @_) })
+    $self->connection->write_p(@_)->then(sub { $self->$cb('', $process ? $self->$process(@_) : @_) })
       ->catch(sub { $self->$cb(shift, undef) });
     return $self;
   };
@@ -167,7 +170,7 @@ sub _generate_p_method {
 
   return sub {
     my $self = shift;
-    $self->_connection(1)->write_p($op => @_)->then(sub {
+    $self->connection->write_p($op => @_)->then(sub {
       return $process ? $self->$process(@_) : @_;
     });
   };
@@ -199,9 +202,9 @@ sub DESTROY {
   my $self = shift;
 
   if (my $txn = delete $self->{txn}) {
-    $self->_connection(0)->write_p('DISCARD')->wait if $txn eq 'blocking';
+    $self->connection(1)->write_p('DISCARD')->wait if $txn eq 'blocking';
   }
-  elsif (my $redis = $self->{redis} and my $conn = $self->{connection}) {
+  elsif (my $redis = $self->{redis} and my $conn = $self->{_conn_dequeue}) {
     $redis->_enqueue($conn);
   }
 }
@@ -240,17 +243,10 @@ data to the Redis server.
 
 =head1 ATTRIBUTES
 
-=head2 connection
-
-  $conn = $self->connection;
-  $self = $self->connection(Mojo::Redis::Connection->new);
-
-Holds a L<Mojo::Redis::Connection> object.
-
 =head2 redis
 
-  $conn = $self->connection;
-  $self = $self->connection(Mojo::Redis::Connection->new);
+  $conn = $self->redis;
+  $self = $self->redis(Mojo::Redis->new);
 
 Holds a L<Mojo::Redis> object used to create the connections to talk with Redis.
 
@@ -410,6 +406,22 @@ Run a "CLIENT" command on the server. C<@args> can be:
 =back
 
 See L<https://redis.io/commands#server> for more information.
+
+=head2 connection
+
+  $non_blocking_connection = $self->connection(0);
+  $blocking_connection     = $self->connection(1);
+
+Returns a L<Mojo::Redis::Connection> object. The default is to return a
+connection suitable for non-blocking methods, but passing in a true value will
+return the connection used for blocking methods.
+
+  # Blocking
+  my $res = $self->get("some:key");
+
+  # Non-blocking
+  $self->get_p("some:key");
+  $self->get("some:key", sub { ... });
 
 =head2 cluster
 

@@ -29,23 +29,21 @@ note 'Do not reconnect in the middle of a transaction';
 $server_id = make_server($redis->_blocking_connection->ioloop);
 $db        = $redis->db;
 my $step = 0;
-my ($ioloop, @err);
+my @err;
 for my $m (qw(multi incr incr exec)) {
   eval { $db->$m($m eq 'incr' ? ($0) : ()); ++$step } or do { push @err, $@ };
-  $ioloop ||= $db->connection->ioloop;
   note "($step) $@" if $@;
 }
 
 is $step, 1, 'all blocking methods fail after the first fail';
 like shift(@err), qr{^$_}, "expected $_"
   for 'Premature connection close', 'Redis server has gone away', 'Redis server has gone away';
-isnt $db->connection->ioloop, Mojo::IOLoop->singleton, 'db connection is blocking';
-isnt $redis->_blocking_connection, $db->connection, 'fresh connection next time';
-is $redis->_blocking_connection->ioloop, $ioloop, 'same blocking ioloop';
+isnt $redis->_blocking_connection, $db->connection(1), 'fresh connection next time';
+is $redis->_blocking_connection->ioloop, $db->connection(1)->ioloop, 'same blocking ioloop';
 
 note 'No blocking connection should be put back into connection queue';
 $db = $redis->db;
-$db->_connection(0)->{stream} = 1;    # pretend we are connected
+$db->connection(1)->{stream} = 1;    # pretend we are connected
 undef $db;
 ok !(grep { warn $_; $_->ioloop ne Mojo::IOLoop->singleton } @{$redis->{queue}}), 'no blocking connections in queue';
 
