@@ -1,6 +1,8 @@
 package Mojo::Redis::Database;
 use Mojo::Base -base;
 
+use Scalar::Util 'blessed';
+
 our @BASIC_COMMANDS = (
   'append',           'bgrewriteaof', 'bgsave',            'bitcount',
   'bitfield',         'bitop',        'bitpos',            'client',
@@ -124,7 +126,7 @@ sub connection {
   my $self = shift;
 
   # Back compat: $self->connection(Mojo::Redis::Connection->new);
-  $self->{_conn_dequeue} = shift if UNIVERSAL::isa($_[0], 'Mojo::Redis::Connection');
+  $self->{_conn_dequeue} = shift if blessed $_[0] and $_[0]->isa('Mojo::Redis::Connection');
 
   my $method = $_[0] ? '_blocking_connection' : '_dequeue';
   return $self->{"_conn$method"} ||= $self->redis->$method;
