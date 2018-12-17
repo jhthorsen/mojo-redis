@@ -52,6 +52,31 @@ without warning. Please report at
 useful, annoying or if you simply find bugs. Feedback can also be sent to
 `jhthorsen@cpan.org`.
 
+# CAVEATS
+
+[Protocol::Redis::XS](https://metacpan.org/pod/Protocol::Redis::XS) is the default message parser if available, but it
+has some limitations:
+
+- Cannot handle binary data
+
+    [Mojo::Redis::Cache](https://metacpan.org/pod/Mojo::Redis::Cache) uses [Protocol::Redis](https://metacpan.org/pod/Protocol::Redis) for now, since
+    [Protocol::Redis::XS](https://metacpan.org/pod/Protocol::Redis::XS) fail to handle binary data.
+
+    See [https://github.com/dgl/protocol-redis-xs/issues/4](https://github.com/dgl/protocol-redis-xs/issues/4) for more information.
+
+- Cannot handle multi bulk replies with depth higher than 2
+
+    ["xread" in Mojo::Redis::Database](https://metacpan.org/pod/Mojo::Redis::Database#xread) and other Redis commands returns complex nested
+    data structures with depth higher than two. [Protocol::Redis::XS](https://metacpan.org/pod/Protocol::Redis::XS) is unable to
+    handle these messages.
+
+    See [https://github.com/dgl/protocol-redis-xs/issues/5](https://github.com/dgl/protocol-redis-xs/issues/5) for more information.
+
+If you experience any issues with [Protocol::Redis::XS](https://metacpan.org/pod/Protocol::Redis::XS) then please report
+them to [https://github.com/dgl/protocol-redis-xs/issues](https://github.com/dgl/protocol-redis-xs/issues). It is still the
+default ["protocol"](#protocol) though, since it is a lot faster than [Protocol::Redis](https://metacpan.org/pod/Protocol::Redis)
+for most tasks.
+
 # EVENTS
 
 ## connection

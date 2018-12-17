@@ -149,6 +149,35 @@ L<https://github.com/jhthorsen/mojo-redis/issues> if you find this module
 useful, annoying or if you simply find bugs. Feedback can also be sent to
 C<jhthorsen@cpan.org>.
 
+=head1 CAVEATS
+
+L<Protocol::Redis::XS> is the default message parser if available, but it
+has some limitations:
+
+=over 2
+
+=item * Cannot handle binary data
+
+L<Mojo::Redis::Cache> uses L<Protocol::Redis> for now, since
+L<Protocol::Redis::XS> fail to handle binary data.
+
+See L<https://github.com/dgl/protocol-redis-xs/issues/4> for more information.
+
+=item * Cannot handle multi bulk replies with depth higher than 2
+
+L<Mojo::Redis::Database/xread> and other Redis commands returns complex nested
+data structures with depth higher than two. L<Protocol::Redis::XS> is unable to
+handle these messages.
+
+See L<https://github.com/dgl/protocol-redis-xs/issues/5> for more information.
+
+=back
+
+If you experience any issues with L<Protocol::Redis::XS> then please report
+them to L<https://github.com/dgl/protocol-redis-xs/issues>. It is still the
+default L</protocol> though, since it is a lot faster than L<Protocol::Redis>
+for most tasks.
+
 =head1 EVENTS
 
 =head2 connection
