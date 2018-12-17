@@ -432,9 +432,9 @@ return the connection used for blocking methods.
 
 =head2 cluster
 
-  $res     = $self->cluste3r(@args);
-  $self    = $self->cluste3r(@args, sub { my ($self, $err, $res) = @_ });
-  $promise = $self->cluste3r_p(@args);
+  $res     = $self->cluster(@args);
+  $self    = $self->cluster(@args, sub { my ($self, $err, $res) = @_ });
+  $promise = $self->cluster_p(@args);
 
 Used to execute cluster commands.
 
