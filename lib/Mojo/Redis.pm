@@ -16,9 +16,7 @@ has encoding        => 'UTF-8';
 has max_connections => 5;
 
 has protocol_class => do {
-  my $class = $ENV{MOJO_REDIS_PROTOCOL};
-  $class ||= eval q(require Protocol::Redis::XS; 'Protocol::Redis::XS');
-  $class ||= 'Protocol::Redis';
+  my $class = $ENV{MOJO_REDIS_PROTOCOL} || 'Protocol::Redis';
   eval "require $class; 1" or die $@;
   $class;
 };
@@ -151,8 +149,8 @@ C<jhthorsen@cpan.org>.
 
 =head1 CAVEATS
 
-L<Protocol::Redis::XS> is the default message parser if available, but it
-has some limitations:
+L<Protocol::Redis::XS> is not the default L</protocol> because it has some
+limitations:
 
 =over 2
 
@@ -213,8 +211,9 @@ Maximum number of idle database handles to cache for future use, defaults to
   $str   = $redis->protocol_class;
   $redis = $redis->protocol_class("Protocol::Redis::XS");
 
-Default to L<Protocol::Redis::XS> if the optional module is available, or
-falls back to L<Protocol::Redis>.
+Default to L<Protocol::Redis>. This will be changed in the future, if we see a
+more stable version of an alternative to L<Protocol::Redis::XS>.  See
+L</CAVEATS> for details.
 
 =head2 pubsub
 

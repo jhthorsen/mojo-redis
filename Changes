@@ -2,7 +2,8 @@ Revision history for perl distribution Mojo-Redis
 
 3.18 Not Released
  - Add reconnect logic for Mojo::Redis::PubSub #37
- - Add CAVEATS
+ - Add CAVEATS for Protocol::Redis::XS #38
+ - Changed default protocol to Protocol::Redis #38
  - Updated documentation to use nicer variable names
 
 3.17 2018-12-17T19:03:43+0900
