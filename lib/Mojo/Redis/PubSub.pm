@@ -87,7 +87,7 @@ sub _listen {
   my $reconnecting = delete $self->{reconnecting};
 
   $self->{setup} = 1;
-  $conn->once(close => sub { $self->_reconnect->emit(disconnect => shift) });
+  $conn->once(close => sub { $self and $self->_reconnect->emit(disconnect => shift) });
   $conn->on(
     response => sub {
       my ($conn, $res) = @_;    # $res = [$type, $name, $payload]
