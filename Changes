@@ -1,6 +1,6 @@
 Revision history for perl distribution Mojo-Redis
 
-3.19 Not Released
+3.19 2019-01-31T13:03:11+0900
  - Add support for encoding and decoding of JSON messages in Mojo::Redis::PubSub
 
 3.18 2019-01-31T12:39:46+0900
