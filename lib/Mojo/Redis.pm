@@ -182,7 +182,7 @@ for most tasks.
 
 =head2 connection
 
-  $cb = $self->on(connection => sub { my ($self, $connection) = @_; });
+  $cb = $redis->on(connection => sub { my ($redis, $connection) = @_; });
 
 Emitted when L<Mojo::Redis::Connection> connects to the Redis.
 
@@ -190,8 +190,8 @@ Emitted when L<Mojo::Redis::Connection> connects to the Redis.
 
 =head2 encoding
 
-  $str  = $self->encoding;
-  $self = $self->encoding("UTF-8");
+  $str   = $redis->encoding;
+  $redis = $redis->encoding("UTF-8");
 
 The value of this attribute will be passed on to
 L<Mojo::Redis::Connection/encoding> when a new connection is created. This
@@ -202,31 +202,31 @@ Default value is "UTF-8".
 
 =head2 max_connections
 
-  $int = $self->max_connections;
-  $self = $self->max_connections(5);
+  $int   = $redis->max_connections;
+  $redis = $redis->max_connections(5);
 
 Maximum number of idle database handles to cache for future use, defaults to
 5. (Default is subject to change)
 
 =head2 protocol_class
 
-  $str = $self->protocol_class;
-  $self = $self->protocol_class("Protocol::Redis::XS");
+  $str   = $redis->protocol_class;
+  $redis = $redis->protocol_class("Protocol::Redis::XS");
 
 Default to L<Protocol::Redis::XS> if the optional module is available, or
 falls back to L<Protocol::Redis>.
 
 =head2 pubsub
 
-  $pubsub = $self->pubsub;
+  $pubsub = $redis->pubsub;
 
 Lazy builds an instance of L<Mojo::Redis::PubSub> for this object, instead of
 returning a new instance like L</db> does.
 
 =head2 url
 
-  $url = $self->url;
-  $self = $self->url(Mojo::URL->new("redis://localhost/3"));
+  $url   = $redis->url;
+  $redis = $redis->url(Mojo::URL->new("redis://localhost/3"));
 
 Holds an instance of L<Mojo::URL> that describes how to connect to the Redis server.
 
@@ -234,19 +234,19 @@ Holds an instance of L<Mojo::URL> that describes how to connect to the Redis ser
 
 =head2 db
 
-  $db = $self->db;
+  $db = $redis->db;
 
 Returns an instance of L<Mojo::Redis::Database>.
 
 =head2 cache
 
-  $cache = $self->cache(%attrs);
+  $cache = $redis->cache(%attrs);
 
 Returns an instance of L<Mojo::Redis::Cache>.
 
 =head2 cursor
 
-  $cursor = $self->cursor(@command);
+  $cursor = $redis->cursor(@command);
 
 Returns an instance of L<Mojo::Redis::Cursor> with
 L<Mojo::Redis::Cursor/command> set to the arguments passed. See
@@ -254,10 +254,10 @@ L<Mojo::Redis::Cursor/new>. for possible commands.
 
 =head2 new
 
-  $self = Mojo::Redis->new("redis://localhost:6379/1");
-  $self = Mojo::Redis->new(Mojo::URL->new->host("/tmp/redis.sock"));
-  $self = Mojo::Redis->new(\%attrs);
-  $self = Mojo::Redis->new(%attrs);
+  $redis = Mojo::Redis->new("redis://localhost:6379/1");
+  $redis = Mojo::Redis->new(Mojo::URL->new->host("/tmp/redis.sock"));
+  $redis = Mojo::Redis->new(\%attrs);
+  $redis = Mojo::Redis->new(%attrs);
 
 Object constructor. Can coerce a string into a L<Mojo::URL> and set L</url>
 if present.

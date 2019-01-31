@@ -151,7 +151,7 @@ See L<pubsub|https://redis.io/topics/pubsub> for more details.
 
 =head2 before_connect
 
-  $self->on(before_connect => sub { my ($self, $connection) = @_; ... });
+  $pubsub->on(before_connect => sub { my ($pubsub, $conn) = @_; ... });
 
 Emitted before L</connection> is connected to the redis server. This can be
 useful if you want to gather the L<CLIENT ID|https://redis.io/commands/client-id>
@@ -159,13 +159,13 @@ or run other commands before it goes into subscribe mode.
 
 =head2 disconnect
 
-  $self->on(disconnect => sub { my ($self, $connection) = @_; ... });
+  $pubsub->on(disconnect => sub { my ($pubsub, $conn) = @_; ... });
 
 Emitted after L</connection> is disconnected from the redis server.
 
 =head2 reconnect
 
-  $self->on(reconnect => sub { my ($self, $connection) = @_; ... });
+  $pubsub->on(reconnect => sub { my ($pubsub, $conn) = @_; ... });
 
 Emitted after switching the L</connection> with a new connection. This event
 will only happen if L</reconnect_interval> is 0 or more.
@@ -174,24 +174,24 @@ will only happen if L</reconnect_interval> is 0 or more.
 
 =head2 db
 
-  $db = $self->db;
+  $db = $pubsub->db;
 
 Holds a L<Mojo::Redis::Database> object that will be used to publish messages
 or run other commands that cannot be run by the L</connection>.
 
 =head2 connection
 
-  $conn = $self->connection;
+  $conn = $pubsub->connection;
 
 Holds a L<Mojo::Redis::Connection> object that will be used to subscribe to
 channels.
 
 =head2 reconnect_interval
 
-  $interval = $self->reconnect_interval;
-  $self     = $self->reconnect_interval(1);
-  $self     = $self->reconnect_interval(0.1);
-  $self     = $self->reconnect_interval(-1);
+  $interval = $pubsub->reconnect_interval;
+  $pubsub   = $pubsub->reconnect_interval(1);
+  $pubsub   = $pubsub->reconnect_interval(0.1);
+  $pubsub   = $pubsub->reconnect_interval(-1);
 
 The amount of time in seconds to wait to L</reconnect> after disconnecting.
 Default is 1 (second). L</reconnect> can be disabled by setting this to a
@@ -199,8 +199,8 @@ negative value.
 
 =head2 redis
 
-  $conn = $self->connection;
-  $self = $self->connection(Mojo::Redis->new);
+  $conn   = $pubsub->connection;
+  $pubsub = $pubsub->connection(Mojo::Redis->new);
 
 Holds a L<Mojo::Redis> object used to create the connections to talk with Redis.
 
@@ -208,16 +208,16 @@ Holds a L<Mojo::Redis> object used to create the connections to talk with Redis.
 
 =head2 channels_p
 
-  $promise = $self->channels_p->then(sub { my $channels = shift });
-  $promise = $self->channels_p("pat*")->then(sub { my $channels = shift });
+  $promise = $pubsub->channels_p->then(sub { my $channels = shift });
+  $promise = $pubsub->channels_p("pat*")->then(sub { my $channels = shift });
 
 Lists the currently active channels. An active channel is a Pub/Sub channel
 with one or more subscribers (not including clients subscribed to patterns).
 
 =head2 keyspace_listen
 
-  $cb = $self->keyspace_listen($key, $op, sub { my ($self, $message) = @_ }) });
-  $cb = $self->keyspace_listen($key, $op, \%args, sub { my ($self, $message) = @_ }) });
+  $cb = $pubsub->keyspace_listen($key, $op, sub { my ($pubsub, $message) = @_ }) });
+  $cb = $pubsub->keyspace_listen($key, $op, \%args, sub { my ($pubsub, $message) = @_ }) });
 
 Used to listen for keyspace notifications. See L<https://redis.io/topics/notifications>
 for more details.
@@ -255,28 +255,28 @@ also be set to "key*" for listening to both "keyevent" and "keyspace" events.
 
 =head2 keyspace_unlisten
 
-  $self = $self->keyspace_unlisten(@args);
-  $self = $self->keyspace_unlisten(@args, $cb);
+  $pubsub = $pubsub->keyspace_unlisten(@args);
+  $pubsub = $pubsub->keyspace_unlisten(@args, $cb);
 
 Stop listening for keyspace events. See L</keyspace_listen> for details about
 keyspace events and what C<@args> can be.
 
 =head2 listen
 
-  $cb = $self->listen($channel => sub { my ($self, $message) = @_ });
+  $cb = $pubsub->listen($channel => sub { my ($pubsub, $message) = @_ });
 
 Subscribe to a channel, there is no limit on how many subscribers a channel
 can have. The returning code ref can be passed on to L</unlisten>.
 
 =head2 notify
 
-  $self->notify($channel => $message);
+  $pubsub->notify($channel => $message);
 
 Send a plain string message to a channel.
 
 =head2 numpat_p
 
-  $promise = $self->channels_p->then(sub { my $int = shift });
+  $promise = $pubsub->channels_p->then(sub { my $int = shift });
 
 Returns the number of subscriptions to patterns (that are performed using the
 PSUBSCRIBE command). Note that this is not just the count of clients
@@ -285,7 +285,7 @@ subscribed to.
 
 =head2 numsub_p
 
-  $promise = $self->numsub_p(@channels)->then(sub { my $channels = shift });
+  $promise = $pubsub->numsub_p(@channels)->then(sub { my $channels = shift });
 
 Returns the number of subscribers (not counting clients subscribed to
 patterns) for the specified channels as a hash-ref, where the keys are
@@ -293,8 +293,8 @@ channel names.
 
 =head2 unlisten
 
-  $self = $self->unlisten($channel);
-  $self = $self->unlisten($channel, $cb);
+  $pubsub = $pubsub->unlisten($channel);
+  $pubsub = $pubsub->unlisten($channel, $cb);
 
 Unsubscribe from a channel.
 
