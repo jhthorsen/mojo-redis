@@ -1,6 +1,8 @@
 package Mojo::Redis::PubSub;
 use Mojo::Base 'Mojo::EventEmitter';
 
+use Mojo::JSON qw(from_json to_json);
+
 use constant DEBUG => $ENV{MOJO_REDIS_DEBUG};
 
 has connection => sub { shift->redis->_connection };
@@ -11,6 +13,8 @@ has redis              => sub { Carp::confess('redis is requried in constructor'
 sub channels_p {
   shift->db->call_p(qw(PUBSUB CHANNELS), @_);
 }
+
+sub json { ++$_[0]{json}{$_[1]} and return $_[0] }
 
 sub keyspace_listen {
   my ($self, $cb) = (shift, pop);
@@ -32,7 +36,9 @@ sub listen {
 }
 
 sub notify {
-  shift->db->call_p(PUBLISH => @_);
+  my ($self, $name, $payload) = @_;
+  $payload = to_json $payload if $self->{json}{$name};
+  shift->db->call_p(PUBLISH => $name, $payload);
 }
 
 sub numsub_p {
@@ -86,6 +92,7 @@ sub _listen {
     response => sub {
       my ($conn, $res) = @_;    # $res = [$type, $name, $payload]
       return unless ref $res eq 'ARRAY' and @$res >= 3;
+      $res->[2] = eval { from_json $res->[2] } if $self->{json}{$res->[1]};
       for my $cb (@{$self->{chans}{$res->[1]}}) { $self->$cb($res->[2]) }
     }
   );
@@ -213,6 +220,20 @@ Holds a L<Mojo::Redis> object used to create the connections to talk with Redis.
 
 Lists the currently active channels. An active channel is a Pub/Sub channel
 with one or more subscribers (not including clients subscribed to patterns).
+
+=head2 json
+
+  $pubsub = $pubsub->json("foo");
+
+Activate automatic JSON encoding and decoding with L<Mojo::JSON/"to_json"> and
+L<Mojo::JSON/"from_json"> for a channel.
+
+  # Send and receive data structures
+  $pubsub->json("foo")->listen(foo => sub {
+    my ($pubsub, $payload) = @_;
+    say $payload->{bar};
+  });
+  $pubsub->notify(foo => {bar => 'I ♥ Mojolicious!'});
 
 =head2 keyspace_listen
 
