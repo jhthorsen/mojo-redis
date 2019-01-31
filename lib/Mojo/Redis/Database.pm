@@ -758,7 +758,8 @@ See L<https://redis.io/commands/hget> for more information.
   $db      = $db->hgetall($key, sub { my ($db, $err, $res) = @_ });
   $promise = $db->hgetall_p($key);
 
-Get all the fields and values in a hash.
+Get all the fields and values in a hash. The returned value from Redis is
+automatically turned into a hash-ref for convenience.
 
 See L<https://redis.io/commands/hgetall> for more information.
 
