@@ -31,7 +31,7 @@ sub is_connected { $_[0]->{stream} && !$_[0]->{gone_away} ? 1 : 0 }
 
 sub write_p {
   my $self = shift;
-  my $p = Mojo::Promise->new(ioloop => $self->ioloop);
+  my $p    = Mojo::Promise->new(ioloop => $self->ioloop);
   $self->write_q(@_, $p);
   $self->is_connected ? $self->_write : $self->_connect;
   return $p;
@@ -159,7 +159,7 @@ sub _on_close_cb {
     $self->{gone_away} = 1;
     $self->_reject_queue($err);
     $self->emit('close') if @_ == 1;
-    warn qq([@{[$self->_id]}] @{[$err ? "ERROR $err" : "CLOSED"]}\n) if DEBUG;
+    warn qq([@{[$self->_id]}] @{[$err ? "ERROR $err" : "CLOSED"]}\n) if $self and DEBUG;
   };
 }
 

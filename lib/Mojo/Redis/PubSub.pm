@@ -1,12 +1,15 @@
 package Mojo::Redis::PubSub;
 use Mojo::Base 'Mojo::EventEmitter';
 
-has connection     => sub { shift->redis->_connection };
-has redis          => sub { Carp::confess('redis is requried in constructor') };
-has _db_connection => sub { shift->redis->_connection };
+use constant DEBUG => $ENV{MOJO_REDIS_DEBUG};
+
+has connection => sub { shift->redis->_connection };
+has db         => sub { shift->redis->db };
+has reconnect_interval => 1;
+has redis              => sub { Carp::confess('redis is requried in constructor') };
 
 sub channels_p {
-  shift->_db_connection->write_p(qw(PUBSUB CHANNELS), @_);
+  shift->db->call_p(qw(PUBSUB CHANNELS), @_);
 }
 
 sub keyspace_listen {
@@ -21,25 +24,23 @@ sub keyspace_unlisten {
 
 sub listen {
   my ($self, $name, $cb) = @_;
-  my $op = $name =~ /\*/ ? 'PSUBSCRIBE' : 'SUBSCRIBE';
 
-  Scalar::Util::weaken($self);
-  $self->connection->write_p($op => $name)->then(sub { $self->_setup }) unless @{$self->{chans}{$name} ||= []};
+  $self->_listen($name) unless @{$self->{chans}{$name} ||= []};
   push @{$self->{chans}{$name}}, $cb;
 
   return $cb;
 }
 
 sub notify {
-  shift->_db_connection->write_p(PUBLISH => @_);
+  shift->db->call_p(PUBLISH => @_);
 }
 
 sub numsub_p {
-  shift->_db_connection->write_p(qw(PUBSUB NUMSUB), @_)->then(sub { +{@{$_[0]}} });
+  shift->db->call_p(qw(PUBSUB NUMSUB), @_)->then(sub { +{@{$_[0]}} });
 }
 
 sub numpat_p {
-  shift->_db_connection->write_p(qw(PUBSUB NUMPAT));
+  shift->db->call_p(qw(PUBSUB NUMPAT));
 }
 
 sub unlisten {
@@ -59,25 +60,53 @@ sub _keyspace_key {
   my $args = ref $_[-1] eq 'HASH' ? pop : {};
   my $self = shift;
 
-  local $args->{key}  = $_[0] // $args->{key} // '*';
-  local $args->{op}   = $_[1] // $args->{op} // '*';
+  local $args->{key} = $_[0] // $args->{key} // '*';
+  local $args->{op}  = $_[1] // $args->{op}  // '*';
   local $args->{type} = $args->{type} || ($args->{key} eq '*' ? 'keyevent' : 'keyspace');
 
   return sprintf '__%s@%s__:%s %s', $args->{type}, $args->{db} // $self->redis->url->path->[0] // '',
     $args->{type} eq 'keyevent' ? (@$args{qw(op key)}) : (@$args{qw(key op)});
 }
 
-sub _setup {
-  my $self = shift;
-  return if $self->{cb};
+sub _listen {
+  my ($self, $name) = @_;
+
+  if ($self->{setup}) {
+    my $op = $name =~ /\*/ ? 'PSUBSCRIBE' : 'SUBSCRIBE';
+    return $self->connection->write_p($op => $name);
+  }
 
   Scalar::Util::weaken($self);
-  $self->{cb} = $self->connection->on(
+  my $conn         = $self->connection;
+  my $reconnecting = delete $self->{reconnecting};
+
+  $self->{setup} = 1;
+  $conn->once(close => sub { $self->_reconnect->emit(disconnect => shift) });
+  $conn->on(
     response => sub {
       my ($conn, $res) = @_;    # $res = [$type, $name, $payload]
+      return unless ref $res eq 'ARRAY' and @$res >= 3;
       for my $cb (@{$self->{chans}{$res->[1]}}) { $self->$cb($res->[2]) }
     }
   );
+
+  $self->emit(before_connect => $conn);
+  return $self unless my @p = map { $self->_listen($_) } keys %{$self->{chans}};
+  Mojo::Promise->all(@p)->then(sub { $self->emit(reconnect => $conn) if $reconnecting }, sub { $self->_reconnect });
+  return $self;
+
+}
+
+sub _reconnect {
+  my $self = shift;
+  delete @$self{qw(connection db setup)};
+
+  my $delay = $self->reconnect_interval;
+  return $self if $delay < 0 or $self->{reconnecting}++;
+
+  warn qq([Mojo::Redis::PubSub] Reconnecting in ${delay}s...\n) if DEBUG;
+  Mojo::IOLoop->timer($delay => sub { $self->_listen });
+  return $self;
 }
 
 1;
@@ -118,19 +147,60 @@ for L<Mojo::Redis>.
 
 See L<pubsub|https://redis.io/topics/pubsub> for more details.
 
+=head1 EVENTS
+
+=head2 before_connect
+
+  $self->on(before_connect => sub { my ($self, $connection) = @_; ... });
+
+Emitted before L</connection> is connected to the redis server. This can be
+useful if you want to gather the L<CLIENT ID|https://redis.io/commands/client-id>
+or run other commands before it goes into subscribe mode.
+
+=head2 disconnect
+
+  $self->on(disconnect => sub { my ($self, $connection) = @_; ... });
+
+Emitted after L</connection> is disconnected from the redis server.
+
+=head2 reconnect
+
+  $self->on(reconnect => sub { my ($self, $connection) = @_; ... });
+
+Emitted after switching the L</connection> with a new connection. This event
+will only happen if L</reconnect_interval> is 0 or more.
+
 =head1 ATTRIBUTES
+
+=head2 db
+
+  $db = $self->db;
+
+Holds a L<Mojo::Redis::Database> object that will be used to publish messages
+or run other commands that cannot be run by the L</connection>.
 
 =head2 connection
 
   $conn = $self->connection;
-  $self = $self->connection(Mojo::Redis::Connection->new);
 
-Holds a L<Mojo::Redis::Connection> object.
+Holds a L<Mojo::Redis::Connection> object that will be used to subscribe to
+channels.
+
+=head2 reconnect_interval
+
+  $interval = $self->reconnect_interval;
+  $self     = $self->reconnect_interval(1);
+  $self     = $self->reconnect_interval(0.1);
+  $self     = $self->reconnect_interval(-1);
+
+The amount of time in seconds to wait to L</reconnect> after disconnecting.
+Default is 1 (second). L</reconnect> can be disabled by setting this to a
+negative value.
 
 =head2 redis
 
   $conn = $self->connection;
-  $self = $self->connection(Mojo::Redis::Connection->new);
+  $self = $self->connection(Mojo::Redis->new);
 
 Holds a L<Mojo::Redis> object used to create the connections to talk with Redis.
 

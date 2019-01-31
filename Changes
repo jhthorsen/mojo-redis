@@ -1,6 +1,7 @@
 Revision history for perl distribution Mojo-Redis
 
 3.18 Not Released
+ - Add reconnect logic for Mojo::Redis::PubSub #37
  - Add CAVEATS
 
 3.17 2018-12-17T19:03:43+0900
