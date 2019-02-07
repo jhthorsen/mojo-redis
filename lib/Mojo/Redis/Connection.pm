@@ -46,8 +46,13 @@ sub write_q {
 
 sub _encode {
   my $self     = shift;
+  my $protocol = $self->protocol;
+
+  return $protocol->encoding($self->encoding)->encode({type => '*', data => [map { +{type => '$', data => $_} } @_]})
+    if $protocol->can('encoding');
+
   my $encoding = $self->encoding;
-  return $self->protocol->encode({
+  return $protocol->encode({
     type => '*', data => [map { +{type => '$', data => $encoding ? Mojo::Util::encode($encoding, $_) : $_} } @_]
   });
 }
@@ -64,7 +69,7 @@ sub _connect {
 
   Scalar::Util::weaken($self);
   delete $self->{master_url};     # Make sure we forget master_url so we can reconnect
-  $self->protocol->on_message($self->_parse_message_cb);
+  $self->protocol->on_message($self->_on_message_cb);
   $self->{id} = $self->ioloop->client(
     $self->_connect_args($url, {port => 6379, timeout => CONNECT_TIMEOUT}),
     sub {
@@ -114,7 +119,7 @@ sub _discover_master {
 
   $url->host_port(shift @$sentinels);
   $self->url->query->param(sentinel => [@$sentinels, $url->host_port]);    # Round-robin sentinel list
-  $self->protocol->on_message($self->_parse_message_cb);
+  $self->protocol->on_message($self->_on_message_cb);
   $self->{id} = $self->ioloop->client(
     $self->_connect_args($url, {port => 16379, timeout => $timeout}),
     sub {
@@ -163,22 +168,26 @@ sub _on_close_cb {
   };
 }
 
-sub _on_read_cb {
-  my $self = shift;
+sub _on_message_cb {
+  my $self     = shift;
+  my $protocol = $self->protocol;
 
   Scalar::Util::weaken($self);
-  return sub {
-    return unless $self;
-    my ($stream, $chunk) = @_;
-    do { local $_ = $chunk; s!\r\n!\\r\\n!g; warn "[@{[$self->_id]}] >>> ($_)\n" } if DEBUG;
-    $self->protocol->parse($chunk);
-  };
-}
 
-sub _parse_message_cb {
-  my $self = shift;
+  if ($protocol->can('encoding')) {
+    return sub {
+      my ($protocol, $msg) = @_;
+      my $p = shift @{$self->{waiting} || []};
 
-  Scalar::Util::weaken($self);
+      if ($msg->{type} eq '-') {
+        $p ? $p->reject($msg->{data}) : $self->emit(error => $msg->{data});
+      }
+      else {
+        $p ? $p->resolve($msg->{data}) : $self->emit(response => $msg->{data});
+      }
+    };
+  }
+
   return sub {
     my ($protocol, @messages) = @_;
     my $encoding = $self->encoding;
@@ -215,6 +224,18 @@ sub _parse_message_cb {
     my $p = shift @{$self->{waiting} || []};
     return $p ? $p->reject($err) : $self->emit(error => $err) unless $res;
     return $p ? $p->resolve($res->[0]) : $self->emit(response => $res->[0]);
+  };
+}
+
+sub _on_read_cb {
+  my $self = shift;
+
+  Scalar::Util::weaken($self);
+  return sub {
+    return unless $self;
+    my ($stream, $chunk) = @_;
+    do { local $_ = $chunk; s!\r\n!\\r\\n!g; warn "[@{[$self->_id]}] >>> ($_)\n" } if DEBUG;
+    $self->protocol->parse($chunk);
   };
 }
 

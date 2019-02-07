@@ -2,7 +2,7 @@ package Mojo::Redis::Cache;
 use Mojo::Base -base;
 
 use Mojo::JSON;
-use Protocol::Redis;
+use Mojo::Redis::Protocol;
 use Scalar::Util 'blessed';
 use Storable    ();
 use Time::HiRes ();
@@ -10,9 +10,7 @@ use Time::HiRes ();
 use constant OFFLINE => $ENV{MOJO_REDIS_CACHE_OFFLINE};
 
 has connection => sub {
-  OFFLINE
-    ? shift->_offline_connection
-    : shift->redis->_dequeue->protocol(Protocol::Redis->new(api => 1))->encoding(undef);
+  OFFLINE ? shift->_offline_connection : shift->redis->_dequeue->protocol(Mojo::Redis::Protocol->new)->encoding(undef);
 };
 has deserialize    => sub { \&Storable::thaw };
 has default_expire => 600;

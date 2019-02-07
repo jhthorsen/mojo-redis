@@ -16,7 +16,7 @@ has encoding        => 'UTF-8';
 has max_connections => 5;
 
 has protocol_class => do {
-  my $class = $ENV{MOJO_REDIS_PROTOCOL} || 'Protocol::Redis';
+  my $class = $ENV{MOJO_REDIS_PROTOCOL} || 'Mojo::Redis::Protocol';
   eval "require $class; 1" or die $@;
   $class;
 };
@@ -156,7 +156,7 @@ limitations:
 
 =item * Cannot handle binary data
 
-L<Mojo::Redis::Cache> uses L<Protocol::Redis> for now, since
+L<Mojo::Redis::Cache> uses L<Mojo::Redis::Protocol> for now, since
 L<Protocol::Redis::XS> fail to handle binary data.
 
 See L<https://github.com/dgl/protocol-redis-xs/issues/4> for more information.
@@ -172,9 +172,7 @@ See L<https://github.com/dgl/protocol-redis-xs/issues/5> for more information.
 =back
 
 If you experience any issues with L<Protocol::Redis::XS> then please report
-them to L<https://github.com/dgl/protocol-redis-xs/issues>. It is still the
-default L</protocol> though, since it is a lot faster than L<Protocol::Redis>
-for most tasks.
+them to L<https://github.com/dgl/protocol-redis-xs/issues>.
 
 =head1 EVENTS
 
@@ -209,10 +207,12 @@ Maximum number of idle database handles to cache for future use, defaults to
 =head2 protocol_class
 
   $str   = $redis->protocol_class;
+  $redis = $redis->protocol_class("Mojo::Redis::Protocol");
+  $redis = $redis->protocol_class("Protocol::Redis");
   $redis = $redis->protocol_class("Protocol::Redis::XS");
 
-Default to L<Protocol::Redis>. This will be changed in the future, if we see a
-more stable version of an alternative to L<Protocol::Redis::XS>.  See
+Default to L<Mojo::Redis::Protocol>. This will be changed in the future, if we
+see a more stable version of an alternative to L<Protocol::Redis::XS>.  See
 L</CAVEATS> for details.
 
 =head2 pubsub
