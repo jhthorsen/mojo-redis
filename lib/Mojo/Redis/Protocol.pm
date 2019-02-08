@@ -6,12 +6,11 @@ use Encode 'find_encoding';
 
 use constant DEBUG => $ENV{MOJO_REDIS_DEBUG} || 0;
 
-our %ENCODING;    # Internal usage
-
 has on_message => undef;
 
 sub encode {
   my ($self, @stack) = @_;
+  my $encoder = $self->{encoder};
 
   my $str = '';
   while (@stack) {
@@ -21,10 +20,17 @@ sub encode {
     my $type    = $ref eq 'ARRAY' ? '*' : !$ref ? '$' : $message->{type};
 
     if ($type eq '+' or $type eq '-' or $type eq ':') {
+      $data = $encoder->encode($data, 0) if $encoder;
       $str .= "$type$data\r\n";
     }
     elsif ($type eq '$') {
-      $str .= defined $data ? '$' . length($data) . "\r\n$data\r\n" : "\$-1\r\n";
+      if (defined $data) {
+        $data = $encoder->encode($data, 0) if $encoder and $type ne ':';
+        $str .= '$' . length($data) . "\r\n$data\r\n";
+      }
+      else {
+        $str .= "\$-1\r\n";
+      }
     }
     elsif ($type eq '*') {
       if (defined $data) {
@@ -40,14 +46,14 @@ sub encode {
     }
   }
 
-  return $self->{encoder} ? $self->{encoder}->encode($str, 0) : $str;
+  return $str;
 }
 
 sub encoding {
   my $self = shift;
   return $self->{encoding} unless @_;
   $self->{encoding} = shift // '';
-  $self->{encoder} = $self->{encoding} ? ($ENCODING{$self->{encoding}} ||= find_encoding($self->{encoding})) : undef;
+  $self->{encoder} = $self->{encoding} && find_encoding($self->{encoding});
   Carp::confess("Unknown encoding '$self->{encoding}'") if $self->{encoding} and !$self->{encoder};
   return $self;
 }
