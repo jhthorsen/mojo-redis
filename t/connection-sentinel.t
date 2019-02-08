@@ -3,7 +3,7 @@ use Test::More;
 use Mojo::Redis;
 
 my $port   = Mojo::IOLoop::Server->generate_port;
-my $conn_n = 0;
+my $n_conn = 0;
 my @sent_to_server;
 
 Mojo::IOLoop->server(
@@ -11,23 +11,18 @@ Mojo::IOLoop->server(
   sub {
     my ($loop, $stream) = @_;
     my $protocol   = Mojo::Redis::Protocol->new;
-    my @reply_with = ({type => '$', data => 'OK'});
+    my @reply_with = ('OK', $n_conn == 0 ? 'IDONTKNOW' : [localhost => $port]);
+    my $cid        = ++$n_conn;
 
-    push @reply_with,
-      $conn_n == 0
-      ? {type => '$', data => 'IDONTKNOW'}
-      : {type => '*', data => [{type => '$', data => 'localhost'}, {type => '$', data => $port}]};
-
-    my $cid = ++$conn_n;
-    $protocol->on_message(sub {
-      push @sent_to_server, pop;
-      die if @sent_to_server > 10;
-      $sent_to_server[-1]{c} = $cid;
-      $stream->write($protocol->encode(shift @reply_with)) if @reply_with;
-      Mojo::IOLoop->stop if $sent_to_server[-1]{data}[0] eq 'SELECT';
-    });
-
-    $stream->on(read => sub { $protocol->parse(pop) });
+    $stream->on(
+      read => sub {
+        my @messages = $protocol->parse(pop);
+        push @sent_to_server, map { $_->{c} = $cid; $_ } @messages;
+        die if @sent_to_server > 10;
+        map { $stream->write($protocol->encode(shift @reply_with)) } @messages if @reply_with;
+        Mojo::IOLoop->stop if $sent_to_server[-1]{data}[0] eq 'SELECT';
+      }
+    );
   }
 );
 
@@ -36,7 +31,7 @@ my $db    = $redis->db;
 $db->connection->_connect;
 Mojo::IOLoop->start;
 
-delete @$_{qw(level size stop)} for @sent_to_server;
+delete @$_{qw(level len)} for @sent_to_server;
 is_deeply(
   \@sent_to_server,
   [

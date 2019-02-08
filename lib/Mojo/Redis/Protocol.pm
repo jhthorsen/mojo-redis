@@ -6,8 +6,6 @@ use Encode 'find_encoding';
 
 use constant DEBUG => $ENV{MOJO_REDIS_DEBUG} || 0;
 
-has on_message => undef;
-
 sub encode {
   my ($self, @stack) = @_;
   my $encoder = $self->{encoder};
@@ -61,17 +59,17 @@ sub encoding {
 sub new {
   my $self = shift->SUPER::new(@_);
   $self->encoding($self->{encoding});
-  $self->{buf} = '';
+  @$self{qw(buf len stop)} = ('', -1, -1);
   return $self;
 }
 
 sub parse {
   my $self = shift;
+  $self->{buf} .= shift;
+
   my $curr = $self->{curr} ||= {level => 0};
   my $buf  = \$self->{buf};
-  my $encoder;
-
-  $$buf .= shift;
+  my ($encoder, @messages);
 
 CHUNK:
   while (length $$buf) {
@@ -79,17 +77,18 @@ CHUNK:
 
     # Look for initial type
     if (!$curr->{type}) {
+      @$self{qw(len stop)} = (-1, -1);
       $curr->{type} = substr $$buf, 0, 1, '';
       _parse_debug(start => $curr) if DEBUG > 1;
     }
 
     # Simple Strings, Errors, Integers
     if ($curr->{type} eq '+' or $curr->{type} eq '-' or $curr->{type} eq ':') {
-      $curr->{len} //= index $$buf, "\r\n";
-      return $curr->{len} = undef if $curr->{len} < 0;    # Wait for more data
+      $self->{len} = index $$buf, "\r\n" if $self->{len} < 0;
+      last CHUNK if $self->{len} < 0;    # Wait for more data
 
-      $curr->{data} = substr $$buf, 0, $curr->{len}, '';
-      substr $$buf, 0, 2, '';                             # Remove \r\n after data
+      $curr->{data} = substr $$buf, 0, $self->{len}, '';
+      substr $$buf, 0, 2, '';            # Remove \r\n after data
 
       # Force into correct data type
       if ($curr->{type} eq ':') {
@@ -104,32 +103,32 @@ CHUNK:
 
     # Bulk Strings
     elsif ($curr->{type} eq '$') {
-      $curr->{stop} //= index $$buf, "\r\n";
-      return $curr->{stop} = undef if $curr->{stop} < 0;    # Wait for more data
+      $self->{stop} = index $$buf, "\r\n" if $self->{stop} < 0;
+      last CHUNK if $self->{stop} < 0;    # Wait for more data
 
-      $curr->{len} //= substr $$buf, 0, $curr->{stop}, '';
-      return undef if length($$buf) - 2 < $curr->{len};     # Wait for more data
+      $self->{len} = substr $$buf, 0, $self->{stop}, '';
+      last CHUNK if length($$buf) - 2 < $self->{len};    # Wait for more data
 
-      $curr->{data} = $curr->{len} < 0 ? undef : substr $$buf, 2, $curr->{len}, '';
+      $curr->{data} = $self->{len} < 0 ? undef : substr $$buf, 2, $self->{len}, '';
       $curr->{data} = $encoder->decode($curr->{data}, 0) if $encoder ||= $self->{encoder};
-      substr $$buf, 0, 4, '';                               # Remove \r\n before and after data
+      substr $$buf, 0, 4, '';                            # Remove \r\n before and after data
       _parse_debug(scalar => $curr) if DEBUG > 1;
     }
 
     # Arrays
     elsif ($curr->{type} eq '*') {
-      $curr->{stop} //= index $$buf, "\r\n";
-      return $curr->{stop} = undef if $curr->{stop} < 0;    # Wait for more data
+      $self->{stop} = index $$buf, "\r\n" if $self->{stop} < 0;
+      last CHUNK if $self->{stop} < 0;                   # Wait for more data
 
-      $curr->{size} //= substr $$buf, 0, $curr->{stop}, '';
-      return undef if length($$buf) - 2 < $curr->{size};    # Wait for more data
+      $curr->{len} = substr $$buf, 0, $self->{stop}, '';
+      last CHUNK if length($$buf) - 2 < $curr->{len};    # Wait for more data
 
-      $curr->{data} = $curr->{size} < 0 ? undef : [];
-      substr $$buf, 0, 2, '';                               # Remove \r\n after array size
+      $curr->{data} = $curr->{len} < 0 ? undef : [];
+      substr $$buf, 0, 2, '';                            # Remove \r\n after array size
       _parse_debug(array => $curr) if DEBUG > 1;
 
       # Fill the array with data
-      if ($curr->{size} > 0) {
+      if ($curr->{len} > 0) {
         $curr = $self->{curr} = {level => $curr->{level} + 1, parent => $curr};
         next CHUNK;
       }
@@ -148,7 +147,7 @@ CHUNK:
       push @{$parent->{data}}, $curr->{data};
       _parse_debug(parent => $parent) if DEBUG > 1;
 
-      if (@{$parent->{data}} < $parent->{size}) {
+      if (@{$parent->{data}} < $parent->{len}) {
         $curr = $self->{curr} = {level => $curr->{level}, parent => $parent};
         next CHUNK;
       }
@@ -158,13 +157,13 @@ CHUNK:
     }
 
     unless ($curr->{level}) {
-      _parse_debug(emit => $self->{curr}) if DEBUG > 1;
-      $self->on_message->($self, $self->{curr});
+      push @messages, $curr;
+      _parse_debug(push => $curr) if DEBUG > 1;
       $curr = $self->{curr} = {level => 0};
     }
   }
 
-  return 1;
+  return @messages;
 }
 
 sub _parse_debug {
@@ -186,14 +185,15 @@ Mojo::Redis::Protocol - Alternative to Protocol::Redis
 
   use Mojo::Redis::Protocol;
 
-  my $protocol = Mojo::Redis::Protocol->new;
+  my $protocol = Mojo::Redis::Protocol->new->encoding("UTF-8");
 
-  $protocol->encoding("UTF-8");
+  print $protocol->encode("foo");
+  print $protocol->encode({type => "-", data => "foo"});
+  print $protocol->encode(["foo", "bar", "baz"]);
 
-  print $protocol->encode({...});
-
-  $protocol->on_message(sub { ... });
-  $protocol->parse($bytes);
+  while (my $msg = $protocol->parse($bytes)) {
+    ...
+  }
 
 =head1 DESCRIPTION
 
@@ -218,7 +218,7 @@ Used to set or read the encoding.
 
 =head2 encode
 
-  $bytes = $protocol->encode(\%data);
+  $bytes = $protocol->encode($msg);
 
 Takes a message structure and turns it into bytes.
 
@@ -226,19 +226,12 @@ Takes a message structure and turns it into bytes.
 
   $protocol = Mojo::Redis::Protocol->new;
 
-=head2 on_message
-
-  $protocol = $protocol->on_message(sub { ... });
-  $cb       = $protocol->on_message;
-
-A callback which will receive new messages parsed by L</parse>.
-
 =head2 parse
 
-  $protocol->parse($bytes);
+  my $msg = $protocol->parse($bytes);
 
-Used to parse bytest from the Redis server and call L</on_message> when a whole
-message is parsed.
+Used to parse bytes from the Redis server. Returns a hash-ref when a complete
+message has been parsed.
 
 =head1 SEE ALSO
 

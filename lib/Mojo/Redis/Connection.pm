@@ -68,7 +68,7 @@ sub _connect {
 
   Scalar::Util::weaken($self);
   delete $self->{master_url};     # Make sure we forget master_url so we can reconnect
-  $self->protocol->on_message($self->_on_message_cb);
+  $self->protocol->on_message($self->_on_message_cb) if $self->protocol->can('on_message');
   $self->{id} = $self->ioloop->client(
     $self->_connect_args($url, {port => 6379, timeout => CONNECT_TIMEOUT}),
     sub {
@@ -118,7 +118,7 @@ sub _discover_master {
 
   $url->host_port(shift @$sentinels);
   $self->url->query->param(sentinel => [@$sentinels, $url->host_port]);    # Round-robin sentinel list
-  $self->protocol->on_message($self->_on_message_cb);
+  $self->protocol->on_message($self->_on_message_cb) if $self->protocol->can('on_message');
   $self->{id} = $self->ioloop->client(
     $self->_connect_args($url, {port => 16379, timeout => $timeout}),
     sub {
@@ -173,20 +173,6 @@ sub _on_message_cb {
 
   Scalar::Util::weaken($self);
 
-  if ($protocol->can('encoding')) {
-    return sub {
-      my ($protocol, $msg) = @_;
-      my $p = shift @{$self->{waiting} || []};
-
-      if ($msg->{type} eq '-') {
-        $p ? $p->reject($msg->{data}) : $self->emit(error => $msg->{data});
-      }
-      else {
-        $p ? $p->resolve($msg->{data}) : $self->emit(response => $msg->{data});
-      }
-    };
-  }
-
   return sub {
     my ($protocol, @messages) = @_;
     my $encoding = $self->encoding;
@@ -230,6 +216,26 @@ sub _on_read_cb {
   my $self = shift;
 
   Scalar::Util::weaken($self);
+
+  if ($self->protocol->can('encoding')) {
+    return sub {
+      return unless $self;
+      do { local $_ = $_[1]; s!\r\n!\\r\\n!g; warn "[@{[$self->_id]}] >>> ($_)\n" } if DEBUG;
+      $self->_write;
+
+      for my $msg ($self->protocol->parse(pop)) {
+        my $p = shift @{$self->{waiting} || []};
+
+        if ($msg->{type} eq '-') {
+          $p ? $p->reject($msg->{data}) : $self->emit(error => $msg->{data});
+        }
+        else {
+          $p ? $p->resolve($msg->{data}) : $self->emit(response => $msg->{data});
+        }
+      }
+    };
+  }
+
   return sub {
     return unless $self;
     my ($stream, $chunk) = @_;
