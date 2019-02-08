@@ -9,7 +9,7 @@ my $channel             = "test:reconnect:$$";
 my $expected_reconnects = 3;
 my ($pubsub_id, @before_connect, @disconnect, @err, @payloads, @reconnect);
 
-diag 'setup pubsub';
+note 'setup pubsub';
 my $pubsub = $redis->pubsub;
 $pubsub->reconnect_interval(0.3);
 
@@ -34,21 +34,20 @@ $pubsub->on(
   }
 );
 
-# Guard
-Mojo::IOLoop->timer(10 => sub { ok 0, 'Timeout!'; exit; });
-
-diag 'reconnect enabled';
+note 'reconnect enabled';
 $pubsub->listen($channel => \&gather);
 $pubsub->listen("$channel:$_" => sub { }) for 1 .. 4;
+
 Mojo::IOLoop->start;
-is_deeply \@err, [], 'no errors';
+plan skip_all => "CLIENT ID: @err" if @err;
+
 is_deeply \@payloads, [qw(kill reconnected) x $expected_reconnects], 'got payloads';
 is @before_connect, $expected_reconnects + 1, 'got before_connect events';
 is @reconnect,  $expected_reconnects, 'got reconnect events';
 is @disconnect, $expected_reconnects, 'got disconnect events';
 isnt $before_connect[0], $before_connect[1], 'fresh connection';
 
-diag 'reconnect disabled';
+note 'reconnect disabled';
 (@before_connect, @disconnect, @reconnect) = ();
 $pubsub->reconnect_interval(-1);
 $pubsub->on(
@@ -66,7 +65,7 @@ done_testing;
 
 sub gather {
   my ($pubsub, $payload) = @_;
-  diag "---payload=($payload)";
+  note "---payload=($payload)";
   push @payloads, $payload;
 
   if ($payload eq 'kill') {
