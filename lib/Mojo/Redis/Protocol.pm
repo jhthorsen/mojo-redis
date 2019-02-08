@@ -16,8 +16,9 @@ sub encode {
   my $str = '';
   while (@stack) {
     my $message = shift @stack;
-    my $data    = $message->{data};
-    my $type    = $message->{type};
+    my $ref     = ref $message;
+    my $data    = $ref eq 'ARRAY' || !$ref ? $message : $message->{data};
+    my $type    = $ref eq 'ARRAY' ? '*' : !$ref ? '$' : $message->{type};
 
     if ($type eq '+' or $type eq '-' or $type eq ':') {
       $str .= "$type$data\r\n";

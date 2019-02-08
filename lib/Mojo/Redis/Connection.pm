@@ -48,8 +48,7 @@ sub _encode {
   my $self     = shift;
   my $protocol = $self->protocol;
 
-  return $protocol->encoding($self->encoding)->encode({type => '*', data => [map { +{type => '$', data => $_} } @_]})
-    if $protocol->can('encoding');
+  return $protocol->encoding($self->encoding)->encode(\@_) if $protocol->can('encoding');
 
   my $encoding = $self->encoding;
   return $protocol->encode({
