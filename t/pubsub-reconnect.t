@@ -7,9 +7,9 @@ plan skip_all => 'TEST_ONLINE=redis://localhost' unless $ENV{TEST_ONLINE};
 my $redis               = Mojo::Redis->new($ENV{TEST_ONLINE});
 my $channel             = "test:reconnect:$$";
 my $expected_reconnects = 3;
-my ($pubsub_id, @before_connect, @disconnect, @payloads, @reconnect);
+my ($pubsub_id, @before_connect, @disconnect, @err, @payloads, @reconnect);
 
-note 'setup pubsub';
+diag 'setup pubsub';
 my $pubsub = $redis->pubsub;
 $pubsub->reconnect_interval(0.3);
 
@@ -21,24 +21,34 @@ $pubsub->on(reconnect => sub { shift->notify($channel => 'reconnected') });
 $pubsub->on(
   before_connect => sub {
     my ($pubsub, $conn) = @_;
-    $conn->write_p(qw(CLIENT ID))->then(sub {
-      $pubsub_id = shift;
-      Mojo::IOLoop->timer(0.1 => sub { $pubsub->notify($channel => 'kill') });
-    });
+    $conn->write_p(qw(CLIENT ID))->then(
+      sub {
+        $pubsub_id = shift;
+        Mojo::IOLoop->timer(0.1 => sub { $pubsub->notify($channel => 'kill') });
+      },
+      sub {
+        @err = @_;
+        Mojo::IOLoop->stop;
+      }
+    );
   }
 );
 
-note 'reconnect enabled';
+# Guard
+Mojo::IOLoop->timer(10 => sub { ok 0, 'Timeout!'; exit; });
+
+diag 'reconnect enabled';
 $pubsub->listen($channel => \&gather);
 $pubsub->listen("$channel:$_" => sub { }) for 1 .. 4;
 Mojo::IOLoop->start;
+is_deeply \@err, [], 'no errors';
 is_deeply \@payloads, [qw(kill reconnected) x $expected_reconnects], 'got payloads';
 is @before_connect, $expected_reconnects + 1, 'got before_connect events';
 is @reconnect,  $expected_reconnects, 'got reconnect events';
 is @disconnect, $expected_reconnects, 'got disconnect events';
 isnt $before_connect[0], $before_connect[1], 'fresh connection';
 
-note 'reconnect disabled';
+diag 'reconnect disabled';
 (@before_connect, @disconnect, @reconnect) = ();
 $pubsub->reconnect_interval(-1);
 $pubsub->on(
@@ -48,6 +58,7 @@ $pubsub->on(
 );
 Mojo::IOLoop->timer(0.1 => sub { $pubsub->connection->disconnect });
 Mojo::IOLoop->start;
+is_deeply \@err, [], 'no errors';
 is @before_connect + @reconnect, 0, 'got no before_connect or reconnect events';
 is @disconnect, 1, 'got only disconnect event';
 
@@ -55,7 +66,7 @@ done_testing;
 
 sub gather {
   my ($pubsub, $payload) = @_;
-  note "---payload=($payload)";
+  diag "---payload=($payload)";
   push @payloads, $payload;
 
   if ($payload eq 'kill') {
