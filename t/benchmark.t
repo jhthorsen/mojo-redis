@@ -3,7 +3,7 @@ use Test::More;
 use Benchmark qw(cmpthese timeit timestr :hireswallclock);
 
 plan skip_all => 'TEST_ONLINE=redis://localhost' unless $ENV{MOJO_REDIS_URL} = $ENV{TEST_ONLINE};
-plan skip_all => 'TEST_BENCHMARK=500' unless my $n_times = $ENV{TEST_BENCHMARK};
+plan skip_all => 'TEST_BENCHMARK=500'            unless my $n_times          = $ENV{TEST_BENCHMARK};
 
 my @classes   = qw(Mojo::Redis Mojo::Redis2);
 my @protocols = qw(Protocol::Redis Protocol::Redis::XS);
@@ -16,9 +16,7 @@ for my $class (@classes) {
   for my $protocol (@protocols) {
     eval "require $protocol;1" or next;
     my $redis = $class->new->protocol_class($protocol);
-    my $name = sprintf '%s/%s', $class =~ /::(\w+)$/, $protocol =~ /XS/ ? 'XS' : 'PP';
-
-    run($name, $redis->isa('Mojo::Redis2') ? $redis : $redis->db);
+    run($protocol, $redis->isa('Mojo::Redis2') ? $redis : $redis->db);
   }
 }
 
@@ -34,7 +32,7 @@ sub compare {
 }
 
 sub run {
-  my ($name, $db) = @_;
+  my ($protocol, $db) = @_;
   my ($lpush, $lrange);
 
   $db->del($key);
@@ -49,7 +47,7 @@ sub run {
   );
 
   $db->del($key);
-  is_deeply $lrange, [reverse 0 .. $n_times - 1], sprintf 'lrange %s %s', $name, timestr $bm;
+  is_deeply $lrange, [reverse 0 .. $n_times - 1], sprintf 'lrange %s %s', $protocol, timestr $bm;
 
-  return $t{$name} = $bm;
+  return $t{$protocol} = $bm;
 }
