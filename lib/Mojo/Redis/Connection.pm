@@ -200,7 +200,8 @@ sub _parse_message_cb {
           return $err if defined $err;
           push @res, $res;
         }
-        elsif ($encoding and defined $m->{data}) {
+        # Only bulk string replies can contain binary-safe encoded data
+        elsif ($m->{type} eq '$' and $encoding and defined $m->{data}) {
           push @res, Mojo::Util::decode($encoding, $m->{data});
         }
         else {
