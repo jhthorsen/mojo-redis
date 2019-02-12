@@ -7,6 +7,7 @@ use Mojo::Redis::Cache;
 use Mojo::Redis::Cursor;
 use Mojo::Redis::Database;
 use Mojo::Redis::PubSub;
+use Scalar::Util 'blessed';
 
 our $VERSION = '3.19';
 
@@ -35,8 +36,10 @@ sub db { Mojo::Redis::Database->new(redis => shift) }
 
 sub new {
   my $class = shift;
-  return $class->SUPER::new(url => Mojo::URL->new(shift), @_) if @_ % 2 and ref $_[0] ne 'HASH';
-  return $class->SUPER::new(@_);
+  return $class->SUPER::new(@_) unless @_ % 2 and ref $_[0] ne 'HASH';
+  my $url = shift;
+  $url = Mojo::URL->new($url) unless blessed $url and $url->isa('Mojo::URL');
+  return $class->SUPER::new(url => $url, @_);
 }
 
 sub _connection {
