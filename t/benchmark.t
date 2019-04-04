@@ -6,7 +6,7 @@ plan skip_all => 'TEST_ONLINE=redis://localhost' unless $ENV{MOJO_REDIS_URL} = $
 plan skip_all => 'TEST_BENCHMARK=500'            unless my $n_times          = $ENV{TEST_BENCHMARK};
 
 my @classes   = qw(Mojo::Redis Mojo::Redis2);
-my @protocols = qw(Protocol::Redis Protocol::Redis::XS);
+my @protocols = qw(Protocol::Redis Protocol::Redis::Faster Protocol::Redis::XS);
 my $key       = "test:benchmark:$0";
 my %t;
 
@@ -16,11 +16,18 @@ for my $class (@classes) {
   for my $protocol (@protocols) {
     eval "require $protocol;1" or next;
     my $redis = $class->new->protocol_class($protocol);
-    run($protocol, $redis->isa('Mojo::Redis2') ? $redis : $redis->db);
+
+    my ($bm, $lrange) = run($redis->isa('Mojo::Redis2') ? $redis : $redis->db, $protocol);
+    is_deeply $lrange, [reverse 0 .. $n_times - 1], sprintf '%s/%s %s', ref $redis, $protocol, timestr $bm;
+
+    my $bm_key = join '/', $redis->isa('Mojo::Redis2') ? 'Redis2' : 'Redis',
+      $protocol =~ m!Protocol::Redis::(\w+)! ? $1 : 'PP';
+    $t{$bm_key} = $bm;
   }
 }
 
-compare(qw(Redis/PP Redis2/PP));
+compare(qw(Redis/Faster Redis2/Faster));
+compare(qw(Redis/Faster Redis/PP));
 cmpthese(\%t) if $ENV{HARNESS_IS_VERBOSE};
 
 done_testing;
@@ -32,11 +39,11 @@ sub compare {
 }
 
 sub run {
-  my ($protocol, $db) = @_;
-  my ($lpush, $lrange);
+  my $db = shift;
 
   $db->del($key);
 
+  my ($lpush, $lrange);
   my $i  = 0;
   my $bm = timeit(
     $n_times,
@@ -47,7 +54,6 @@ sub run {
   );
 
   $db->del($key);
-  is_deeply $lrange, [reverse 0 .. $n_times - 1], sprintf 'lrange %s %s', $protocol, timestr $bm;
 
-  return $t{$protocol} = $bm;
+  return $bm, $lrange;
 }

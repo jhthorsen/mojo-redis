@@ -1,5 +1,8 @@
 Revision history for perl distribution Mojo-Redis
 
+3.20 Not Released
+ - Use Protocol::Redis::Faster instead of Protocol::Redis #38
+
 3.19 2019-01-31T13:03:11+0900
  - Add support for encoding and decoding of JSON messages in Mojo::Redis::PubSub
 
