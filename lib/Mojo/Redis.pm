@@ -9,7 +9,7 @@ use Mojo::Redis::Database;
 use Mojo::Redis::PubSub;
 use Scalar::Util 'blessed';
 
-our $VERSION = '3.19';
+our $VERSION = '3.20';
 
 $ENV{MOJO_REDIS_URL} ||= 'redis://localhost:6379';
 
@@ -262,9 +262,11 @@ L<Mojo::Redis::Cursor/new>. for possible commands.
 Object constructor. Can coerce a string into a L<Mojo::URL> and set L</url>
 if present.
 
-=head1 AUTHOR
+=head1 AUTHORS
 
-Jan Henning Thorsen
+Jan Henning Thorsen - C<jhthorsen@cpan.org>
+
+Dan Book - C<grinnz@grinnz.com>
 
 =head1 COPYRIGHT AND LICENSE
 
