@@ -1,6 +1,6 @@
 Revision history for perl distribution Mojo-Redis
 
-3.23 Not Released
+3.23 2019-05-04T21:12:25+0700
  - Fix compatibility with Mojolicious 8.15 #46
 
 3.22 2019-04-24T12:32:18+0700
