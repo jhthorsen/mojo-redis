@@ -70,8 +70,8 @@ sub _keyspace_key {
   local $args->{op}  = $_[1] // $args->{op}  // '*';
   local $args->{type} = $args->{type} || ($args->{key} eq '*' ? 'keyevent' : 'keyspace');
 
-  return sprintf '__%s@%s__:%s %s', $args->{type}, $args->{db} // $self->redis->url->path->[0] // '',
-    $args->{type} eq 'keyevent' ? (@$args{qw(op key)}) : (@$args{qw(key op)});
+  return sprintf '__%s@%s__:%s', $args->{type}, $args->{db} // $self->redis->url->path->[0] // '',
+    $args->{type} eq 'keyevent' ? $args->{op} : $args->{key};
 }
 
 sub _listen {
