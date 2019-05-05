@@ -69,7 +69,7 @@ my $cb = $pubsub->keyspace_listen(undef, 'del', {db => 1}, sub { });
 is ref($cb), 'CODE', 'keyspace_listen returns callback';
 is_deeply $pubsub->{chans}{'__keyevent@1__:del'}, [$cb], 'callback is set up';
 is $pubsub->keyspace_unlisten(undef, 'del', {db => 1}, $cb), $pubsub, 'keyspace_unlisten with callback';
-ok !$pubsub->{chans}{'__keyevent@1__:del *'}, 'callback is removed';
+ok !$pubsub->{chans}{'__keyevent@1__:del'}, 'callback is removed';
 $pubsub->{chans}{'__keyevent@1__:del'} = [$cb];
 is $pubsub->keyspace_unlisten(undef, 'del', {db => 1}), $pubsub, 'keyspace_unlisten without callback';
 ok !$pubsub->{chans}{'__keyevent@1__:del'}, 'callback is removed';
