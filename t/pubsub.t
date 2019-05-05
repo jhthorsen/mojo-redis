@@ -52,8 +52,11 @@ undef $pubsub;
 delete $redis->{pubsub};
 isnt $redis->db->connection, $conn, 'pubsub connection cannot be re-used';
 
-$redis  = Mojo::Redis->new('redis://localhost/5');
+$redis  = Mojo::Redis->new('redis://localhost');
 $pubsub = $redis->pubsub;
+is $pubsub->_keyspace_key, '__keyevent@*__:*', 'keyevent default db wildcard';
+
+$redis->url->path->parse('/5');
 is $pubsub->_keyspace_key, '__keyevent@5__:*', 'keyevent default wildcard';
 is $pubsub->_keyspace_key({type => 'key*'}), '__key*@5__:*', 'keyboth wildcard listen';
 is $pubsub->_keyspace_key(foo => undef), '__keyspace@5__:foo', 'keyspace foo';
