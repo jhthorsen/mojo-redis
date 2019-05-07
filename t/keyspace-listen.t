@@ -2,7 +2,7 @@ use Mojo::Base -strict;
 use Test::More;
 use Mojo::Redis;
 
-my @messages;
+my @events;
 my $redis  = Mojo::Redis->new('redis://localhost');
 my $pubsub = $redis->pubsub;
 is $pubsub->_keyspace_key, '__keyevent@*__:*', 'keyevent default db wildcard';
@@ -25,4 +25,31 @@ $pubsub->{chans}{'__keyevent@1__:del'} = [$cb];
 is $pubsub->keyspace_unlisten(undef, 'del', {db => 1}), $pubsub, 'keyspace_unlisten without callback';
 ok !$pubsub->{chans}{'__keyevent@1__:del'}, 'callback is removed';
 
+if ($ENV{TEST_KEA}) {
+  my $redis = Mojo::Redis->new($ENV{TEST_ONLINE} || 'redis://localhost');
+  my $kea   = $redis->db->config(qw(get notify-keyspace-events))->[1];
+  diag "config get notify-keyspace-events == $kea";
+  $redis->db->config(qw(set notify-keyspace-events KEA));
+
+  $redis->pubsub->keyspace_listen(\&gather);
+  $redis->pubsub->keyspace_listen({type => 'keyspace'}, \&gather);
+  Mojo::IOLoop->timer(0.15 => sub { Mojo::IOLoop->stop });
+  Mojo::IOLoop->start;
+
+  my $key = 'mojo:redis:test:keyspace:listen';
+  $redis->db->tap(set => $key => __FILE__)->del($key => __FILE__);
+  Mojo::IOLoop->start;
+  $redis->db->config(qw(set notify-keyspace-events), $kea);
+
+  ok + (grep { $_->[1] eq 'del' } @events), 'keyspace del event';
+  ok + (grep { $_->[1] eq 'set' } @events), 'keyspace set event';
+  ok + (grep { $_->[0] =~ /:set$/ } @events), 'keyevent set event';
+  ok + (grep { $_->[0] =~ /:del$/ } @events), 'keyevent del event';
+}
+
 done_testing;
+
+sub gather {
+  push @events, $_[1];
+  Mojo::IOLoop->stop if @events >= 4;
+}
