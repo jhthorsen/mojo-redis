@@ -1,5 +1,8 @@
 Revision history for perl distribution Mojo-Redis
 
+3.25 Not Released
+ - Add notify_p()
+
 3.24 2019-05-07T22:25:50+0700
  - Fix PubSub->keyspace_listen() #42
 
