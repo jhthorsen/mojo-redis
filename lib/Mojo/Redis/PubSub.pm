@@ -240,19 +240,19 @@ L<Mojo::JSON/"from_json"> for a channel.
 
 =head2 keyspace_listen
 
-  $cb = $pubsub->keyspace_listen($key, $op, sub { my ($pubsub, $message) = @_ }) });
-  $cb = $pubsub->keyspace_listen($key, $op, \%args, sub { my ($pubsub, $message) = @_ }) });
+  $cb = $pubsub->keyspace_listen(\%args,              sub { my ($pubsub, $message) = @_ }) });
+  $cb = $pubsub->keyspace_listen({key => "cool:key"}, sub { my ($pubsub, $message) = @_ }) });
+  $cb = $pubsub->keyspace_listen({op  => "del"},      sub { my ($pubsub, $message) = @_ }) });
 
 Used to listen for keyspace notifications. See L<https://redis.io/topics/notifications>
-for more details.
-
-C<$key> C<$op> and C<%args> are optional. C<$key> and C<$op> will default to
-"*" and C<%args> can have the following key values:
-
-The channel that will be subscribed to will look like one of these:
+for more details. The channel that will be subscribed to will look like one of
+these:
 
   __keyspace@${db}__:$key $op
   __keyevent@${db}__:$op $key
+
+This means that "key" and "op" is mutually exclusive from the list of
+parameters below:
 
 =over 2
 
@@ -269,11 +269,6 @@ Alternative to passing in C<$key>. Default value is "*".
 =item * op
 
 Alternative to passing in C<$op>. Default value is "*".
-
-=item * type
-
-Will default to "keyevent" if C<$key> is "*", and "keyspace" if not. It can
-also be set to "key*" for listening to both "keyevent" and "keyspace" events.
 
 =back
 
