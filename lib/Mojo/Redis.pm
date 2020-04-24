@@ -32,9 +32,9 @@ has pubsub => sub {
 
 has url => sub { Mojo::URL->new($ENV{MOJO_REDIS_URL}) };
 
-sub cache { Mojo::Redis::Cache->new(redis => shift, @_) }
+sub cache  { Mojo::Redis::Cache->new(redis => shift, @_) }
 sub cursor { Mojo::Redis::Cursor->new(redis => shift, command => [@_ ? @_ : (scan => 0)]) }
-sub db { Mojo::Redis::Database->new(redis => shift) }
+sub db     { Mojo::Redis::Database->new(redis => shift) }
 
 sub new {
   my $class = shift;
@@ -55,7 +55,6 @@ sub _connection {
     %args
   );
 
-  Scalar::Util::weaken($self);
   $conn->on(connect => sub { $self->emit(connection => $_[0]) });
   $conn;
 }

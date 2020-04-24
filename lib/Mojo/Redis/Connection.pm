@@ -62,25 +62,22 @@ sub _connect {
   my $url = $self->{master_url} || $self->url;
   return $self->_discover_master if !$self->{master_url} and $url->query->param('sentinel');
 
-  Scalar::Util::weaken($self);
   delete $self->{master_url};     # Make sure we forget master_url so we can reconnect
-  $self->protocol->on_message($self->_parse_message_cb);
-  $self->{id} = $self->ioloop->client(
+  $self->{pid} = $$;
+  $self->{id}  = $self->ioloop->client(
     $self->_connect_args($url, {port => 6379, timeout => CONNECT_TIMEOUT}),
     sub {
       return unless $self;
       my ($loop, $err, $stream) = @_;
-      my $close_cb = $self->_on_close_cb;
-      return $self->$close_cb($err) if $err;
+      return $self->_on_close($err) if $err;
 
       $stream->timeout(0);
-      $stream->on(close => $close_cb);
-      $stream->on(error => $close_cb);
-      $stream->on(read  => $self->_on_read_cb);
+      $stream->on(close => sub { $self->_on_close($_[1]) });
+      $stream->on(error => sub { $self->_on_close($_[1]) });
+      $stream->on(read  => sub { $self->_on_read($_[1]) });
 
       unshift @{$self->{write}}, [$self->_encode(SELECT => $url->path->[0])] if length $url->path->[0];
       unshift @{$self->{write}}, [$self->_encode(AUTH   => $url->password)]  if length $url->password;
-      $self->{pid}    = $$;
       $self->{stream} = $stream;
       $self->emit('connect');
       $self->_write;
@@ -114,7 +111,6 @@ sub _discover_master {
 
   $url->host_port(shift @$sentinels);
   $self->url->query->param(sentinel => [@$sentinels, $url->host_port]);    # Round-robin sentinel list
-  $self->protocol->on_message($self->_parse_message_cb);
   $self->{id} = $self->ioloop->client(
     $self->_connect_args($url, {port => 16379, timeout => $timeout}),
     sub {
@@ -125,7 +121,7 @@ sub _discover_master {
       $stream->timeout(0);
       $stream->on(close => sub { $self->_discover_master unless $self->{master_url} });
       $stream->on(error => sub { $self->_discover_master });
-      $stream->on(read  => $self->_on_read_cb);
+      $stream->on(read  => sub { $self->_on_read($_[1]) });
 
       $self->{stream} = $stream;
       unshift @{$self->{write}}, [$self->_encode(AUTH => $url->password)] if length $url->password;
@@ -148,76 +144,30 @@ sub _id { $_[0]->{id} || '0' }
 
 sub _is_blocking { shift->ioloop eq Mojo::IOLoop->singleton ? 0 : 1 }
 
-sub _on_close_cb {
-  my $self = shift;
-
-  Scalar::Util::weaken($self);
-  return sub {
-    return unless $self;
-    my ($stream, $err) = @_;
-    delete $self->{$_} for qw(id stream);
-    $self->{gone_away} = 1;
-    $self->_reject_queue($err);
-    $self->emit('close') if @_ == 1;
-    warn qq([@{[$self->_id]}] @{[$err ? "ERROR $err" : "CLOSED"]}\n) if $self and DEBUG;
-  };
+sub _on_close {
+  my ($self, $err) = @_;
+  return unless $self;
+  delete $self->{$_} for qw(id stream);
+  $self->{gone_away} = 1;
+  $self->_reject_queue($err);
+  $self->emit('close')                                             if @_ == 1;
+  warn qq([@{[$self->_id]}] @{[$err ? "ERROR $err" : "CLOSED"]}\n) if $self and DEBUG;
 }
 
-sub _on_read_cb {
+sub _on_read {
   my $self = shift;
+  return unless $self;
 
-  Scalar::Util::weaken($self);
-  return sub {
-    return unless $self;
-    my ($stream, $chunk) = @_;
-    do { local $_ = $chunk; s!\r\n!\\r\\n!g; warn "[@{[$self->_id]}] >>> ($_)\n" } if DEBUG;
-    $self->protocol->parse($chunk);
-  };
-}
+  do { local $_ = $_[0]; s!\r\n!\\r\\n!g; warn "[@{[$self->_id]}] >>> ($_)\n" } if DEBUG;
+  my $protocol = $self->protocol;
+  $protocol->parse(shift);
 
-sub _parse_message_cb {
-  my $self = shift;
-
-  Scalar::Util::weaken($self);
-  return sub {
-    my ($protocol, @messages) = @_;
-    my $encoding = $self->encoding;
-    $self->_write;
-
-    my $unpack;
-    $unpack = sub {
-      my @res;
-
-      while (my $m = shift @_) {
-        if ($m->{type} eq '-') {
-          return $m->{data}, undef;
-        }
-        elsif ($m->{type} eq ':') {
-          push @res, 0 + $m->{data};
-        }
-        elsif ($m->{type} eq '*' and ref $m->{data} eq 'ARRAY') {
-          my ($err, $res) = $unpack->(@{$m->{data}});
-          return $err if defined $err;
-          push @res, $res;
-        }
-
-        # Only bulk string replies can contain binary-safe encoded data
-        elsif ($m->{type} eq '$' and $encoding and defined $m->{data}) {
-          push @res, Mojo::Util::decode($encoding, $m->{data});
-        }
-        else {
-          push @res, $m->{data};
-        }
-      }
-
-      return undef, \@res;
-    };
-
-    my ($err, $res) = $unpack->(@messages);
+  while (my $msg = $protocol->get_message) {
+    my ($err, $res) = _unpack($self->encoding, $msg);
     my $p = shift @{$self->{waiting} || []};
-    return $p ? $p->reject($err) : $self->emit(error => $err) unless $res;
+    return $p ? $p->reject($err)       : $self->emit(error    => $err) unless $res;
     return $p ? $p->resolve($res->[0]) : $self->emit(response => $res->[0]);
-  };
+  }
 }
 
 sub _reject_queue {
@@ -226,6 +176,35 @@ sub _reject_queue {
   for my $p (@{delete $self->{waiting} || []}) { $p      and $p->reject($err      || $default) }
   for my $i (@{delete $self->{write}   || []}) { $i->[1] and $i->[1]->reject($err || $default) }
   return $self;
+}
+
+sub _unpack {
+  my $encoding = shift;
+  my @res;
+
+  while (my $m = shift @_) {
+    if ($m->{type} eq '-') {
+      return $m->{data};
+    }
+    elsif ($m->{type} eq ':') {
+      push @res, 0 + $m->{data};
+    }
+    elsif ($m->{type} eq '*' and ref $m->{data} eq 'ARRAY') {
+      my ($err, $res) = _unpack($encoding, @{$m->{data}});
+      return $err if defined $err;
+      push @res, $res;
+    }
+
+    # Only bulk string replies can contain binary-safe encoded data
+    elsif ($m->{type} eq '$' and $encoding and defined $m->{data}) {
+      push @res, Mojo::Util::decode($encoding, $m->{data});
+    }
+    else {
+      push @res, $m->{data};
+    }
+  }
+
+  return undef, \@res;
 }
 
 sub _write {
