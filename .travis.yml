@@ -1,6 +1,5 @@
 language: perl
-sudo: false
-matrix:
+jobs:
   include:
   - perl: "5.26"
   - perl: "5.20"
