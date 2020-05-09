@@ -56,7 +56,7 @@ sub _connection {
   );
 
   Scalar::Util::weaken($self);
-  $conn->on(connect => sub { $self->emit(connection => $_[0]) });
+  $conn->on(connect => sub { $self && $self->emit(connection => $_[0]) });
   $conn;
 }
 

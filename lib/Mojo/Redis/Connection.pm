@@ -112,6 +112,7 @@ sub _discover_master {
   my $sentinels = $url->query->every_param('sentinel');
   my $timeout   = $url->query->param('sentinel_connect_timeout') || SENTINELS_CONNECT_TIMEOUT;
 
+  Scalar::Util::weaken($self);
   $url->host_port(shift @$sentinels);
   $self->url->query->param(sentinel => [@$sentinels, $url->host_port]);    # Round-robin sentinel list
   $self->protocol->on_message($self->_parse_message_cb);
@@ -123,20 +124,21 @@ sub _discover_master {
       return $self->_discover_master if $err;
 
       $stream->timeout(0);
-      $stream->on(close => sub { $self->_discover_master unless $self->{master_url} });
-      $stream->on(error => sub { $self->_discover_master });
+      $stream->on(close => sub { $self && $self->_discover_master unless $self->{master_url} });
+      $stream->on(error => sub { $self && $self->_discover_master });
       $stream->on(read  => $self->_on_read_cb);
 
       $self->{stream} = $stream;
       unshift @{$self->{write}}, [$self->_encode(AUTH => $url->password)] if length $url->password;
       $self->write_p(SENTINEL => 'get-master-addr-by-name' => $self->url->host)->then(sub {
+        return unless $self;
         my $host_port = shift;
         delete $self->{id};
         return $self->_discover_master unless ref $host_port and @$host_port == 2;
         $self->{master_url} = $self->url->clone->host($host_port->[0])->port($host_port->[1]);
         $self->{stream}->close;
         $self->_connect;
-      })->catch(sub { $self->_discover_master });
+      })->catch(sub { $self && $self->_discover_master });
     }
   );
 
@@ -180,6 +182,7 @@ sub _parse_message_cb {
 
   Scalar::Util::weaken($self);
   return sub {
+    return unless $self;
     my ($protocol, @messages) = @_;
     my $encoding = $self->encoding;
     $self->_write;

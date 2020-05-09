@@ -24,8 +24,11 @@ sub compute_p {
   my $key     = join ':', $self->namespace, shift;
   my $expire  = shift || $self->default_expire;
 
+  Scalar::Util::weaken($self);
+  Scalar::Util::weaken($compute);
   my $p = $self->refresh ? Mojo::Promise->new->resolve : $self->connection->write_p(GET => $key);
   return $p->then(sub {
+    return unless $self;
     my $data = $_[0] ? $self->deserialize->(shift) : undef;
     return $self->_maybe_compute_p($key, $expire, $compute, $data) if $expire < 0;
     return $self->_compute_p($key, $expire, $compute) unless $data;
@@ -39,13 +42,16 @@ sub memoize_p {
   my $expire = shift || $self->default_expire;
   my $key = join ':', '@M' => (ref($obj) || $obj), $method, Mojo::JSON::encode_json($args);
 
-  return $self->compute_p($key, $expire, sub { $obj->$method(@$args) });
+  Scalar::Util::weaken($obj) if ref $obj;
+  return $self->compute_p($key, $expire, sub { $obj && $args && $obj->$method(@$args) });
 }
 
 sub _compute_p {
   my ($self, $key, $expire, $compute) = @_;
 
+  Scalar::Util::weaken($self);
   my $set = sub {
+    return unless $self;
     my $data = shift;
     my @set
       = $expire < 0

@@ -111,11 +111,12 @@ sub _reconnect {
   my $self = shift;
   delete @$self{qw(connection db setup)};
 
+  Scalar::Util::weaken($self);
   my $delay = $self->reconnect_interval;
   return $self if $delay < 0 or $self->{reconnecting}++;
 
   warn qq([Mojo::Redis::PubSub] Reconnecting in ${delay}s...\n) if DEBUG;
-  Mojo::IOLoop->timer($delay => sub { $self->_listen });
+  Mojo::IOLoop->timer($delay => sub { $self && $self->_listen });
   return $self;
 }
 

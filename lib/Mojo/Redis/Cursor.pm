@@ -21,6 +21,7 @@ sub all {
   my $conn = $cb ? $self->connection : $self->redis->_blocking_connection;
   my @res;
 
+  Scalar::Util::weaken($self);
   # Blocking
   unless ($cb) {
     my $err;
@@ -34,12 +35,13 @@ sub all {
   # Non-blocking
   my $then;
   $then = sub {
+    return unless $self;
     push @res, @{$_[0]};
     return $self->$cb('', $self->{process}->($self, \@res)) if $self->{finished};
     return $self->_next_p($conn)->then($then);
   };
 
-  $self->_next_p($conn)->then($then)->catch(sub { $self->$cb($_[0], []) });
+  $self->_next_p($conn)->then($then)->catch(sub { $self && $self->$cb($_[0], []) });
   return $self;
 }
 
@@ -48,7 +50,9 @@ sub all_p {
   my $conn = $self->connection;
   my ($then, @res);
 
+  Scalar::Util::weaken($self);
   $then = sub {
+    return unless $self;
     push @res, @{$_[0]};
     return $self->{process}->($self, \@res) if $self->{finished};
     return $self->_next_p($conn)->then($then);
@@ -74,13 +78,15 @@ sub next {
   }
 
   # Non-blocking
-  $p->then(sub { $self->$cb('', $self->{process}->($self, shift)) })->catch(sub { $self->$cb(shift, undef) });
+  Scalar::Util::weaken($self);
+  $p->then(sub { $self && $self->$cb('', $self->{process}->($self, shift)) })->catch(sub { $self && $self->$cb(shift, undef) });
   return $self;
 }
 
 sub next_p {
   my $self = shift;
-  return $self->_next_p($self->connection)->then(sub { $self->{process}->($self, shift) });
+  Scalar::Util::weaken($self);
+  return $self->_next_p($self->connection)->then(sub { $self && $self->{process}->($self, shift) });
 }
 
 sub new {
@@ -108,8 +114,10 @@ sub _next_p {
   my ($self, $conn) = @_;
   return undef if $self->{finished};
 
+  Scalar::Util::weaken($self);
   my $cmd = $self->command;
   return $conn->write_p(@$cmd)->then(sub {
+    return unless $self;
     my $res = shift;
     $cmd->[$self->{cursor_pos_in_command}] = $res->[0] // 0;
     $self->{finished} = 1 unless $res->[0];

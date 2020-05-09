@@ -62,8 +62,9 @@ sub call {
   my $p    = $self->connection($cb ? 0 : 1)->write_p(@_);
 
   # Non-blocking
+  Scalar::Util::weaken($self);
   if ($cb) {
-    $p->then(sub { $self->$cb('', @_) })->catch(sub { $self->$cb(shift, undef) });
+    $p->then(sub { $self && $self->$cb('', @_) })->catch(sub { $self && $self->$cb(shift, undef) });
     return $self;
   }
 
@@ -140,12 +141,13 @@ sub _generate_bnb_method {
     my $cb   = ref $_[-1] eq 'CODE' ? pop : undef;
     my $self = shift;
 
+    Scalar::Util::weaken($self);
     my $p = $self->connection($cb ? 0 : 1)->write_p($op, @_);
-    $p = $p->then(sub { $self->$process(@_) }) if $process;
+    $p = $p->then(sub { $self && $self->$process(@_) }) if $process;
 
     # Non-blocking
     if ($cb) {
-      $p->then(sub { $self->$cb('', @_) })->catch(sub { $self->$cb(shift, undef) });
+      $p->then(sub { $self && $self->$cb('', @_) })->catch(sub { $self && $self->$cb(shift, undef) });
       return $self;
     }
 
