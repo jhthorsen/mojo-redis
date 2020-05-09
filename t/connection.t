@@ -1,18 +1,26 @@
 use Mojo::Base -strict;
 use Test::More;
 use Mojo::Redis;
+use Scalar::Util qw(weaken);
 
 plan skip_all => 'TEST_ONLINE=redis://localhost/8'      unless $ENV{TEST_ONLINE};
 plan skip_all => 'Need a database index in TEST_ONLINE' unless $ENV{TEST_ONLINE} =~ m!/\d+\b!;
+*memory_cycle_ok = eval 'require Test::Memory::Cycle;1' ? \&Test::Memory::Cycle::memory_cycle_ok : sub { };
 
 my $redis = Mojo::Redis->new($ENV{TEST_ONLINE});
 
 my $db   = $redis->db;
+memory_cycle_ok($redis, 'cycle ok for Mojo::Redis::Database');
 my $conn = $db->connection;
+memory_cycle_ok($redis, 'cycle ok for Mojo::Redis::Connection');
 isa_ok($db,   'Mojo::Redis::Database');
 isa_ok($conn, 'Mojo::Redis::Connection');
 
-$redis->on(connection => sub { $redis->{connections}++ });
+{
+my $redis_weak = $redis;
+Scalar::Util::weaken($redis_weak); # no create our own memory cycle
+$redis->on(connection => sub { $redis_weak->{connections}++ });
+}
 
 note 'Create one connection';
 my $connected = 0;
@@ -23,6 +31,7 @@ is $conn->_connect, $conn, '_connect()';
 Mojo::IOLoop->start;
 is $connected, 1, 'connected' or diag $err;
 is @{$redis->{queue} || []}, 0, 'zero connections in queue';
+memory_cycle_ok($conn, 'cycle ok after connection');
 
 note 'Put connection back into queue';
 undef $db;
@@ -43,6 +52,7 @@ note 'Take one connection out of the queue';
 $redis->db->connection->disconnect;
 undef $db;
 is @{$redis->{queue}}, 4, 'four connections in queue';
+memory_cycle_ok($redis, 'cycle ok after disconnect');
 
 note 'Write and auto-connect';
 my @res;
@@ -50,6 +60,7 @@ delete $redis->{queue};
 $db = $redis->db;
 $conn->write_p('PING')->then(sub { @res = @_; Mojo::IOLoop->stop })->wait;
 is_deeply \@res, ['PONG'], 'ping response';
+memory_cycle_ok($redis, 'cycle ok after write_p');
 
 note 'New connection, because disconnected';
 $conn = $db->connection;
@@ -57,6 +68,7 @@ $conn->disconnect;
 $db = $redis->db;
 $db->connection->write_p('PING')->wait;
 isnt $db->connection, $conn, 'new connection when disconnected';
+memory_cycle_ok($redis, 'cycle ok after reconnect');
 
 is $redis->{connections}++, 7, 'connections emitted';
 
@@ -113,6 +125,7 @@ $db->connection->on(close => sub { $closed++ });
 $redis->max_connections(0);
 undef $db;
 ok $closed, 'connection was closed on destruction';
+memory_cycle_ok($redis, 'cycle ok after shut connections');
 
 note 'New connection, because URL changed';
 use Socket;
@@ -123,6 +136,7 @@ $redis->url->host($host =~ /[a-z]/ ? inet_ntoa(inet_aton $host) : gethostbyaddr(
 note 'Changed host to ' . $redis->url->host;
 $db = undef;
 is @{$redis->{queue}}, 0, 'database was not enqued' or diag $err;
+memory_cycle_ok($redis, 'cycle ok after change URL');
 
 note 'Blocking connection';
 $db = $redis->db;

@@ -3,11 +3,13 @@ use Test::More;
 use Mojo::Redis;
 
 plan skip_all => 'TEST_ONLINE=redis://localhost' unless $ENV{TEST_ONLINE};
+*memory_cycle_ok = eval 'require Test::Memory::Cycle;1' ? \&Test::Memory::Cycle::memory_cycle_ok : sub { };
 
 my $redis      = Mojo::Redis->new($ENV{TEST_ONLINE});
 my $cache      = $redis->cache(namespace => $0);
 my $n_computed = 0;
 my $res;
+memory_cycle_ok($redis, 'cycle ok for Mojo::Redis::Cache');
 
 cleanup();
 
@@ -44,6 +46,7 @@ for my $i (1 .. 2) {
   $cache->compute_p('some:negative:key', -5.2, sub { $n_computed++; 'too cool' })->then(sub { $res = [@_] })->wait;
   is_deeply $res, ['too cool', $i == 1 ? {computed => 1} : {expired => 0}], 'compute_p with negative expire';
 }
+memory_cycle_ok($cache, 'cycle ok after processing');
 
 is $n_computed, 6, 'compute only called once per key';
 
@@ -66,6 +69,7 @@ note 'refreshed cache';
 $cache->compute_p('some:negative:key', -5.2, sub { $n_computed++; 'cool2' })->then(sub { $res = [@_] })
   ->catch(sub { $res = shift })->wait;
 is_deeply $res, ['cool2', {computed => 1, expired => 1}], 'compute_p expired data';
+memory_cycle_ok($cache, 'cycle ok after more processing');
 
 cleanup();
 done_testing;
