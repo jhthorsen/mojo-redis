@@ -21,8 +21,9 @@ Mojo::IOLoop->start;
 memory_cycle_ok($redis, 'cycle ok after listen');
 
 $pubsub->notify("rtest:$$:1" => 'message one');
-$db->publish_p("rtest:$$:2" => 'message two');
 memory_cycle_ok($redis, 'cycle ok after notify');
+$db->publish_p("rtest:$$:2" => 'message two');
+memory_cycle_ok($redis, 'cycle ok after publish_p');
 
 Mojo::IOLoop->start;
 is_deeply [sort @messages], ['message one', 'message two'], 'got messages' or diag join ", ", @messages;
