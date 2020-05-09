@@ -1,14 +1,21 @@
 language: perl
 sudo: false
-perl:
-  - "5.26"
-  - "5.20"
-  - "5.14"
-  - "5.10"
+matrix:
+  include:
+  - perl: "5.26"
+  - perl: "5.20"
+    dist: trusty
+  - perl: "5.14"
+    dist: trusty
+  - perl: "5.10"
+    dist: trusty
 services:
   - redis-server
 env:
-  - "HARNESS_OPTIONS=j3 TEST_ONLINE=redis://localhost TEST_POD=1"
+  global:
+    - HARNESS_OPTIONS=j3
+    - TEST_ONLINE=redis://localhost
+    - TEST_POD=1
 install:
   - "cpanm -n Test::Pod Test::Pod::Coverage"
   - "cpanm -n --installdeps ."
