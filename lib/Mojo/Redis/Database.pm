@@ -76,8 +76,7 @@ sub call {
 }
 
 sub call_p {
-  my $self = shift;
-  return $self->connection->write_p(@_)->then(sub { $self = undef; @_ });
+  shift->connection->write_p(@_);
 }
 
 sub exec { delete $_[0]->{txn}; shift->_exec(@_) }
