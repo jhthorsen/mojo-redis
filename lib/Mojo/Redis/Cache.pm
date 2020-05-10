@@ -15,7 +15,7 @@ has deserialize    => sub { \&Storable::thaw };
 has default_expire => 600;
 has namespace      => 'cache:mojo:redis';
 has refresh        => 0;
-has redis          => sub { Carp::confess('redis is required in constructor') };
+has redis          => sub { Carp::confess('redis is required in constructor') }, weak => 1;
 has serialize      => sub { \&Storable::freeze };
 
 sub compute_p {

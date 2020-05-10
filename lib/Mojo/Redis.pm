@@ -24,11 +24,7 @@ has protocol_class => do {
   $class;
 };
 
-has pubsub => sub {
-  my $pubsub = Mojo::Redis::PubSub->new(redis => $_[0]);
-  Scalar::Util::weaken($pubsub->{redis});
-  return $pubsub;
-};
+sub pubsub { Mojo::Redis::PubSub->new(redis => shift) }
 
 has url => sub { Mojo::URL->new($ENV{MOJO_REDIS_URL}) };
 

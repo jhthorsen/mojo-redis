@@ -6,7 +6,7 @@ use Carp qw(confess croak);
 has connection => sub { shift->redis->_dequeue };
 sub command  { $_[0]->{command} }
 sub finished { !!$_[0]->{finished} }
-has redis => sub { confess 'redis is required in constructor' };
+has redis => sub { confess 'redis is required in constructor' }, weak => 1;
 
 sub again {
   my $self = shift;

@@ -46,7 +46,7 @@ our @BASIC_COMMANDS = (
 
 our @BLOCKING_COMMANDS = ('blpop', 'brpop', 'brpoplpush', 'bzpopmax', 'bzpopmin');
 
-has redis => sub { Carp::confess('redis is required in constructor') };
+has redis => sub { Carp::confess('redis is required in constructor') }, weak => 1;
 
 __PACKAGE__->_add_method('bnb,p' => $_) for @BASIC_COMMANDS;
 __PACKAGE__->_add_method('nb,p'  => $_) for @BLOCKING_COMMANDS;

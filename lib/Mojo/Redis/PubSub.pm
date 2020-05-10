@@ -8,7 +8,7 @@ use constant DEBUG => $ENV{MOJO_REDIS_DEBUG};
 has connection => sub { shift->redis->_connection };
 has db         => sub { shift->redis->db };
 has reconnect_interval => 1;
-has redis              => sub { Carp::confess('redis is requried in constructor') };
+has redis              => sub { Carp::confess('redis is required in constructor') }, weak => 1;
 
 sub channels_p {
   shift->db->call_p(qw(PUBSUB CHANNELS), @_);
