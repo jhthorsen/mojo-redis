@@ -79,7 +79,14 @@ sub _connect {
       $stream->on(read  => $self->_on_read_cb);
 
       unshift @{$self->{write}}, [$self->_encode(SELECT => $url->path->[0])] if length $url->path->[0];
-      unshift @{$self->{write}}, [$self->_encode(AUTH   => $url->password)]  if length $url->password;
+
+      ## Redis 6 allows for AUTH <username> <password> for ACL usage, old syntax works still for main account
+      if( length $url->username && length $url->password ) {
+        unshift @{$self->{write}}, [$self->_encode(AUTH => $url->username => $url->password)];
+      } elsif (length $url->password ) {
+        unshift @{$self->{write}}, [$self->_encode(AUTH => $url->password)];
+      }
+
       $self->{pid}    = $$;
       $self->{stream} = $stream;
       $self->emit('connect');
@@ -128,7 +135,14 @@ sub _discover_master {
       $stream->on(read  => $self->_on_read_cb);
 
       $self->{stream} = $stream;
-      unshift @{$self->{write}}, [$self->_encode(AUTH => $url->password)] if length $url->password;
+
+      ## Redis 6 allows for AUTH <username> <password> for ACL usage, old syntax works still for main account
+      if( length $url->username && length $url->password ) {
+        unshift @{$self->{write}}, [$self->_encode(AUTH => $url->username => $url->password)];
+      } elsif (length $url->password ) {
+        unshift @{$self->{write}}, [$self->_encode(AUTH => $url->password)];
+      }
+
       $self->write_p(SENTINEL => 'get-master-addr-by-name' => $self->url->host)->then(sub {
         my $host_port = shift;
         delete $self->{id};
