@@ -1,9 +1,5 @@
 name: ci-ubuntu
-on:
-  push:
-    branches: [ master ]
-  pull_request:
-    branches: [ master ]
+on: [push, pull_request]
 jobs:
   perl:
     runs-on: ubuntu-latest
