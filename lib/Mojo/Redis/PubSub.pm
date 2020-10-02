@@ -6,7 +6,14 @@ use Mojo::JSON qw(from_json to_json);
 use constant DEBUG => $ENV{MOJO_REDIS_DEBUG};
 
 has connection => sub { shift->redis->_connection };
-has db         => sub { shift->redis->db };
+
+has db => sub {
+  my $self = shift;
+  my $db   = $self->redis->db;
+  Scalar::Util::weaken($db->{redis});
+  return $db;
+};
+
 has reconnect_interval => 1;
 has redis              => sub { Carp::confess('redis is requried in constructor') };
 
@@ -37,11 +44,13 @@ sub listen {
   return $cb;
 }
 
-sub notify {
+sub notify_p {
   my ($self, $name, $payload) = @_;
   $payload = to_json $payload if $self->{json}{$name};
   shift->db->call_p(PUBLISH => $name, $payload);
 }
+
+sub notify { shift->notify_p(@_)->wait }
 
 sub numsub_p {
   shift->db->call_p(qw(PUBSUB NUMSUB), @_)->then(sub { +{@{$_[0]}} });
@@ -291,7 +300,15 @@ can have. The returning code ref can be passed on to L</unlisten>.
 
   $pubsub->notify($channel => $message);
 
-Send a plain string message to a channel.
+Send a plain string message to a channel. This method is the same as:
+
+  $pubsub->notify_p($channel => $message)->wait;
+
+=head2 notify_p
+
+  $p = $pubsub->notify_p($channel => $message);
+
+Send a plain string message to a channel and returns a L<Mojo::Promise> object.
 
 =head2 numpat_p
 
