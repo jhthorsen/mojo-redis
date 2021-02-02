@@ -214,6 +214,7 @@ sub _parse_message_cb {
     };
 
     my ($err, $res) = $unpack->(@messages);
+    undef $unpack;
     my $p = shift @{$self->{waiting} || []};
     return $p ? $p->reject($err) : $self->emit(error => $err) unless $res;
     return $p ? $p->resolve($res->[0]) : $self->emit(response => $res->[0]);
