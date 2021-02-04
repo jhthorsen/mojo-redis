@@ -4,6 +4,7 @@ use Mojo::Base 'Mojo::EventEmitter';
 use File::Spec::Functions 'file_name_is_absolute';
 use Mojo::IOLoop;
 use Mojo::Promise;
+use Scalar::Util ();
 
 use constant DEBUG                     => $ENV{MOJO_REDIS_DEBUG};
 use constant CONNECT_TIMEOUT           => $ENV{MOJO_REDIS_CONNECT_TIMEOUT} || 10;
@@ -184,8 +185,8 @@ sub _parse_message_cb {
     my $encoding = $self->encoding;
     $self->_write;
 
-    my $unpack;
-    $unpack = sub {
+    my $weak_unpack;
+    my $unpack = $weak_unpack = sub {
       my @res;
 
       while (my $m = shift @_) {
@@ -196,7 +197,7 @@ sub _parse_message_cb {
           push @res, 0 + $m->{data};
         }
         elsif ($m->{type} eq '*' and ref $m->{data} eq 'ARRAY') {
-          my ($err, $res) = $unpack->(@{$m->{data}});
+          my ($err, $res) = $weak_unpack->(@{$m->{data}});
           return $err if defined $err;
           push @res, $res;
         }
@@ -212,6 +213,7 @@ sub _parse_message_cb {
 
       return undef, \@res;
     };
+    Scalar::Util::weaken($weak_unpack);
 
     my ($err, $res) = $unpack->(@messages);
     my $p = shift @{$self->{waiting} || []};
