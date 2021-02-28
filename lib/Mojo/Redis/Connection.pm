@@ -6,7 +6,7 @@ use Mojo::IOLoop;
 use Mojo::Promise;
 
 use constant DEBUG                     => $ENV{MOJO_REDIS_DEBUG};
-use constant CONNECT_TIMEOUT           => $ENV{MOJO_REDIS_CONNECT_TIMEOUT} || 10;
+use constant CONNECT_TIMEOUT           => $ENV{MOJO_REDIS_CONNECT_TIMEOUT}           || 10;
 use constant SENTINELS_CONNECT_TIMEOUT => $ENV{MOJO_REDIS_SENTINELS_CONNECT_TIMEOUT} || CONNECT_TIMEOUT;
 
 has encoding => sub { Carp::confess('encoding is required in constructor') };
@@ -158,7 +158,7 @@ sub _on_close_cb {
     delete $self->{$_} for qw(id stream);
     $self->{gone_away} = 1;
     $self->_reject_queue($err);
-    $self->emit('close') if @_ == 1;
+    $self->emit('close')                                             if @_ == 1;
     warn qq([@{[$self->_id]}] @{[$err ? "ERROR $err" : "CLOSED"]}\n) if $self and DEBUG;
   };
 }
@@ -214,7 +214,7 @@ sub _parse_message_cb {
 
     my ($err, $res) = $unpack->(@messages);
     my $p = shift @{$self->{waiting} || []};
-    return $p ? $p->reject($err) : $self->emit(error => $err) unless $res;
+    return $p ? $p->reject($err)       : $self->emit(error    => $err) unless $res;
     return $p ? $p->resolve($res->[0]) : $self->emit(response => $res->[0]);
   };
 }
