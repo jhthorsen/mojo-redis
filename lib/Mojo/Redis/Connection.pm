@@ -184,8 +184,7 @@ sub _parse_message_cb {
     my $encoding = $self->encoding;
     $self->_write;
 
-    my $unpack;
-    $unpack = sub {
+    my $unpack = sub {
       my @res;
 
       while (my $m = shift @_) {
@@ -196,7 +195,7 @@ sub _parse_message_cb {
           push @res, 0 + $m->{data};
         }
         elsif ($m->{type} eq '*' and ref $m->{data} eq 'ARRAY') {
-          my ($err, $res) = $unpack->(@{$m->{data}});
+          my ($err, $res) = __SUB__->(@{$m->{data}});
           return $err if defined $err;
           push @res, $res;
         }
