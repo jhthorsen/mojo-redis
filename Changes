@@ -1,6 +1,6 @@
 Revision history for perl distribution Mojo-Redis
 
-3.26 Not Released
+3.26 2021-03-01T09:01:51+0900
  - Avoid circular reference in redis response parser
    Contributor: Dan Book
 
