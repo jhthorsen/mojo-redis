@@ -143,9 +143,9 @@ integrate easily with the L<Mojolicious> framework.
 It tries to mimic the same interface as L<Mojo::Pg>, L<Mojo::mysql> and
 L<Mojo::SQLite>, but the methods for talking to the database vary.
 
-This module is in no way compatible with the 1.xx version of L<Mojo::Redis>
+This module is in no way compatible with the 1.xx version of C<Mojo::Redis>
 and this version also tries to fix a lot of the confusing methods in
-L<Mojo::Redis2> related to pubsub.
+C<Mojo::Redis2> related to pubsub.
 
 This module is currently EXPERIMENTAL, and bad design decisions will be fixed
 without warning. Please report at
@@ -249,9 +249,5 @@ Copyright (C) 2018, Jan Henning Thorsen.
 
 This program is free software, you can redistribute it and/or modify it under
 the terms of the Artistic License version 2.0.
-
-=head1 SEE ALSO
-
-L<Mojo::Redis2>.
 
 =cut
