@@ -105,8 +105,8 @@ sub _listen {
       return unless ref $res eq 'ARRAY' and @$res >= 3;
       my ($psub) = $res->[0] eq 'pmessage' ? splice @$res, 1, 1 : ();
       $res->[2] = eval { from_json $res->[2] } if $self->{json}{$res->[1]};
-      my $keyspace_listen = $self->{keyspace_listen}{$res->[1]};
-      for my $cb (@{$self->{chans}{$psub || $res->[1]}}) { $self->$cb($keyspace_listen ? [@$res[2, 3]] : $res->[2]) }
+      my $keyspace_listen = $self->{keyspace_listen}{$psub || $res->[1]};
+      for my $cb (@{$self->{chans}{$psub || $res->[1]}}) { $self->$cb($keyspace_listen ? [@$res[1, 2]] : $res->[2]) }
     }
   );
 
