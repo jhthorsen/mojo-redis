@@ -44,6 +44,20 @@ Mojo::IOLoop->timer(0.15 => sub { Mojo::IOLoop->stop });
 Mojo::IOLoop->start;
 is_deeply [sort @messages], ['message one', 'message two'], 'got messages' or diag join ", ", @messages;
 
+note 'test listen patterns';
+@messages = ();
+$pubsub->listen("rtest:$$:*" => \&gather);
+Mojo::IOLoop->timer(
+  0.2 => sub {
+    $pubsub->notify("rtest:$$:4" => 'message four');
+    $pubsub->notify("rtest:$$:5" => 'message five');
+  }
+);
+Mojo::IOLoop->start;
+
+is_deeply [sort @messages], ['message five', 'message four'], 'got messages' or diag join ", ", @messages;
+$pubsub->unlisten("rtest:$$:*");
+
 my $conn = $pubsub->connection;
 is @{$conn->subscribers('response')}, 1, 'only one message subscriber';
 
