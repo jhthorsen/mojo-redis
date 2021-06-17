@@ -13,6 +13,11 @@ my $pubsub = $redis->pubsub;
 my (@messages, @res);
 memory_cycle_ok($redis, 'cycle ok for Mojo::Redis::PubSub');
 
+my @events;
+$pubsub->on(error      => sub { shift; push @events, [error      => @_] });
+$pubsub->on(psubscribe => sub { shift; push @events, [psubscribe => @_] });
+$pubsub->on(subscribe  => sub { shift; push @events, [subscribe  => @_] });
+
 is ref($pubsub->listen("rtest:$$:1" => \&gather)), 'CODE', 'listen';
 $pubsub->listen("rtest:$$:2" => \&gather);
 note 'Waiting for subscriptions to be set up...';
@@ -35,7 +40,7 @@ is_deeply $res[0], {"rtest:$$:1" => 1}, 'numsub_p';
 $pubsub->numpat_p->then(sub { @res = @_ })->wait;
 is_deeply $res[0], 0, 'numpat_p';
 
-is $pubsub->unlisten("rtest:$$:1"), $pubsub, 'unlisten';
+is $pubsub->unlisten("rtest:$$:1", \&gather), $pubsub, 'unlisten';
 memory_cycle_ok($pubsub, 'cycle ok after unlisten');
 $db->publish_p("rtest:$$:1" => 'nobody is listening to this');
 
@@ -78,6 +83,8 @@ Mojo::IOLoop->timer(
 );
 Mojo::IOLoop->start;
 is_deeply \@messages, [{some => 'data'}, 'just a string'], 'got json messages';
+
+is_deeply [sort { $a cmp $b } map { $_->[0] } @events], [qw(psubscribe subscribe subscribe)], 'events';
 
 done_testing;
 
