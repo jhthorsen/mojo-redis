@@ -128,15 +128,26 @@ sub _discover_master {
       $stream->on(read  => $self->_on_read_cb);
 
       $self->{stream} = $stream;
-      unshift @{$self->{write}}, [$self->_encode(AUTH => $url->password)] if length $url->password;
-      $self->write_p(SENTINEL => 'get-master-addr-by-name' => $self->url->host)->then(sub {
-        my $host_port = shift;
-        delete $self->{id};
-        return $self->_discover_master unless ref $host_port and @$host_port == 2;
-        $self->{master_url} = $self->url->clone->host($host_port->[0])->port($host_port->[1]);
-        $self->{stream}->close;
-        $self->_connect;
-      })->catch(sub { $self->_discover_master });
+      my $p = Mojo::Promise->new;
+      unshift @{$self->{write}}, undef;    # prevent _write() from writing commands
+      unshift @{$self->{write}}, [$self->_encode(SENTINEL => 'get-master-addr-by-name', $self->url->host), $p];
+      unshift @{$self->{write}}, [$self->_encode(AUTH     => $url->password)] if length $url->password;
+
+      $self->{write_lock} = 1;
+      $p->then(
+        sub {
+          my $host_port = shift;
+          delete $self->{id};
+          delete $self->{write_lock};
+          return $self->_discover_master unless ref $host_port and @$host_port == 2;
+          $self->{master_url} = $self->url->clone->host($host_port->[0])->port($host_port->[1]);
+          $self->{stream}->close;
+          $self->_connect;
+        },
+        sub { $self->_discover_master },
+      );
+
+      $self->_write;
     }
   );
 
@@ -182,7 +193,7 @@ sub _parse_message_cb {
   return sub {
     my ($protocol, @messages) = @_;
     my $encoding = $self->encoding;
-    $self->_write;
+    $self->_write unless $self->{write_lock};
 
     my $unpack = sub {
       my @res;
