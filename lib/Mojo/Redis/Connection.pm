@@ -29,27 +29,19 @@ sub disconnect {
 
 sub is_connected { $_[0]->{stream} && !$_[0]->{gone_away} ? 1 : 0 }
 
-sub write_p {
+sub write {
   my $self = shift;
-  my $p    = Mojo::Promise->new->ioloop($self->ioloop);
-  $self->write_q(@_, $p);
+  push @{$self->{write}}, [$self->_encode(@_)];
   $self->is_connected ? $self->_write : $self->_connect;
-  return $p;
-}
-
-sub write_q {
-  my $p    = pop;
-  my $self = shift;
-  push @{$self->{write}}, [$self->_encode(@_), $p];
   return $self;
 }
 
-sub _encode {
-  my $self     = shift;
-  my $encoding = $self->encoding;
-  return $self->protocol->encode({
-    type => '*', data => [map { +{type => '$', data => $encoding ? Mojo::Util::encode($encoding, $_) : $_} } @_]
-  });
+sub write_p {
+  my $self = shift;
+  my $p    = Mojo::Promise->new->ioloop($self->ioloop);
+  push @{$self->{write}}, [$self->_encode(@_), $p];
+  $self->is_connected ? $self->_write : $self->_connect;
+  return $p;
 }
 
 sub _connect {
@@ -153,6 +145,14 @@ sub _discover_master {
 
   warn "[@{[$self->_id]}] SENTINEL DISCOVERY $url (blocking=@{[$self->_is_blocking]})\n" if DEBUG;
   return $self;
+}
+
+sub _encode {
+  my $self     = shift;
+  my $encoding = $self->encoding;
+  return $self->protocol->encode({
+    type => '*', data => [map { +{type => '$', data => $encoding ? Mojo::Util::encode($encoding, $_) : $_} } @_]
+  });
 }
 
 sub _id { $_[0]->{id} || '0' }
@@ -302,8 +302,7 @@ there's not a promise to handle the message.
 
   $cb = $conn->on(response => sub { my ($conn, $res) = @_; });
 
-Emitted if L</write_q> is not passed a L<Mojo::Promise> as the last argument,
-or if the Redis server emits a message that is not handled.
+Emitted when receiving a message from the Redis server.
 
 =head1 ATTRIBUTES
 
@@ -351,23 +350,21 @@ Used to disconnect from the Redis server.
 
 True if a connection to the Redis server is established.
 
+=head2 write
+
+  $conn = $conn->write(@command_and_args);
+
+Used to write a message to the redis server. Calling this method should result
+in either a L</error> or L</response> event.
+
+This is useful in the a
+
 =head2 write_p
 
-  $promise = $conn->write_p($command => @args);
+  $promise = $conn->write_p(@command_and_args);
 
 Will write a command to the Redis server and establish a connection if not
-already connected and returns a L<Mojo::Promise>. The arguments will be
-passed on to L</write_q>.
-
-=head2 write_q
-
-  $conn = $conn->write_q(@command => @args, Mojo::Promise->new);
-  $conn = $conn->write_q(@command => @args, undef);
-
-Will enqueue a Redis command and either resolve/reject the L<Mojo::Promise>
-or emit a L</error> or L</response> event when the Redis server responds.
-
-This method is EXPERIMENTAL and currently meant for internal use.
+already connected and returns a L<Mojo::Promise>.
 
 =head1 SEE ALSO
 
