@@ -1,4 +1,3 @@
-#!start included /usr/local/Cellar/perl/5.24.1/lib/perl5/5.24.1/ExtUtils/MANIFEST.SKIP
 # Avoid version control files.
 \bRCS\b
 \bCVS\b
@@ -66,5 +65,8 @@
 
 \.swp$
 ^local/
+^\.github
+^\.pls_cache
+^\.vstags
 ^MANIFEST\.SKIP
 ^README\.pod
