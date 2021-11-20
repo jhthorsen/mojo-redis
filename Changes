@@ -1,6 +1,6 @@
 Revision history for perl distribution Mojo-Redis
 
-3.27 Not Released
+3.27 2021-11-20T10:51:49+0900
  - Add experimental "subscribe" and "psubscribe" events to Mojo::Redis::PubSub
  - Fix examples for set and expire #62
  - Fix handling "psubscribe" response from Redis #63
