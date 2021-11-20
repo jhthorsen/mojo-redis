@@ -28,11 +28,8 @@ has db => sub {
 has reconnect_interval => 1;
 has redis              => sub { Carp::confess('redis is requried in constructor') };
 
-sub channels_p {
-  shift->db->call_p(qw(PUBSUB CHANNELS), @_);
-}
-
-sub json { ++$_[0]{json}{$_[1]} and return $_[0] }
+sub channels_p { shift->db->call_p(qw(PUBSUB CHANNELS), @_) }
+sub json       { ++$_[0]{json}{$_[1]} and return $_[0] }
 
 sub keyspace_listen {
   my ($self, $cb) = (shift, pop);
@@ -61,18 +58,12 @@ sub listen {
 sub notify_p {
   my ($self, $name, $payload) = @_;
   $payload = to_json $payload if $self->{json}{$name};
-  shift->db->call_p(PUBLISH => $name, $payload);
+  return $self->db->call_p(PUBLISH => $name, $payload);
 }
 
-sub notify { shift->notify_p(@_)->wait }
-
-sub numsub_p {
-  shift->db->call_p(qw(PUBSUB NUMSUB), @_)->then(sub { +{@{$_[0]}} });
-}
-
-sub numpat_p {
-  shift->db->call_p(qw(PUBSUB NUMPAT));
-}
+sub notify   { shift->notify_p(@_)->wait }
+sub numpat_p { shift->db->call_p(qw(PUBSUB NUMPAT)) }
+sub numsub_p { shift->db->call_p(qw(PUBSUB NUMSUB), @_)->then(\&_flatten) }
 
 sub unlisten {
   my ($self, $name, $cb) = @_;
@@ -87,6 +78,8 @@ sub unlisten {
 
   return $self;
 }
+
+sub _flatten { +{@{$_[0]}} }
 
 sub _keyspace_key {
   my $args = ref $_[-1] eq 'HASH' ? pop : {};
