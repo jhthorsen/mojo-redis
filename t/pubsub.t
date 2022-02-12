@@ -71,8 +71,10 @@ delete $redis->{pubsub};
 isnt $redis->db->connection, $conn, 'pubsub connection cannot be re-used';
 
 note 'test json data';
+my @json;
 @messages = ();
 $pubsub   = $redis->pubsub;
+$pubsub->on(json => sub { shift; push @json, [@_] });
 $pubsub->json("rtest:$$:1");
 $pubsub->listen("rtest:$$:1" => \&gather);
 Mojo::IOLoop->timer(
@@ -83,6 +85,7 @@ Mojo::IOLoop->timer(
 );
 Mojo::IOLoop->start;
 is_deeply \@messages, [{some => 'data'}, 'just a string'], 'got json messages';
+is_deeply \@json, [["rtest:$$:1", {some => 'data'}], ["rtest:$$:1", 'just a string']], 'got json events';
 
 is_deeply [sort { $a cmp $b } map { $_->[0] } @events], [qw(psubscribe subscribe subscribe)], 'events';
 
