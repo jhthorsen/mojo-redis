@@ -1,5 +1,6 @@
 use Mojo::Base -strict;
 use Test::More;
+use Mojo::JSON qw(encode_json);
 use Mojo::Redis;
 
 plan skip_all => 'TEST_ONLINE=redis://localhost' unless $ENV{TEST_ONLINE};
@@ -33,8 +34,7 @@ subtest notify => sub {
   $pubsub->notify("rtest:$$:1" => 'message one');
   $db->publish_p("rtest:$$:2" => 'message two')->wait;
   memory_cycle_ok($redis, 'cycle ok after notify');
-
-  is_deeply [sort @messages], ['message one', 'message two'], 'got messages' or diag join ", ", @messages;
+  has_messages("rtest:$$:1/message one", "rtest:$$:2/message two");
 };
 
 subtest channels => sub {
@@ -60,11 +60,10 @@ subtest unlisten => sub {
   note 'Making sure the last message is not received';
   Mojo::IOLoop->timer(0.15 => sub { Mojo::IOLoop->stop });
   Mojo::IOLoop->start;
-  is_deeply [sort @messages], ['message one', 'message two'], 'got messages' or diag join ", ", @messages;
+  has_messages();
 };
 
 subtest 'test listen patterns' => sub {
-  @messages = ();
   $pubsub->listen("rtest:$$:*" => \&gather);
   Mojo::IOLoop->timer(
     0.2 => sub {
@@ -74,7 +73,7 @@ subtest 'test listen patterns' => sub {
   );
   Mojo::IOLoop->start;
 
-  is_deeply [sort @messages], ['message five', 'message four'], 'got messages' or diag join ", ", @messages;
+  has_messages("rtest:$$:5/message five", "rtest:$$:4/message four");
   $pubsub->unlisten("rtest:$$:*");
 };
 
@@ -89,8 +88,7 @@ subtest connection => sub {
 
 subtest 'test json data' => sub {
   my @json;
-  @messages = ();
-  $pubsub   = $redis->pubsub;
+  $pubsub = $redis->pubsub;
   $pubsub->on(json => sub { shift; push @json, [@_] });
   $pubsub->json("rtest:$$:1");
   $pubsub->listen("rtest:$$:1" => \&gather);
@@ -101,7 +99,7 @@ subtest 'test json data' => sub {
     }
   );
   Mojo::IOLoop->start;
-  is_deeply \@messages, [{some => 'data'}, 'just a string'], 'got json messages';
+  has_messages(qq(rtest:$$:1/{"some":"data"}), "rtest:$$:1/just a string");
   is_deeply \@json, [["rtest:$$:1", {some => 'data'}], ["rtest:$$:1", 'just a string']], 'got json events';
 };
 
@@ -112,6 +110,12 @@ subtest events => sub {
 done_testing;
 
 sub gather {
-  push @messages, $_[1];
+  shift;
+  push @messages, join '/', map { ref $_ ? encode_json($_) : $_ } reverse @_;
   Mojo::IOLoop->stop if @messages == 2;
+}
+
+sub has_messages {
+  is_deeply [sort @messages], [sort @_], 'has messages' or diag explain \@messages;
+  @messages = ();
 }

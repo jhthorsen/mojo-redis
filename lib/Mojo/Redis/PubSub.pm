@@ -113,21 +113,22 @@ sub _on_response {
   my ($self, $conn, $res) = @_;
   $self->emit(reconnect => $conn) if delete $self->{reconnect};
 
+  # $res = [pmessage => $name, $channel, $data]
+  # $res = [message  =>        $channel, $data]
+
   return                    unless ref $res eq 'ARRAY';
   return $self->emit(@$res) unless $res->[0] =~ m!^p?message$!i;
 
-  my ($chan) = $res->[0] eq 'pmessage' ? splice @$res, 1, 1 : (undef);
-  $chan //= $res->[1];
-
   local $@;
-  my $keyspace_listen = $self->{keyspace_listen}{$chan};
+  my ($name)          = $res->[0] eq 'pmessage' ? splice @$res, 1, 1 : ($res->[1]);
+  my $keyspace_listen = $self->{keyspace_listen}{$name};
   my $emit_json       = !$keyspace_listen && $self->has_subscribers('json');
-  my $json            = $self->{json}{$chan} || $emit_json ? eval { from_json $res->[2] } : undef;
-  $self->emit(json => $chan => $json) if $emit_json;
+  my $json            = $self->{json}{$name} || $emit_json ? eval { from_json $res->[2] } : undef;
+  $self->emit(json => $res->[1] => $json) if $emit_json;
 
-  $res->[2] = $json if $self->{json}{$chan};
-  for my $cb (@{$self->{chans}{$chan}}) {
-    $self->$cb($keyspace_listen ? [@$res[1, 2]] : $res->[2]);
+  $res->[2] = $json if $self->{json}{$name};
+  for my $cb (@{$self->{chans}{$name} || []}) {
+    $self->$cb($keyspace_listen ? [@$res[1, 2]] : $res->[2], $res->[1]);
   }
 }
 
@@ -160,8 +161,8 @@ Mojo::Redis::PubSub - Publish and subscribe to Redis messages
   my $pubsub = $redis->pubsub;
 
   $pubsub->listen("user:superwoman:messages" => sub {
-    my ($pubsub, $message) = @_;
-    say "superwoman got a message: $message";
+    my ($pubsub, $message, $channel) = @_;
+    say "superwoman got a message '$message' from channel '$channel'";
   });
 
   $pubsub->notify("user:batboy:messages", "How are you doing?");
@@ -285,7 +286,7 @@ L<Mojo::JSON/"from_json"> for a channel.
 
   # Send and receive data structures
   $pubsub->json("foo")->listen(foo => sub {
-    my ($pubsub, $payload) = @_;
+    my ($pubsub, $payload, $channel) = @_;
     say $payload->{bar};
   });
   $pubsub->notify(foo => {bar => 'I ♥ Mojolicious!'});
@@ -334,10 +335,15 @@ keyspace events and what C<@args> can be.
 
 =head2 listen
 
-  $cb = $pubsub->listen($channel => sub { my ($pubsub, $message) = @_ });
+  $cb = $pubsub->listen($channel => sub { my ($pubsub, $message, $channel) = @_ });
 
-Subscribe to a channel, there is no limit on how many subscribers a channel
-can have. The returning code ref can be passed on to L</unlisten>.
+Subscribe to an exact channel name
+(L<SUBSCRIBE|https://redis.io/commands/subscribe>) or a channel name with a
+pattern (L<PSUBSCRIBE|https://redis.io/commands/psubscribe>). C<$channel> in
+the callback will be the exact channel name, without any pattern. C<$message>
+will be the data published to that the channel.
+
+The returning code ref can be passed on to L</unlisten>.
 
 =head2 notify
 

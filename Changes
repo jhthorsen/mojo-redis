@@ -2,6 +2,7 @@ Revision history for perl distribution Mojo-Redis
 
 3.28 Not Released
  - Add "json" event to Mojo::Redis::PubSub
+ - Add channel to Mojo::Redis::PubSub::listen() callback
 
 3.27 2021-11-20T10:51:49+0900
  - Add experimental "subscribe" and "psubscribe" events to Mojo::Redis::PubSub
