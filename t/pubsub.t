@@ -25,8 +25,7 @@ subtest events => sub {
   is ref($pubsub->listen("rtest:$$:1" => \&gather)), 'CODE', 'listen';
   $pubsub->listen("rtest:$$:2" => \&gather);
   note 'Waiting for subscriptions to be set up...';
-  Mojo::IOLoop->timer(0.15 => sub { Mojo::IOLoop->stop });
-  Mojo::IOLoop->start;
+  Mojo::Promise->timer(0.15)->wait;
   memory_cycle_ok($redis, 'cycle ok after listen');
 };
 
@@ -58,20 +57,17 @@ subtest unlisten => sub {
   $db->publish_p("rtest:$$:1" => 'nobody is listening to this');
 
   note 'Making sure the last message is not received';
-  Mojo::IOLoop->timer(0.15 => sub { Mojo::IOLoop->stop });
-  Mojo::IOLoop->start;
+  Mojo::Promise->timer(0.15)->wait;
   has_messages();
 };
 
 subtest 'test listen patterns' => sub {
   $pubsub->listen("rtest:$$:*" => \&gather);
-  Mojo::IOLoop->timer(
-    0.2 => sub {
-      $pubsub->notify("rtest:$$:4" => 'message four');
-      $pubsub->notify("rtest:$$:5" => 'message five');
-    }
-  );
-  Mojo::IOLoop->start;
+  Mojo::Promise->timer(0.1)->wait;
+
+  $pubsub->notify("rtest:$$:4" => 'message four');
+  $pubsub->notify("rtest:$$:5" => 'message five');
+  wait_for_messages(2);
 
   has_messages("rtest:$$:5/message five", "rtest:$$:4/message four");
   $pubsub->unlisten("rtest:$$:*");
@@ -87,20 +83,17 @@ subtest connection => sub {
 };
 
 subtest 'test json data' => sub {
-  my @json;
   $pubsub = $redis->pubsub;
-  $pubsub->on(json => sub { shift; push @json, [@_] });
-  $pubsub->json("rtest:$$:1");
+  my $err;
   $pubsub->listen("rtest:$$:1" => \&gather);
-  Mojo::IOLoop->timer(
-    0.2 => sub {
-      $pubsub->notify("rtest:$$:1" => {some => 'data'});
-      $pubsub->notify("rtest:$$:1" => 'just a string');
-    }
-  );
-  Mojo::IOLoop->start;
+  Mojo::Promise->timer(0.1)->wait;
+
+  $pubsub->json("rtest:$$:1");
+  $pubsub->notify("rtest:$$:1" => {some => 'data'});
+  $pubsub->notify("rtest:$$:1" => 'just a string');
+  wait_for_messages(2);
+
   has_messages(qq(rtest:$$:1/{"some":"data"}), "rtest:$$:1/just a string");
-  is_deeply \@json, [["rtest:$$:1", {some => 'data'}], ["rtest:$$:1", 'just a string']], 'got json events';
 };
 
 subtest events => sub {
@@ -112,10 +105,14 @@ done_testing;
 sub gather {
   shift;
   push @messages, join '/', map { ref $_ ? encode_json($_) : $_ } reverse @_;
-  Mojo::IOLoop->stop if @messages == 2;
 }
 
 sub has_messages {
   is_deeply [sort @messages], [sort @_], 'has messages' or diag explain \@messages;
   @messages = ();
+}
+
+sub wait_for_messages {
+  my $n = shift;
+  Mojo::IOLoop->one_tick until @messages <= $n;
 }

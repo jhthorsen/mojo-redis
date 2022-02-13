@@ -119,14 +119,11 @@ sub _on_response {
   return                    unless ref $res eq 'ARRAY';
   return $self->emit(@$res) unless $res->[0] =~ m!^p?message$!i;
 
-  local $@;
   my ($name)          = $res->[0] eq 'pmessage' ? splice @$res, 1, 1 : ($res->[1]);
   my $keyspace_listen = $self->{keyspace_listen}{$name};
-  my $emit_json       = !$keyspace_listen && $self->has_subscribers('json');
-  my $json            = $self->{json}{$name} || $emit_json ? eval { from_json $res->[2] } : undef;
-  $self->emit(json => $res->[1] => $json) if $emit_json;
 
-  $res->[2] = $json if $self->{json}{$name};
+  local $@;
+  $res->[2] = eval { from_json $res->[2] } if $self->{json}{$name};
   for my $cb (@{$self->{chans}{$name} || []}) {
     $self->$cb($keyspace_listen ? [@$res[1, 2]] : $res->[2], $res->[1]);
   }
@@ -198,15 +195,6 @@ or run other commands before it goes into subscribe mode.
   $pubsub->on(disconnect => sub { my ($pubsub, $conn) = @_; ... });
 
 Emitted after L</connection> is disconnected from the redis server.
-
-=head2 json
-
-  $pubsub->on(json => sub { my ($pubsub, $channel, $json) = @_; ... });
-
-Emitted when a message has been received. C<$json> is the JSON decoded content
-of the message, which might be C<undef> in the case of an invalid JSON message.
-
-Note that this event only gets emitted when it has at least one subscriber.
 
 =head2 psubscribe
 
