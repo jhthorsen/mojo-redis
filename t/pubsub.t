@@ -105,8 +105,18 @@ subtest 'json for all - best effort' => sub {
   $pubsub->notify_p("rtest:$$:1"  => '{"invalid"');
   $pubsub->notify("rtest:$$:42" => qq({"some":"data"}));
   wait_for_messages(3);
-
   has_messages(qq(rtest:$$:1/{"invalid"), qq(rtest:$$:42/{"invalid"), qq(rtest:$$:42/HASH/{"some":"data"}));
+
+  $pubsub->listen('*' => \&gather);
+  Mojo::Promise->timer(0.1)->wait;
+  $pubsub->notify("rtest:$$:wildcard" => '{"whatever":42}');
+  $pubsub->notify("rtest:$$:42"       => '{"answer":42}');
+  wait_for_messages(3);
+  has_messages(
+    qq(rtest:$$:wildcard/HASH/{"whatever":42}),
+    qq(rtest:$$:42/HASH/{"answer":42}),
+    qq(rtest:$$:42/HASH/{"answer":42}),
+  );
 };
 
 subtest events => sub {
@@ -127,5 +137,5 @@ sub has_messages {
 
 sub wait_for_messages {
   my $n = shift;
-  Mojo::IOLoop->one_tick until @messages <= $n;
+  Mojo::IOLoop->one_tick until @messages >= $n;
 }

@@ -124,7 +124,7 @@ sub _on_response {
 
   local $@;
   $res->[2] = eval { from_json $res->[2] } if $self->{json}{$name};
-  eval { $res->[2] = from_json $res->[2] } if $self->{json}{'*'};
+  eval { $res->[2] = from_json $res->[2] } if !ref $res->[2] and $self->{json}{'*'};
   for my $cb (@{$self->{chans}{$name} || []}) {
     $self->$cb($keyspace_listen ? [@$res[1, 2]] : $res->[2], $res->[1]);
   }
