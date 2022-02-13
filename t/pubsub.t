@@ -61,7 +61,7 @@ subtest unlisten => sub {
   has_messages();
 };
 
-subtest 'test listen patterns' => sub {
+subtest 'listen patterns' => sub {
   $pubsub->listen("rtest:$$:*" => \&gather);
   Mojo::Promise->timer(0.1)->wait;
 
@@ -82,18 +82,31 @@ subtest connection => sub {
   isnt $redis->db->connection, $conn, 'pubsub connection cannot be re-used';
 };
 
-subtest 'test json data' => sub {
+subtest 'json data' => sub {
   $pubsub = $redis->pubsub;
-  my $err;
   $pubsub->listen("rtest:$$:1" => \&gather);
   Mojo::Promise->timer(0.1)->wait;
 
+  $pubsub->notify_p("rtest:$$:1" => '{"invalid"');
   $pubsub->json("rtest:$$:1");
   $pubsub->notify("rtest:$$:1" => {some => 'data'});
   $pubsub->notify("rtest:$$:1" => 'just a string');
-  wait_for_messages(2);
+  wait_for_messages(3);
 
-  has_messages(qq(rtest:$$:1/{"some":"data"}), "rtest:$$:1/just a string");
+  has_messages("rtest:$$:1/undef", qq(rtest:$$:1/HASH/{"some":"data"}), "rtest:$$:1/just a string");
+};
+
+subtest 'json for all - best effort' => sub {
+  $pubsub = $redis->pubsub;
+  $pubsub->json('*')->listen("rtest:$$:42" => \&gather);
+  Mojo::Promise->timer(0.1)->wait;
+
+  $pubsub->notify_p("rtest:$$:42" => '{"invalid"');
+  $pubsub->notify_p("rtest:$$:1"  => '{"invalid"');
+  $pubsub->notify("rtest:$$:42" => qq({"some":"data"}));
+  wait_for_messages(3);
+
+  has_messages(qq(rtest:$$:1/{"invalid"), qq(rtest:$$:42/{"invalid"), qq(rtest:$$:42/HASH/{"some":"data"}));
 };
 
 subtest events => sub {
@@ -104,7 +117,7 @@ done_testing;
 
 sub gather {
   shift;
-  push @messages, join '/', map { ref $_ ? encode_json($_) : $_ } reverse @_;
+  push @messages, join '/', map { !defined ? 'undef' : ref ? (ref, encode_json($_)) : $_ } reverse @_;
 }
 
 sub has_messages {

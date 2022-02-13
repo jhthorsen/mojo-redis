@@ -124,6 +124,7 @@ sub _on_response {
 
   local $@;
   $res->[2] = eval { from_json $res->[2] } if $self->{json}{$name};
+  eval { $res->[2] = from_json $res->[2] } if $self->{json}{'*'};
   for my $cb (@{$self->{chans}{$name} || []}) {
     $self->$cb($keyspace_listen ? [@$res[1, 2]] : $res->[2], $res->[1]);
   }
@@ -278,6 +279,14 @@ L<Mojo::JSON/"from_json"> for a channel.
     say $payload->{bar};
   });
   $pubsub->notify(foo => {bar => 'I ♥ Mojolicious!'});
+
+It is also possible to activate "best effort" JSON decoding for I<all> channels
+by passing in "*". "Best effort" means that any string that is not successfully
+decoded as JSON will be passed through as received.
+
+  $pubsub = $pubsub->json("*");
+
+Note that this feature is currently EXPERIMENTAL.
 
 =head2 keyspace_listen
 
