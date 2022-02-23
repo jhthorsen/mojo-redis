@@ -104,7 +104,7 @@ done_testing;
 
 sub gather {
   shift;
-  push @messages, join '/', map { !defined ? 'undef' : ref ? (ref, encode_json($_)) : $_ } reverse @_;
+  push @messages, join '/', map { !defined($_) ? 'undef' : ref($_) ? (ref($_), encode_json($_)) : $_ } reverse @_;
 }
 
 sub has_messages {

@@ -1,5 +1,8 @@
 Revision history for perl distribution Mojo-Redis
 
+3.29 Not Released
+ - Fix use of "defined" in unit test
+
 3.28 2022-02-21T15:40:56+0900
  - Add channel to Mojo::Redis::PubSub::listen() callback
 
