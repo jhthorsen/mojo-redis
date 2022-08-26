@@ -71,7 +71,8 @@ sub _connect {
       $stream->on(read  => $self->_on_read_cb);
 
       unshift @{$self->{write}}, [$self->_encode(SELECT => $url->path->[0])] if length $url->path->[0];
-      unshift @{$self->{write}}, [$self->_encode(AUTH   => $url->password)]  if length $url->password;
+      unshift @{$self->{write}}, [$self->_encode(AUTH   => $url->password)]  if length $url->password && !length $url->username;
+      unshift @{$self->{write}}, [$self->_encode(AUTH   => ($url->username,$url->password))]  if length $url->password && length $url->username;
       $self->{pid}    = $$;
       $self->{stream} = $stream;
       $self->emit('connect');
@@ -123,7 +124,8 @@ sub _discover_master {
       my $p = Mojo::Promise->new;
       unshift @{$self->{write}}, undef;    # prevent _write() from writing commands
       unshift @{$self->{write}}, [$self->_encode(SENTINEL => 'get-master-addr-by-name', $self->url->host), $p];
-      unshift @{$self->{write}}, [$self->_encode(AUTH     => $url->password)] if length $url->password;
+      unshift @{$self->{write}}, [$self->_encode(AUTH     => $url->password)] if length $url->password && !length $url->username;
+      unshift @{$self->{write}}, [$self->_encode(AUTH     => ($url->username,$url->password))] if length $url->password && length $url->username;
 
       $self->{write_lock} = 1;
       $p->then(
