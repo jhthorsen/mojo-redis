@@ -35,4 +35,4 @@ jobs:
         run: prove -l t/*.t
         env:
           HARNESS_OPTIONS: j4
-          TEST_ONLINE: "redis://127.0.0.1:${{steps.setup.outputs.redis-port}}"
+          TEST_ONLINE: "redis://localhost:${{steps.setup.outputs.redis-port}}"
