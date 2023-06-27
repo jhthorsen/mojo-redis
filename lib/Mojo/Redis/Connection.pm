@@ -120,7 +120,7 @@ sub _discover_master {
       $stream->on(read  => $self->_on_read_cb);
 
       $self->{stream} = $stream;
-      my $p = Mojo::Promise->new;
+      my $p = Mojo::Promise->new->ioloop($self->ioloop);
       unshift @{$self->{write}}, undef;    # prevent _write() from writing commands
       unshift @{$self->{write}}, [$self->_encode(SENTINEL => 'get-master-addr-by-name', $self->url->host), $p];
       unshift @{$self->{write}}, [$self->_encode(AUTH     => $url->password)] if length $url->password;
