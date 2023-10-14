@@ -32,6 +32,11 @@ has pubsub => sub {
 };
 
 has url => sub { Mojo::URL->new($ENV{MOJO_REDIS_URL}) };
+has 'tls';
+has 'tls_ca';
+has 'tls_cert';
+has 'tls_key';
+has 'tls_options';
 
 sub cache  { Mojo::Redis::Cache->new(redis => shift, @_) }
 sub cursor { Mojo::Redis::Cursor->new(redis => shift, command => [@_ ? @_ : (scan => 0)]) }
@@ -55,6 +60,11 @@ sub _connection {
     url      => $self->url->clone,
     %args
   );
+  $conn->{tls} = $self->{tls} if defined $self->{tls};
+  $conn->{tls_ca} = $self->{tls_ca} if defined $self->{tls_ca};
+  $conn->{tls_cert} = $self->{tls_cert} if defined $self->{tls_cert};
+  $conn->{tls_key} = $self->{tls_key} if defined $self->{tls_key};
+  $conn->{tls_options} = $self->{tls_options} if defined $self->{tls_options};
 
   Scalar::Util::weaken($self);
   $conn->on(connect => sub { $self->emit(connection => $_[0]) });
