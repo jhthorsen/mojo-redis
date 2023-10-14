@@ -1,6 +1,7 @@
 package Mojo::Redis::PubSub;
 use Mojo::Base 'Mojo::EventEmitter';
 
+use Carp       ();
 use Mojo::JSON qw(from_json to_json);
 
 use constant DEBUG => $ENV{MOJO_REDIS_DEBUG};
@@ -44,14 +45,25 @@ sub keyspace_unlisten {
 }
 
 sub listen {
-  my ($self, $name, $cb) = @_;
+  my ($self, $cb) = (shift, pop);
+  my $names;
 
-  unless (@{$self->{chans}{$name} ||= []}) {
-    Mojo::IOLoop->remove(delete $self->{reconnect_tid}) if $self->{reconnect_tid};
-    $self->_write([($name =~ /\*/ ? 'PSUBSCRIBE' : 'SUBSCRIBE') => $name]);
+  for my $chan_name (@_) {
+    my $type = $chan_name =~ m/(?<!\\)(?:\*|\?|\[.+?\])/ ? 'pmsg' : 'msg';
+
+    push @{$names->{$type}}, $chan_name unless %{$self->{chans}{$chan_name} ||= {}};
+
+    $self->{chans}{$chan_name}{type} = $type;
+    push @{$self->{chans}{$chan_name}{cb}}, $cb;
   }
 
-  push @{$self->{chans}{$name}}, $cb;
+  my $cmds = $self->_gen_commands($names);
+
+  if ($cmds && @$cmds) {
+    Mojo::IOLoop->remove(delete $self->{reconnect_tid}) if $self->{reconnect_tid};
+    $self->_write(@$cmds);
+  }
+
   return $cb;
 }
 
@@ -66,20 +78,40 @@ sub numpat_p { shift->db->call_p(qw(PUBSUB NUMPAT)) }
 sub numsub_p { shift->db->call_p(qw(PUBSUB NUMSUB), @_)->then(\&_flatten) }
 
 sub unlisten {
-  my ($self, $name, $cb) = @_;
-  my $chans = $self->{chans}{$name};
+  my ($self, $cb) = (shift, ref $_[-1] eq 'CODE' ? pop : undef);
+  my $names;
 
-  @$chans = $cb ? grep { $cb ne $_ } @$chans : ();
-  unless (@$chans) {
+  for my $chan_name (@_) {
+    next unless $chan_name && $self->{chans}{$chan_name};
+    $self->{chans}{$chan_name}{cb} = $cb ? [grep { $cb ne $_ } @{$self->{chans}{$chan_name}{cb}}] : [];
+
+    unless (@{$self->{chans}{$chan_name}{cb}}) {
+      push @{$names->{$self->{chans}{$chan_name}{type}}}, $chan_name if $self->{chans}{$chan_name}{type};
+      delete $self->{chans}{$chan_name};
+    }
+  }
+
+  my $cmds = $self->_gen_commands($names, 'unlisten');
+
+  if ($cmds && @$cmds) {
     my $conn = $self->connection;
-    $conn->write(($name =~ /\*/ ? 'PUNSUBSCRIBE' : 'UNSUBSCRIBE'), $name) if $conn->is_connected;
-    delete $self->{chans}{$name};
+    $self->_write(@$cmds) if $conn->is_connected;
   }
 
   return $self;
 }
 
 sub _flatten { +{@{$_[0]}} }
+
+sub _gen_commands {
+  my ($self, $chans, $unflag) = @_;
+  my $cmds;
+
+  push @{$cmds}, [($unflag ? 'PUNSUBSCRIBE' : 'PSUBSCRIBE') => (@{$chans->{pmsg}})] if @{$chans->{pmsg} ||= []};
+  push @{$cmds}, [($unflag ? 'UNSUBSCRIBE'  : 'SUBSCRIBE')  => (@{$chans->{msg}})]  if @{$chans->{msg}  ||= []};
+
+  return $cmds;
+}
 
 sub _keyspace_key {
   my $args = ref $_[-1] eq 'HASH' ? pop : {};
@@ -124,15 +156,24 @@ sub _on_response {
 
   local $@;
   $res->[2] = eval { from_json $res->[2] } if $self->{json}{$name};
-  for my $cb (@{$self->{chans}{$name} || []}) {
+  for my $cb (@{$self->{chans}{$name}{cb} || []}) {
     $self->$cb($keyspace_listen ? [@$res[1, 2]] : $res->[2], $res->[1]);
   }
 }
 
 sub _reconnect {
   my $self = shift;
+  my $names;
+
   delete $self->{$_} for qw(before_connect connection reconnect_tid);
-  $self->_write(map { [(/\*/ ? 'PSUBSCRIBE' : 'SUBSCRIBE') => $_] } keys %{$self->{chans}});
+
+  for my $chan_name (keys %{$self->{chans}}) {
+    push @{$names->{$self->{chans}{$chan_name}{type}}}, $chan_name;
+  }
+
+  my $cmds = $self->_gen_commands($names);
+
+  $self->_write(@$cmds) if @$cmds;
 }
 
 sub _write {
@@ -292,7 +333,7 @@ these:
   __keyspace@${db}__:$key $op
   __keyevent@${db}__:$op $key
 
-This means that "key" and "op" is mutually exclusive from the list of
+This means that "key" and "op" are mutually exclusive from the list of
 parameters below:
 
 =over 2
@@ -324,12 +365,17 @@ keyspace events and what C<@args> can be.
 =head2 listen
 
   $cb = $pubsub->listen($channel => sub { my ($pubsub, $message, $channel) = @_ });
+  $cb = $pubsub->listen($channel_one, [$channel_two ...], sub { my ($pubsub, $message, $channel) = @_ } );
 
-Subscribe to an exact channel name
-(L<SUBSCRIBE|https://redis.io/commands/subscribe>) or a channel name with a
-pattern (L<PSUBSCRIBE|https://redis.io/commands/psubscribe>). C<$channel> in
-the callback will be the exact channel name, without any pattern. C<$message>
+Subscribe to an exact channel name or multiple channels simultaneously
+(L<SUBSCRIBE|https://redis.io/commands/subscribe>).  Alternatively a channel name or
+multiple channel names with a pattern (L<PSUBSCRIBE|https://redis.io/commands/psubscribe>).
+C<$channel> in the callback will be the exact channel name, without any pattern. C<$message>
 will be the data published to that the channel.
+
+Patterned named and exact named channels can be intermixed freely.  For example:
+
+  $cb = $pubsub->listen('user:bat:girl', 'user:spider:*', 'user:super:???', sub { my ($pubsub, $message, $channel) = @_ } );
 
 The returning code ref can be passed on to L</unlisten>.
 
@@ -349,7 +395,7 @@ Send a plain string message to a channel and returns a L<Mojo::Promise> object.
 
 =head2 numpat_p
 
-  $promise = $pubsub->channels_p->then(sub { my $int = shift });
+  $promise = $pubsub->numpat_p->then(sub { my $int = shift });
 
 Returns the number of subscriptions to patterns (that are performed using the
 PSUBSCRIBE command). Note that this is not just the count of clients
@@ -366,10 +412,12 @@ channel names.
 
 =head2 unlisten
 
-  $pubsub = $pubsub->unlisten($channel);
-  $pubsub = $pubsub->unlisten($channel, $cb);
+  $pubsub = $pubsub->unlisten($channel, [$channel ...]);
+  $pubsub = $pubsub->unlisten($channel, [$channel ...], $cb);
 
-Unsubscribe from a channel.
+Unsubscribe from a channel or list of channels.  Supplying a callback is useful if
+there are multiple callbacks attached to a single channel or group of channels but
+only a specific callback needs to be removed.
 
 =head1 SEE ALSO
 
