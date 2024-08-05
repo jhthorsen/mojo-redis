@@ -13,6 +13,11 @@ has encoding => sub { Carp::confess('encoding is required in constructor') };
 has ioloop   => sub { Carp::confess('ioloop is required in constructor') };
 has protocol => sub { Carp::confess('protocol is required in constructor') };
 has url      => sub { Carp::confess('url is required in constructor') };
+has 'tls';
+has 'tls_ca';
+has 'tls_cert';
+has 'tls_key';
+has 'tls_options';
 
 sub DESTROY {
   my $self = shift;
@@ -95,6 +100,11 @@ sub _connect_args {
   }
 
   $args{timeout} = $defaults->{timeout} || CONNECT_TIMEOUT;
+  $args{tls} = $self->{tls} if defined $self->{tls};
+  $args{tls_ca} = $self->{tls_ca} if defined $self->{tls_ca};
+  $args{tls_cert} = $self->{tls_cert} if defined $self->{tls_cert};
+  $args{tls_key} = $self->{tls_key} if defined $self->{tls_key};
+  $args{tls_options} = $self->{tls_options} if defined $self->{tls_options};
   return \%args;
 }
 
